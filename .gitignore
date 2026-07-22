@@ -41,3 +41,12 @@ example
 # generated native folders
 /ios
 /android
+
+# build / debug logs
+*.log
+
+# local backups (old code snapshots, not project source)
+backups/
+
+# assistant workspace data (not project code)
+.workbuddy/

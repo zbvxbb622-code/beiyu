@@ -1,18 +1,64 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import '../global.css';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { DarkTheme, ThemeProvider } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+
 import AppTabs from '@/components/app-tabs';
+import { WelcomeScreen } from '@/components/mixology/WelcomeScreen';
+import { MixologyProvider, useMixology } from '@/state/MixologyState';
+import { colors } from '@/styles/mixologyTheme';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+function RootContent() {
+  const { isHydrated, localState } = useMixology();
+
+  useEffect(() => {
+    if (isHydrated) {
+      SplashScreen.hideAsync();
+    }
+  }, [isHydrated]);
+
+  if (!isHydrated) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={colors.pink} />
+        <Text style={styles.loadingText}>正在读取本地隐私设置</Text>
+      </View>
+    );
+  }
+
+  if (!localState.ageVerified) {
+    return <WelcomeScreen />;
+  }
+
+  return <AppTabs />;
+}
+
+export default function RootLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
+    <ThemeProvider value={DarkTheme}>
+      <StatusBar style="light" />
+      <MixologyProvider>
+        <RootContent />
+      </MixologyProvider>
     </ThemeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bg,
+  },
+  loadingText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    marginTop: 12,
+  },
+});
