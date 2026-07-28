@@ -5,7 +5,8 @@
 - Repository: https://github.com/fastapi/full-stack-fastapi-template
 - Inspected commit: `c9e70d65c74f7adda417fc8de0757207ff77514c`
 - Borrowed structural categories: Python project and dependency-tooling layout,
-  FastAPI ASGI entrypoint and router-composition organization, and pytest
+  FastAPI ASGI entrypoint and router-composition organization, Alembic
+  single-database environment and revision-template wiring, and pytest
   `TestClient` fixture layout.
 
 No upstream application code or business logic was copied.
