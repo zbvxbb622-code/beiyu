@@ -38,6 +38,7 @@ docker compose up --build
 - Development: `localhost:5432/beiyu`
 - Tests: `localhost:5433/beiyu_test`
 
+The API and both database ports are published on `127.0.0.1` only.
 The test instance is intentionally separate. Its migration smoke test upgrades
 to the current revision and downgrades back to base.
 
@@ -55,6 +56,15 @@ Copy `.env.example` to `.env` for development. The supported values for
 Do not commit `.env` files or real secrets. `BEIYU_DATABASE_URL` must use a
 PostgreSQL URL such as
 `postgresql+psycopg://beiyu:beiyu@localhost:5432/beiyu` for local development.
+It is reserved for commands running on the host.
+
+The containerized API receives `BEIYU_COMPOSE_DATABASE_URL` as its
+`BEIYU_DATABASE_URL`. Its development placeholder uses Compose service hostname
+`db` on port `5432`, because `localhost` inside the API container refers to the
+API container itself. If you override the Compose database name, user, or
+password, update `BEIYU_COMPOSE_DATABASE_URL` and the matching
+`BEIYU_COMPOSE_POSTGRES_*` values together. All example credentials are local
+development placeholders only.
 
 ## Commands
 
@@ -102,7 +112,7 @@ cd backend
 BEIYU_ENVIRONMENT=dev \
 BEIYU_DATABASE_URL=postgresql+psycopg://beiyu@localhost:5433/beiyu_test \
 BEIYU_SECRET_KEY=change-me \
-uv run python -c 'import json; from pathlib import Path; from app.main import app; Path("openapi.json").write_text(json.dumps(app.openapi(), ensure_ascii=True, indent=2, sort_keys=True) + "\\n")'
+uv run python scripts/generate_openapi.py
 ```
 
 The Stage 0 snapshot contains only `/api/v1`, `/health/live`, and

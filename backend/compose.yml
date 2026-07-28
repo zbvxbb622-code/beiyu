@@ -2,11 +2,11 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_DB: ${BEIYU_POSTGRES_DB:-beiyu}
-      POSTGRES_USER: ${BEIYU_POSTGRES_USER:-beiyu}
-      POSTGRES_PASSWORD: ${BEIYU_POSTGRES_PASSWORD:-beiyu}
+      POSTGRES_DB: ${BEIYU_COMPOSE_POSTGRES_DB:-beiyu}
+      POSTGRES_USER: ${BEIYU_COMPOSE_POSTGRES_USER:-beiyu}
+      POSTGRES_PASSWORD: ${BEIYU_COMPOSE_POSTGRES_PASSWORD:-beiyu}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - beiyu-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -20,10 +20,10 @@ services:
     image: postgres:16
     environment:
       POSTGRES_DB: beiyu_test
-      POSTGRES_USER: ${BEIYU_TEST_POSTGRES_USER:-beiyu}
-      POSTGRES_PASSWORD: ${BEIYU_TEST_POSTGRES_PASSWORD:-beiyu}
+      POSTGRES_USER: ${BEIYU_COMPOSE_TEST_POSTGRES_USER:-beiyu}
+      POSTGRES_PASSWORD: ${BEIYU_COMPOSE_TEST_POSTGRES_PASSWORD:-beiyu}
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - beiyu-test-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -39,13 +39,13 @@ services:
       dockerfile: Dockerfile
     environment:
       BEIYU_ENVIRONMENT: ${BEIYU_ENVIRONMENT:-dev}
-      BEIYU_DATABASE_URL: ${BEIYU_DATABASE_URL:-postgresql+psycopg://beiyu:beiyu@db:5432/beiyu}
+      BEIYU_DATABASE_URL: ${BEIYU_COMPOSE_DATABASE_URL:-postgresql+psycopg://beiyu:beiyu@db:5432/beiyu}
       BEIYU_SECRET_KEY: ${BEIYU_SECRET_KEY:-change-me}
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
 
 volumes:
   beiyu-postgres-data:

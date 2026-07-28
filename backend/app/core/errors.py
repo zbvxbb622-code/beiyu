@@ -4,7 +4,18 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
+
+
+class ErrorPayload(BaseModel):
+    code: str
+    message: str
+    details: dict[str, Any]
+
+
+class ErrorEnvelope(BaseModel):
+    error: ErrorPayload
 
 
 class AppError(Exception):
@@ -29,16 +40,17 @@ def error_response(
     details: dict[str, Any] | None = None,
     headers: Mapping[str, str] | None = None,
 ) -> JSONResponse:
+    envelope = ErrorEnvelope(
+        error=ErrorPayload(
+            code=code,
+            message=message,
+            details=details or {},
+        )
+    )
     return JSONResponse(
         status_code=status_code,
         headers=headers,
-        content={
-            "error": {
-                "code": code,
-                "message": message,
-                "details": details or {},
-            }
-        },
+        content=envelope.model_dump(),
     )
 
 
