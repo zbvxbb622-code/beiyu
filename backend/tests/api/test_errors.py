@@ -1,4 +1,4 @@
-from fastapi import Query
+from fastapi import HTTPException, Query
 from starlette.testclient import TestClient
 
 from app.core.errors import AppError
@@ -18,6 +18,11 @@ def validate_query(limit: int = Query()) -> dict[str, int]:
 @app.get("/_test/errors/unhandled")
 def raise_unhandled_error() -> None:
     raise RuntimeError("database connection details")
+
+
+@app.get("/_test/errors/http-exception")
+def raise_http_exception() -> None:
+    raise HTTPException(status_code=418, detail="teapot")
 
 
 def test_app_error_uses_the_stable_error_envelope(client: TestClient) -> None:
@@ -56,6 +61,34 @@ def test_unhandled_errors_do_not_expose_internal_details() -> None:
         "error": {
             "code": "INTERNAL_ERROR",
             "message": "服务器内部错误",
+            "details": {},
+        }
+    }
+
+
+def test_missing_route_uses_the_stable_error_envelope(client: TestClient) -> None:
+    response = client.get("/missing")
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "error": {
+            "code": "NOT_FOUND",
+            "message": "资源不存在",
+            "details": {},
+        }
+    }
+
+
+def test_raised_http_exception_does_not_expose_its_detail(
+    client: TestClient,
+) -> None:
+    response = client.get("/_test/errors/http-exception")
+
+    assert response.status_code == 418
+    assert response.json() == {
+        "error": {
+            "code": "HTTP_ERROR",
+            "message": "请求失败",
             "details": {},
         }
     }

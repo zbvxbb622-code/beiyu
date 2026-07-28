@@ -3,6 +3,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
 class AppError(Exception):
@@ -59,6 +60,17 @@ async def handle_request_validation_error(
     )
 
 
+async def handle_http_exception(_: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, StarletteHTTPException)
+    if exc.status_code == 404:
+        code = "NOT_FOUND"
+        message = "资源不存在"
+    else:
+        code = "HTTP_ERROR"
+        message = "请求失败"
+    return error_response(code=code, message=message, status_code=exc.status_code)
+
+
 async def handle_unhandled_error(_: Request, __: Exception) -> JSONResponse:
     return error_response(
         code="INTERNAL_ERROR",
@@ -70,4 +82,5 @@ async def handle_unhandled_error(_: Request, __: Exception) -> JSONResponse:
 def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(AppError, handle_app_error)
     app.add_exception_handler(RequestValidationError, handle_request_validation_error)
+    app.add_exception_handler(StarletteHTTPException, handle_http_exception)
     app.add_exception_handler(Exception, handle_unhandled_error)
