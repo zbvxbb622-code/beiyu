@@ -90,3 +90,21 @@ make migrate
 
 The API namespace is `/api/v1`; liveness and readiness remain unversioned for
 operational tooling.
+
+## OpenAPI Contract Snapshot
+
+`openapi.json` is the committed Stage 0 contract snapshot for frontend review.
+Regenerate it from the running application schema after an intentional public
+API change, then review its diff before committing:
+
+```bash
+cd backend
+BEIYU_ENVIRONMENT=dev \
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu@localhost:5433/beiyu_test \
+BEIYU_SECRET_KEY=change-me \
+uv run python -c 'import json; from pathlib import Path; from app.main import app; Path("openapi.json").write_text(json.dumps(app.openapi(), ensure_ascii=True, indent=2, sort_keys=True) + "\\n")'
+```
+
+The Stage 0 snapshot contains only `/api/v1`, `/health/live`, and
+`/health/ready`. Review it for unexpected paths and for accidental exposure of
+configuration, secrets, or internal error details.
