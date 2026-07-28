@@ -1,0 +1,50 @@
+name: Backend CI
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      BEIYU_ENVIRONMENT: dev
+      BEIYU_DATABASE_URL: postgresql+psycopg://beiyu:beiyu@localhost:5432/beiyu_test
+      BEIYU_SECRET_KEY: change-me
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: beiyu_test
+          POSTGRES_USER: beiyu
+          POSTGRES_PASSWORD: beiyu
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U beiyu -d beiyu_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: uv run alembic upgrade head
+      - run: uv run ruff check .
+      - run: uv run ty check
+      - run: uv run pytest --ignore=tests/migrations
+      # Keep the upgrade/downgrade smoke test last so it cannot reset schema
+      # state needed by later tests.
+      - run: uv run pytest tests/migrations/test_migrations.py
