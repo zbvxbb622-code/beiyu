@@ -25,6 +25,15 @@ def raise_http_exception() -> None:
     raise HTTPException(status_code=418, detail="teapot")
 
 
+@app.get("/_test/errors/http-exception-with-header")
+def raise_http_exception_with_header() -> None:
+    raise HTTPException(
+        status_code=401,
+        detail="credentials required",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
 def test_app_error_uses_the_stable_error_envelope(client: TestClient) -> None:
     response = client.get("/_test/errors/app-error")
 
@@ -92,3 +101,19 @@ def test_raised_http_exception_does_not_expose_its_detail(
             "details": {},
         }
     }
+
+
+def test_raised_http_exception_preserves_protocol_headers(
+    client: TestClient,
+) -> None:
+    response = client.get("/_test/errors/http-exception-with-header")
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "error": {
+            "code": "HTTP_ERROR",
+            "message": "请求失败",
+            "details": {},
+        }
+    }
+    assert response.headers["www-authenticate"] == "Bearer"

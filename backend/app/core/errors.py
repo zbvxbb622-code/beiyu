@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -26,9 +27,11 @@ def error_response(
     message: str,
     status_code: int,
     details: dict[str, Any] | None = None,
+    headers: Mapping[str, str] | None = None,
 ) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
+        headers=headers,
         content={
             "error": {
                 "code": code,
@@ -68,7 +71,12 @@ async def handle_http_exception(_: Request, exc: Exception) -> JSONResponse:
     else:
         code = "HTTP_ERROR"
         message = "请求失败"
-    return error_response(code=code, message=message, status_code=exc.status_code)
+    return error_response(
+        code=code,
+        message=message,
+        status_code=exc.status_code,
+        headers=exc.headers,
+    )
 
 
 async def handle_unhandled_error(_: Request, __: Exception) -> JSONResponse:
