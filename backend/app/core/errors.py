@@ -52,9 +52,7 @@ async def handle_app_error(_: Request, exc: Exception) -> JSONResponse:
     )
 
 
-async def handle_request_validation_error(
-    _: Request, exc: Exception
-) -> JSONResponse:
+async def handle_request_validation_error(_: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, RequestValidationError)
     return error_response(
         code="VALIDATION_ERROR",

@@ -21,8 +21,10 @@ def request_id_from_headers(headers: list[tuple[bytes, bytes]]) -> str:
 
 
 def _is_valid_request_id(value: str) -> bool:
-    return bool(value) and len(value) <= MAX_REQUEST_ID_LENGTH and all(
-        32 <= ord(character) <= 126 for character in value
+    return (
+        bool(value)
+        and len(value) <= MAX_REQUEST_ID_LENGTH
+        and all(32 <= ord(character) <= 126 for character in value)
     )
 
 
@@ -32,7 +34,9 @@ class RequestContextMiddleware:
         self.environment = environment
         self.logger = logger
 
-    async def __call__(self, scope: dict[str, Any], receive: Receive, send: Send) -> None:
+    async def __call__(
+        self, scope: dict[str, Any], receive: Receive, send: Send
+    ) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
@@ -51,7 +55,9 @@ class RequestContextMiddleware:
                     for name, value in message.get("headers", [])
                     if name.lower() != REQUEST_ID_HEADER
                 ]
-                message["headers"].append((REQUEST_ID_HEADER, request_id.encode("ascii")))
+                message["headers"].append(
+                    (REQUEST_ID_HEADER, request_id.encode("ascii"))
+                )
             await send(message)
 
         try:
@@ -66,7 +72,9 @@ class RequestContextMiddleware:
                         "method": scope["method"],
                         "path_template": path_template,
                         "status": status_code,
-                        "duration_ms": round((time.perf_counter() - started_at) * 1000, 3),
+                        "duration_ms": round(
+                            (time.perf_counter() - started_at) * 1000, 3
+                        ),
                         "environment": self.environment,
                         "request_id": request_id,
                     }
