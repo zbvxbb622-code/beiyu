@@ -2,6 +2,8 @@ from uuid import UUID
 
 from starlette.testclient import TestClient
 
+from tests.api import test_errors  # noqa: F401
+
 
 def assert_uuid(value: str) -> None:
     assert str(UUID(value)) == value
@@ -47,4 +49,20 @@ def test_handled_error_response_includes_a_request_id(client: TestClient) -> Non
     response = client.get("/missing")
 
     assert response.status_code == 404
+    assert_uuid(response.headers["x-request-id"])
+
+
+def test_unhandled_error_response_includes_a_request_id() -> None:
+    response = TestClient(test_errors.app, raise_server_exceptions=False).get(
+        "/_test/errors/unhandled"
+    )
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "error": {
+            "code": "INTERNAL_ERROR",
+            "message": "服务器内部错误",
+            "details": {},
+        }
+    }
     assert_uuid(response.headers["x-request-id"])

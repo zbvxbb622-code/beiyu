@@ -79,11 +79,13 @@ async def handle_http_exception(_: Request, exc: Exception) -> JSONResponse:
     )
 
 
-async def handle_unhandled_error(_: Request, __: Exception) -> JSONResponse:
+async def handle_unhandled_error(request: Request, __: Exception) -> JSONResponse:
+    request_id = request.state.request_id
     return error_response(
         code="INTERNAL_ERROR",
         message="服务器内部错误",
         status_code=500,
+        headers={"X-Request-ID": request_id},
     )
 
 
