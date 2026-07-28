@@ -4,6 +4,7 @@ import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from '
 
 import { TopBar } from '@/components/mixology/TopBar';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
+import { englishLabels } from '@/components/mixology/NeonRecipeCard';
 import { getImageAsset } from '@/data/imageAssets';
 import { getSharedCellarCardById } from '@/services/contentService';
 import { useMixology } from '@/state/MixologyState';
@@ -31,33 +32,40 @@ export default function CellarCardDetailScreen() {
         <TopBar title="卡片详情" right={<MoreHorizontal color={colors.text} size={26} />} />
       </View>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <ImageBackground source={getImageAsset(card.imageKey)} resizeMode="cover" style={styles.hero} imageStyle={styles.heroImage}>
+        <View style={styles.heroWrap}>
+          <ImageBackground source={getImageAsset(card.imageKey)} resizeMode="cover" style={styles.hero} imageStyle={styles.heroImage} />
           <View style={styles.heroActions}>
-            <Pressable onPress={() => toggleCellarCardLike(card.id)} style={styles.heroAction}>
-              <Heart color={colors.text} fill={liked ? colors.pink : 'transparent'} size={28} />
+            <View style={styles.heroActionItem}>
+              <Pressable onPress={() => toggleCellarCardLike(card.id)} style={styles.heroCircle}>
+                <Heart color={colors.text} fill={liked ? colors.pink : 'transparent'} size={22} />
+              </Pressable>
               <Text style={styles.actionText}>{card.likes + (liked ? 1 : 0)}</Text>
-            </Pressable>
-            <View style={styles.heroAction}>
-              <MessageCircle color={colors.text} size={28} />
+            </View>
+            <View style={styles.heroActionItem}>
+              <View style={styles.heroCircle}>
+                <MessageCircle color={colors.text} size={22} />
+              </View>
               <Text style={styles.actionText}>{card.comments}</Text>
             </View>
-            <View style={styles.rotate}>
-              <RotateCcw color={colors.text} size={24} />
+            <View style={[styles.heroCircle, styles.rotateCircle]}>
+              <RotateCcw color={colors.text} size={21} />
             </View>
           </View>
-        </ImageBackground>
+        </View>
         <View style={styles.copy}>
           <Text style={styles.title}>{card.name}</Text>
           <Text style={styles.script}>{card.englishName}</Text>
           <Text style={styles.section}>INGREDIENTS</Text>
           {card.ingredients.map((ingredient) => (
-            <Text key={`${ingredient.id}-${ingredient.amount}`} style={styles.ingredient}>
-              {ingredient.name}  <Text style={styles.ingredientEn}>{ingredient.id}</Text>  <Text style={styles.amount}>{ingredient.amount}</Text>
-            </Text>
+            <View key={`${ingredient.id}-${ingredient.amount}`} style={styles.ingredientRow}>
+              <Text style={styles.ingredient}>{ingredient.name}</Text>
+              <Text style={styles.ingredientEn}>{englishLabels[ingredient.id] ?? ingredient.id}</Text>
+              <Text style={styles.amount}>{ingredient.amount}</Text>
+            </View>
           ))}
           <Text style={styles.section}>METHOD</Text>
           {card.steps.map((step, index) => (
-            <Text key={step} style={styles.step}>{index + 1}. {step}</Text>
+            <Text key={step} style={styles.step}>{index + 1}.{step}</Text>
           ))}
         </View>
       </ScrollView>
@@ -67,8 +75,8 @@ export default function CellarCardDetailScreen() {
 
 const styles = StyleSheet.create({
   topWrap: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
+    paddingHorizontal: 20,
+    paddingTop: 8,
   },
   content: {
     paddingBottom: 42,
@@ -78,88 +86,97 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginTop: 24,
   },
+  heroWrap: {
+    marginTop: 14,
+    marginHorizontal: 10,
+    marginBottom: 30,
+  },
   hero: {
     width: '100%',
-    aspectRatio: 0.68,
-    justifyContent: 'flex-end',
-    marginTop: 18,
+    aspectRatio: 0.72,
   },
   heroImage: {
     borderRadius: radii.md,
   },
   heroActions: {
+    position: 'absolute',
+    left: 18,
+    right: 18,
+    bottom: -24,
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 18,
-    padding: 22,
+    gap: 14,
   },
-  heroAction: {
+  heroActionItem: {
     alignItems: 'center',
-    gap: 6,
-    borderRadius: radii.pill,
-    backgroundColor: 'rgba(0,0,0,0.42)',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    gap: 5,
   },
-  rotate: {
-    marginLeft: 'auto',
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  heroCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.42)',
+    backgroundColor: 'rgba(20,10,14,0.88)',
+  },
+  rotateCircle: {
+    marginLeft: 'auto',
   },
   actionText: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: 13,
   },
   copy: {
-    paddingHorizontal: 32,
-    paddingTop: 28,
+    paddingHorizontal: 28,
+    paddingTop: 10,
   },
   title: {
     color: colors.text,
     textAlign: 'center',
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '900',
   },
   script: {
     color: colors.pink,
     textAlign: 'center',
-    fontSize: 24,
+    fontSize: 21,
     fontStyle: 'italic',
     marginTop: -2,
-    marginBottom: 30,
+    marginBottom: 26,
     textShadowColor: colors.shadowPink,
     textShadowRadius: 10,
   },
   section: {
     color: colors.text,
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '900',
     fontStyle: 'italic',
-    marginTop: 22,
-    marginBottom: 18,
+    marginTop: 20,
+    marginBottom: 16,
+  },
+  ingredientRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+    marginBottom: 10,
   },
   ingredient: {
     color: colors.text,
-    fontSize: 21,
-    lineHeight: 34,
-    fontWeight: '900',
+    fontSize: 18,
+    fontWeight: '800',
   },
   ingredientEn: {
-    fontSize: 18,
     color: colors.text,
+    fontSize: 16,
   },
   amount: {
     color: colors.textMuted,
-    fontSize: 16,
+    fontSize: 14,
   },
   step: {
     color: colors.text,
-    fontSize: 21,
-    lineHeight: 36,
-    fontWeight: '800',
+    fontSize: 17,
+    lineHeight: 30,
+    fontWeight: '600',
   },
 });

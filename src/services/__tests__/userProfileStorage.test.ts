@@ -26,6 +26,13 @@ describe('userProfile storage', () => {
       avatarUri: null,
       signature: '周五晚上只喝尼格罗尼',
       city: '上海',
+      gender: '男',
+      birthday: '1995-06-01',
+      showBirthdayTag: true,
+      showAge: true,
+      showZodiac: false,
+      occupation: '调酒师',
+      school: '上海大学',
     };
 
     await saveUserProfile(profile);

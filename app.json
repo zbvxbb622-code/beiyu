@@ -1,18 +1,20 @@
 {
   "expo": {
-    "name": "Mixology AI",
-    "slug": "mixology-ai",
+    "name": "杯语",
+    "slug": "beiyu",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mixologyaiexpo",
+    "scheme": "beiyu",
     "userInterfaceStyle": "dark",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "deploymentTarget": "15.1",
+      "bundleIdentifier": "com.zbvxbb622.beiyu"
     },
     "android": {
       "adaptiveIcon": {
-      "backgroundColor": "#09060F",
+        "backgroundColor": "#09060F",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -32,7 +34,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      "expo-video",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

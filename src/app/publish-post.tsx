@@ -85,7 +85,7 @@ export default function PublishPostScreen() {
 
   const nextImageId = (prefix: string) => {
     imageSeq.current += 1;
-    return `${prefix}-${Date.now()}-${imageSeq.current}`;
+    return `${prefix}-${imageSeq.current}`;
   };
 
   const addAssetImage = (assetKey: string) => {

@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
-import { Heart, MessageCircle, Send } from 'lucide-react-native';
+import { Heart } from 'lucide-react-native';
 import { useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -84,8 +84,11 @@ export default function CommunityPostDetailScreen() {
             style={styles.image}
           />
         )}
-        <Text style={styles.title}>{post.title}</Text>
-        <Text style={styles.body}>{post.body}</Text>
+        <Text style={styles.body}>
+          {post.title}
+          {'\n\n'}
+          {post.body}
+        </Text>
         {post.topics?.length ? (
           <View style={styles.topicRow}>
             {post.topics.map((topic) => (
@@ -115,33 +118,25 @@ export default function CommunityPostDetailScreen() {
       </ScrollView>
       <View style={styles.bottomBar}>
         {commentsEnabled ? (
-          <>
-            <TextInput
-              placeholder="说点什么..."
-              placeholderTextColor="#806f79"
-              style={styles.commentInput}
-              value={draft}
-              onChangeText={setDraft}
-              onSubmitEditing={handleSend}
-              returnKeyType="send"
-            />
-            <Pressable onPress={handleSend} disabled={!draft.trim() || sending} style={[styles.sendButton, (!draft.trim() || sending) && styles.sendButtonDisabled]}>
-              <Send color={colors.text} size={18} />
-            </Pressable>
-          </>
+          <TextInput
+            placeholder="说点什么…"
+            placeholderTextColor="#8a7a83"
+            style={styles.commentInput}
+            value={draft}
+            onChangeText={setDraft}
+            onSubmitEditing={handleSend}
+            returnKeyType="send"
+            editable={!sending}
+          />
         ) : (
           <View style={styles.commentsOff}>
             <Text style={styles.commentsOffText}>作者已关闭评论</Text>
           </View>
         )}
-        <Pressable onPress={() => togglePostLike(post.id)} style={styles.action}>
-          <Heart color={liked ? colors.pink : colors.text} fill={liked ? colors.pink : 'transparent'} size={24} />
+        <Pressable onPress={() => togglePostLike(post.id)} style={styles.action} hitSlop={8}>
+          <Heart color={colors.pink} fill={liked ? colors.pink : 'transparent'} size={25} />
           <Text style={styles.actionText}>{post.likes + (liked ? 1 : 0)}</Text>
         </Pressable>
-        <View style={styles.action}>
-          <MessageCircle color={colors.text} size={24} />
-          <Text style={styles.actionText}>{comments.length}</Text>
-        </View>
       </View>
     </ScreenShell>
   );
@@ -160,26 +155,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginTop: 18,
-    marginBottom: 18,
+    marginTop: 10,
+    marginBottom: 14,
   },
   avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   authorName: {
     flex: 1,
-    color: colors.textSoft,
-    fontSize: 18,
-    fontWeight: '800',
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: '700',
   },
   follow: {
-    width: 112,
+    width: 104,
     borderRadius: radii.pill,
   },
   followGradient: {
-    minHeight: 46,
+    minHeight: 42,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -187,11 +182,11 @@ const styles = StyleSheet.create({
   followText: {
     color: colors.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   image: {
     width: '100%',
-    height: 224,
+    aspectRatio: 0.85,
     borderRadius: radii.md,
     backgroundColor: colors.panel,
   },
@@ -199,8 +194,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   galleryImage: {
-    width: 280,
-    height: 224,
+    width: 300,
+    aspectRatio: 0.85,
     borderRadius: radii.md,
     backgroundColor: colors.panel,
   },
@@ -229,28 +224,22 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-  title: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: '900',
-    marginTop: 24,
-  },
   body: {
     color: colors.text,
-    fontSize: 17,
-    lineHeight: 29,
+    fontSize: 16,
+    lineHeight: 27,
     marginTop: 18,
   },
   date: {
     color: colors.textMuted,
     fontSize: 13,
-    marginTop: 14,
+    marginTop: 12,
   },
   commentsTitle: {
     color: colors.text,
-    fontSize: 19,
-    fontWeight: '900',
-    marginTop: 28,
+    fontSize: 18,
+    fontWeight: '800',
+    marginTop: 24,
   },
   comment: {
     flexDirection: 'row',
@@ -258,9 +247,9 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   commentAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   commentCopy: {
     flex: 1,
@@ -268,12 +257,12 @@ const styles = StyleSheet.create({
   commentAuthor: {
     color: colors.text,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   commentText: {
     color: colors.textSoft,
-    fontSize: 16,
-    lineHeight: 23,
+    fontSize: 15,
+    lineHeight: 22,
     marginTop: 4,
   },
   venueLink: {
@@ -295,19 +284,17 @@ const styles = StyleSheet.create({
     bottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 24,
-    paddingTop: 14,
+    gap: 16,
+    paddingHorizontal: 20,
+    paddingTop: 12,
     paddingBottom: 18,
     backgroundColor: 'rgba(7,0,4,0.96)',
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
   },
   commentInput: {
     flex: 1,
     minHeight: 46,
     borderRadius: radii.pill,
-    backgroundColor: '#34242b',
+    backgroundColor: colors.inputDark,
     color: colors.text,
     paddingHorizontal: 18,
     fontSize: 15,
@@ -316,7 +303,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 46,
     borderRadius: radii.pill,
-    backgroundColor: '#34242b',
+    backgroundColor: colors.inputDark,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -324,21 +311,9 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 14,
   },
-  sendButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.pink,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendButtonDisabled: {
-    backgroundColor: colors.panelStrong,
-    opacity: 0.5,
-  },
   action: {
     alignItems: 'center',
-    minWidth: 38,
+    minWidth: 36,
   },
   actionText: {
     color: colors.text,

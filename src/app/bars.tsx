@@ -1,31 +1,52 @@
-import { ChevronLeft, MapPin } from 'lucide-react-native';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { type Href, useRouter } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BarVenueCard } from '@/components/mixology/BarVenueCard';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
 import { getBarVenues } from '@/services/contentService';
 import { useMixology } from '@/state/MixologyState';
-import { colors, radii, spacing } from '@/styles/mixologyTheme';
+import { colors, spacing } from '@/styles/mixologyTheme';
+
+type BarsTab = {
+  id: 'discover' | 'following' | 'nearby';
+  label: string;
+};
+
+const tabs: BarsTab[] = [
+  { id: 'discover', label: '推荐' },
+  { id: 'following', label: '关注' },
+  { id: 'nearby', label: '附近' },
+];
 
 export default function BarsScreen() {
+  const router = useRouter();
   const { interactionState, toggleVenueFavorite } = useMixology();
+  const [activeTab, setActiveTab] = useState<BarsTab['id']>('discover');
   const venues = getBarVenues();
+  // 「关注」展示已收藏酒吧；推荐/附近沿用 Mock 全量列表
+  const visibleVenues = activeTab === 'following' ? venues.filter((venue) => interactionState.favoriteVenueIds.includes(venue.id)) : venues;
 
   return (
-    <ScreenShell>
+    <ScreenShell padded={false}>
       <View style={styles.header}>
-        <ChevronLeft color={colors.pink} size={32} />
-        <Text style={styles.title}>附近酒吧</Text>
-        <View style={styles.placeholder} />
-      </View>
-
-      <View style={styles.locationNotice}>
-        <MapPin color={colors.pink} size={17} />
-        <Text style={styles.locationText}>当前位置使用 Mock 距离，不请求真实定位权限</Text>
+        <Pressable onPress={() => router.navigate('/' as Href)} hitSlop={12} style={styles.back}>
+          <ChevronLeft color={colors.pink} size={30} />
+        </Pressable>
+        <View style={styles.tabs}>
+          {tabs.map((tab) => (
+            <Pressable key={tab.id} onPress={() => setActiveTab(tab.id)} style={styles.tab}>
+              <Text style={[styles.tabText, activeTab === tab.id ? styles.tabTextActive : null]}>{tab.label}</Text>
+              {activeTab === tab.id ? <View style={styles.tabIndicator} /> : null}
+            </Pressable>
+          ))}
+        </View>
+        <View style={styles.back} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
-        {venues.map((venue) => (
+        {visibleVenues.map((venue) => (
           <BarVenueCard
             key={venue.id}
             venue={venue}
@@ -33,6 +54,7 @@ export default function BarsScreen() {
             onToggleFavorite={() => toggleVenueFavorite(venue.id)}
           />
         ))}
+        {visibleVenues.length === 0 ? <Text style={styles.empty}>还没有关注的酒吧，去推荐页挑一家吧</Text> : null}
       </ScrollView>
     </ScreenShell>
   );
@@ -40,38 +62,51 @@ export default function BarsScreen() {
 
 const styles = StyleSheet.create({
   header: {
-    minHeight: 62,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 12,
   },
-  title: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: '900',
+  back: {
+    width: 40,
   },
-  placeholder: {
-    width: 32,
-  },
-  locationNotice: {
+  tabs: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    borderRadius: radii.pill,
-    backgroundColor: colors.panelSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginTop: 8,
-    marginBottom: 18,
+    justifyContent: 'center',
+    gap: 30,
   },
-  locationText: {
+  tab: {
+    alignItems: 'center',
+    minWidth: 40,
+  },
+  tabText: {
     color: colors.textMuted,
-    fontSize: 13,
-    flex: 1,
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    color: colors.text,
+    fontWeight: '800',
+  },
+  tabIndicator: {
+    width: 24,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: colors.pink,
+    marginTop: 5,
   },
   list: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
     paddingBottom: spacing.bottomNavPadding,
+  },
+  empty: {
+    color: colors.textMuted,
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 48,
   },
 });

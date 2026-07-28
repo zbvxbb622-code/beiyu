@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
-import { Martini } from 'lucide-react-native';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SlidersHorizontal } from 'lucide-react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { SharedCellarCard } from '@/components/mixology/SharedCellarCard';
 import { TopBar } from '@/components/mixology/TopBar';
@@ -17,8 +17,7 @@ export default function CellarScreen() {
 
   return (
     <ScreenShell>
-      <TopBar title="大家的酒柜" backHref={from === 'profile' ? '/profile' : '/'} right={<Martini color={colors.text} size={26} />} />
-      <Text style={styles.subtitle}>公开作品广场，先用本地 Mock 展示大家分享的鸡尾酒卡片。</Text>
+      <TopBar title="大家的酒柜" backHref={from === 'profile' ? '/profile' : '/'} right={<SlidersHorizontal color={colors.text} size={24} />} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.grid}>
           {cards.map((card) => (
@@ -36,13 +35,8 @@ export default function CellarScreen() {
 }
 
 const styles = StyleSheet.create({
-  subtitle: {
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 19,
-    marginBottom: 18,
-  },
   content: {
+    paddingTop: 14,
     paddingBottom: spacing.bottomNavPadding,
   },
   grid: {

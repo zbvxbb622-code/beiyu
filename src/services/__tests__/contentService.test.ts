@@ -14,12 +14,12 @@ import {
 } from '../contentService';
 
 describe('contentService', () => {
-  it('provides the Mixology home structure from the redesign plan', () => {
-    expect(getHeroSlides()).toHaveLength(3);
+  it('provides the Beiyu home structure from the redesign plan', () => {
+    expect(getHeroSlides()).toHaveLength(4);
     expect(getHeroSlides()[0]).toEqual(
       expect.objectContaining({
         id: 'welcome-bar',
-        brand: 'Mixology',
+        brand: 'Beiyu',
         ctaLabel: '去AI调酒',
       })
     );

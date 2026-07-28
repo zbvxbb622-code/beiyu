@@ -13,7 +13,7 @@ export function AgeGateScreen() {
         <View className="mb-8 h-16 w-16 items-center justify-center rounded-2xl border border-neonCyan/40 bg-white/10">
           <Sparkles color="#2fe7ff" size={28} />
         </View>
-        <Text className="text-4xl font-black leading-tight text-white">Mixology AI</Text>
+        <Text className="text-4xl font-black leading-tight text-white">杯语 Beiyu</Text>
         <Text className="mt-4 text-base leading-6 text-muted">
           这是一款面向成年人的调酒和饮品推荐 App。继续前请确认你已达到所在地合法饮酒年龄。
         </Text>
@@ -24,7 +24,7 @@ export function AgeGateScreen() {
             <Text className="flex-1 text-lg font-black text-white">隐私优先</Text>
           </View>
           <Text className="mt-3 text-sm leading-6 text-muted">
-            第一版不会上传你的年龄确认、酒柜材料或 AI 输入内容。这些信息只保存在本机。
+            你的年龄确认、酒柜材料和 AI 输入会按隐私设置保护。继续前，请确认自己已达到合法饮酒年龄。
           </Text>
         </View>
 

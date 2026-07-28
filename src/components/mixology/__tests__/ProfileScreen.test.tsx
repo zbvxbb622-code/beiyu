@@ -46,37 +46,43 @@ jest.mock('@/state/MixologyState', () => ({
 }));
 
 describe('ProfileScreen', () => {
-  it('renders profile identity, tabs and panels', async () => {
+  it('renders the redesigned profile: identity, stats, AI rec, tabs, settings button', async () => {
     const screen = await render(<ProfileScreen />);
 
-    // 小红书式资料区
+    // 身份区
     expect(screen.getByText('霓虹酒保')).toBeTruthy();
     expect(screen.getByText('上海')).toBeTruthy();
     expect(screen.getByText('周五晚上只喝尼格罗尼')).toBeTruthy();
-    // 三 Tab（testID 断言，避免与统计行"笔记"重名）
+    // 统计行
+    expect(screen.getByText('关注')).toBeTruthy();
+    expect(screen.getByText('粉丝')).toBeTruthy();
+    expect(screen.getByText('获赞与收藏')).toBeTruthy();
+    // AI 推荐
+    expect(screen.getByText('AI 调酒师')).toBeTruthy();
+    // 三 Tab（testID 断言，避免与统计行重名）
     expect(screen.getByTestId('profile-tab-posts')).toBeTruthy();
     expect(screen.getByTestId('profile-tab-favorites')).toBeTruthy();
     expect(screen.getByTestId('profile-tab-liked')).toBeTruthy();
-    // 我的酒卡 + 底部面板
+    // 我的酒卡
     expect(screen.getByText('我的酒卡')).toBeTruthy();
-    expect(screen.getByText('账号与安全')).toBeTruthy();
-    expect(screen.getByText('隐私与安全')).toBeTruthy();
-    expect(screen.getByText('本地数据保险箱')).toBeTruthy();
-  });
-
-  it('opens the private cellar from quick actions', async () => {
-    const screen = await render(<ProfileScreen />);
-
-    fireEvent.press(screen.getByTestId('profile-action-private-cellar'));
-
-    expect(mockRouter.push).toHaveBeenCalledWith('/private-cellar');
+    // 设置已收成单个按钮（不再内联三个面板）
+    expect(screen.getByTestId('profile-settings-button')).toBeTruthy();
+    expect(screen.queryByText('账号与安全')).toBeNull();
   });
 
   it('navigates to edit profile page', async () => {
     const screen = await render(<ProfileScreen />);
 
-    fireEvent.press(screen.getByTestId('edit-profile-button'));
+    await fireEvent.press(screen.getByTestId('edit-profile-button'));
 
     expect(mockRouter.push).toHaveBeenCalledWith('/edit-profile');
+  });
+
+  it('navigates to the settings screen from the single settings button', async () => {
+    const screen = await render(<ProfileScreen />);
+
+    await fireEvent.press(screen.getByTestId('profile-settings-button'));
+
+    expect(mockRouter.push).toHaveBeenCalledWith('/settings');
   });
 });

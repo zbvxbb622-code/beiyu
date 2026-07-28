@@ -21,14 +21,14 @@ type DrawPhase = 'idle' | 'drawing' | 'revealed';
 export default function BlindBoxScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const { isHydrated, interactionState, drawBlindBoxCard } = useMixology();
+  const { interactionState, drawBlindBoxCard } = useMixology();
 
   const [phase, setPhase] = useState<DrawPhase>('idle');
   const [card, setCard] = useState<BlindBoxCardType | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const revealScale = useRef(new Animated.Value(0.3)).current;
-  const revealOpacity = useRef(new Animated.Value(0)).current;
+  const [revealScale] = useState(() => new Animated.Value(0.3));
+  const [revealOpacity] = useState(() => new Animated.Value(0));
   const fallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 视频播放器（预加载视频源，常驻挂载，仅在 drawing 阶段可见）

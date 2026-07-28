@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Sparkles } from 'lucide-react-native';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Animated, Easing, Image, StyleSheet, Text, View } from 'react-native';
 
 import { rarityConfig } from '@/data/blindBoxCards';
@@ -14,7 +14,7 @@ import type { BlindBoxCard as BlindBoxCardType } from '@/types/mixology';
  */
 export function BlindBoxCard({ card }: { card: BlindBoxCardType }) {
   const rarity = rarityConfig[card.rarity];
-  const shine = useRef(new Animated.Value(0)).current;
+  const [shine] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     if (card.rarity !== 'legendary') {
@@ -32,10 +32,14 @@ export function BlindBoxCard({ card }: { card: BlindBoxCardType }) {
     return () => loop.stop();
   }, [card.rarity, shine]);
 
-  const shineTranslate = shine.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-160, 160],
-  });
+  const shineTranslate = useMemo(
+    () =>
+      shine.interpolate({
+        inputRange: [0, 1],
+        outputRange: [-160, 160],
+      }),
+    [shine]
+  );
 
   return (
     <View

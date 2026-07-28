@@ -33,18 +33,29 @@ const venue: BarVenue = {
 };
 
 describe('BarVenueCard', () => {
-  it('renders as a separated venue card with a visible distance label', async () => {
+  it('renders the design list card with the metro distance line', async () => {
     const screen = await render(<BarVenueCard venue={venue} favorite={false} onToggleFavorite={jest.fn()} />);
 
     expect(screen.getByTestId('bar-venue-card')).toBeTruthy();
-    expect(screen.getByText('步行150m')).toBeTruthy();
+    expect(screen.getByTestId('bar-venue-card-content')).toBeTruthy();
+    expect(screen.getByText('距离地铁口步行150m')).toBeTruthy();
+    expect(screen.getByText('20条评价  人均 ¥88')).toBeTruthy();
   });
 
-  it('uses a compact cover image inside the separated venue card', async () => {
+  it('uses a left cover image matching the design ratio', async () => {
     const screen = await render(<BarVenueCard venue={venue} favorite={false} onToggleFavorite={jest.fn()} />);
     const cover = screen.getByTestId('bar-venue-cover');
     const style = StyleSheet.flatten(cover.props.style);
 
-    expect(style.height).toBeLessThanOrEqual(104);
+    expect(style.width).toBeLessThanOrEqual(132);
+  });
+
+  it('renders as a horizontal card on native (row layout with background)', async () => {
+    const screen = await render(<BarVenueCard venue={venue} favorite={false} onToggleFavorite={jest.fn()} />);
+    const card = screen.getByTestId('bar-venue-card-content');
+    const style = StyleSheet.flatten(card.props.style);
+
+    expect(style.flexDirection).toBe('row');
+    expect(style.backgroundColor).toBeTruthy();
   });
 });

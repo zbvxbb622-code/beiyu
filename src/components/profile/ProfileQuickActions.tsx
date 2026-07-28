@@ -1,7 +1,7 @@
 import { type Href, useRouter } from 'expo-router';
 import { Bot, Boxes, Heart, Martini, PackageOpen } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { colors, radii } from '@/styles/mixologyTheme';
 
@@ -16,10 +16,16 @@ type ActionItem = {
 const actions: ActionItem[] = [
   {
     id: 'private-cellar',
-    label: '私人酒柜',
+    label: '我的酒柜',
     icon: <Boxes color={colors.pink} size={20} />,
     route: '/private-cellar' as Href,
     testID: 'profile-action-private-cellar',
+  },
+  {
+    id: 'cellar-ingredients',
+    label: '酒柜材料',
+    icon: <Martini color={colors.pink} size={20} />,
+    route: '/cellar-ingredients' as Href,
   },
   {
     id: 'shared-cellar',
@@ -52,14 +58,18 @@ export function ProfileQuickActions() {
 
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-      {actions.map((action) => (
+      {actions.map((action, index) => (
         <Pressable
           key={action.id}
           testID={action.testID}
           onPress={() => router.push(action.route)}
-          style={({ pressed }) => [styles.pill, pressed ? styles.pressed : null]}
+          style={({ pressed }) => [
+            styles.pill,
+            index < actions.length - 1 ? styles.pillMargin : null,
+            pressed ? styles.pressed : null,
+          ]}
         >
-          {action.icon}
+          <View style={styles.iconWrap}>{action.icon}</View>
           <Text style={styles.label}>{action.label}</Text>
         </Pressable>
       ))}
@@ -69,8 +79,8 @@ export function ProfileQuickActions() {
 
 const styles = StyleSheet.create({
   row: {
-    gap: 10,
     paddingVertical: 2,
+    paddingHorizontal: 2,
   },
   pill: {
     minHeight: 56,
@@ -78,15 +88,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
     borderRadius: radii.md,
     backgroundColor: colors.panel,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 14,
   },
+  pillMargin: {
+    marginRight: 10,
+  },
   pressed: {
     opacity: 0.82,
+  },
+  iconWrap: {
+    marginRight: 7,
   },
   label: {
     color: colors.text,

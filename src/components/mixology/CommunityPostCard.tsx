@@ -1,9 +1,9 @@
 import { type Href, useRouter } from 'expo-router';
-import { Heart, Play } from 'lucide-react-native';
+import { Heart } from 'lucide-react-native';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { getImageAsset } from '@/data/imageAssets';
-import { colors, radii } from '@/styles/mixologyTheme';
+import { colors } from '@/styles/mixologyTheme';
 import { getPostCoverSource } from '@/utils/postImages';
 import type { CommunityPost } from '@/types/mixology';
 
@@ -13,12 +13,14 @@ export function CommunityPostCard({
   onToggleLike,
   cardWidth,
   imageHeight,
+  imageWidth,
 }: {
   post: CommunityPost;
   liked: boolean;
   onToggleLike: () => void;
   cardWidth?: number;
   imageHeight?: number;
+  imageWidth?: number;
 }) {
   const router = useRouter();
 
@@ -32,11 +34,13 @@ export function CommunityPostCard({
           testID="community-post-image"
           source={getPostCoverSource(post)}
           resizeMode="cover"
-          style={[styles.image, imageHeight ? { height: imageHeight, aspectRatio: undefined } : null]}
+          // 显式数字宽高：Image 的百分比宽度在 Expo 原生端会塌成空白（Web 正常）
+          style={[
+            styles.image,
+            imageWidth ? { width: imageWidth } : null,
+            imageHeight ? { height: imageHeight, aspectRatio: undefined } : null,
+          ]}
         />
-        <View style={styles.playBadge}>
-          <Play color={colors.text} fill={colors.text} size={9} />
-        </View>
       </View>
       <View style={styles.copy}>
         <Text style={styles.title} numberOfLines={2}>{post.title}</Text>
@@ -59,15 +63,6 @@ const styles = StyleSheet.create({
   card: {
     width: '48%',
     overflow: 'hidden',
-    borderRadius: radii.sm,
-    backgroundColor: '#171014',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 3,
   },
   pressed: {
     opacity: 0.86,
@@ -75,6 +70,7 @@ const styles = StyleSheet.create({
   mediaFrame: {
     position: 'relative',
     overflow: 'hidden',
+    borderRadius: 10,
     backgroundColor: colors.panel,
   },
   image: {
@@ -82,23 +78,10 @@ const styles = StyleSheet.create({
     aspectRatio: 1.36,
     backgroundColor: colors.panel,
   },
-  playBadge: {
-    position: 'absolute',
-    top: 7,
-    right: 7,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.42)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
   copy: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 2,
     paddingTop: 8,
-    paddingBottom: 9,
+    paddingBottom: 4,
   },
   title: {
     color: colors.text,

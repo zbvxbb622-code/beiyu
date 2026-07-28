@@ -15,6 +15,23 @@ export const colors = {
   amber: '#ffb84d',
   border: 'rgba(255,255,255,0.12)',
   shadowPink: 'rgba(255,47,159,0.35)',
+  // —— 设计稿还原专用 token ——
+  // 底部 Tab 栏实心深色背景
+  tabBarBg: '#0d0208',
+  // 卡片底（酒吧列表卡片）
+  cardDark: '#181013',
+  // 首页四宫格图标底板
+  shortcutBg: 'rgba(255,47,159,0.10)',
+  shortcutBorder: 'rgba(255,47,159,0.22)',
+  // 搜索框/输入框描边粉
+  outlinePink: 'rgba(255,47,159,0.55)',
+  // Hero「去AI调酒」暗红按钮
+  ctaDarkRed: '#9e2c40',
+  // 聊天气泡
+  chatUserBubble: '#2c2126',
+  chatPanel: '#1c1216',
+  // 评论输入框底
+  inputDark: '#2b1e24',
 };
 
 export const gradients = {

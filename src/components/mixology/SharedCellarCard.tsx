@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { type Href, useRouter } from 'expo-router';
 import { Heart } from 'lucide-react-native';
 import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -16,48 +17,47 @@ export function SharedCellarCard({
   onToggleLike: () => void;
 }) {
   const router = useRouter();
+  const borderColors = card.borderColors ?? [card.borderColor, card.borderColor];
 
   return (
-    <Pressable
-      onPress={() => router.push({ pathname: '/cellar-card/[id]', params: { id: card.id } } as unknown as Href)}
-      style={({ pressed }) => [
-        styles.card,
-        { borderColor: card.borderColor },
-        pressed ? styles.pressed : null,
-      ]}>
-      <ImageBackground source={getImageAsset(card.imageKey)} resizeMode="cover" imageStyle={styles.imageRadius} style={styles.image}>
-        <View style={styles.likeBubble}>
-          <Pressable onPress={onToggleLike} hitSlop={10} style={styles.like}>
-            <Heart color={liked ? colors.pink : colors.text} fill={liked ? colors.pink : 'transparent'} size={16} />
-            <Text style={styles.likeText}>{card.likes + (liked ? 1 : 0)}</Text>
-          </Pressable>
-        </View>
-      </ImageBackground>
-      <Text style={styles.name} numberOfLines={1}>{card.name}</Text>
-      <Text style={styles.english} numberOfLines={1}>{card.englishName}</Text>
-    </Pressable>
+    <LinearGradient colors={borderColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.border}>
+      <Pressable
+        onPress={() => router.push({ pathname: '/cellar-card/[id]', params: { id: card.id } } as unknown as Href)}
+        style={({ pressed }) => [styles.card, pressed ? styles.pressed : null]}>
+        <ImageBackground source={getImageAsset(card.imageKey)} resizeMode="cover" imageStyle={styles.imageRadius} style={styles.image}>
+          <View style={styles.likeBubble}>
+            <Pressable onPress={onToggleLike} hitSlop={10} style={styles.like}>
+              <Heart color={liked ? colors.pink : colors.text} fill={liked ? colors.pink : 'transparent'} size={15} />
+              <Text style={styles.likeText}>{card.likes + (liked ? 1 : 0)}</Text>
+            </Pressable>
+          </View>
+        </ImageBackground>
+      </Pressable>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  border: {
+    width: '48.5%',
+    borderRadius: 16,
+    padding: 2.5,
+    marginBottom: 16,
+  },
   card: {
-    width: '48%',
-    borderWidth: 3,
-    borderRadius: radii.md,
+    borderRadius: 13.5,
     overflow: 'hidden',
-    marginBottom: 20,
     backgroundColor: colors.panel,
   },
   pressed: {
     opacity: 0.86,
   },
   image: {
-    height: 218,
+    height: 210,
     justifyContent: 'flex-end',
   },
   imageRadius: {
-    borderTopLeftRadius: radii.md - 2,
-    borderTopRightRadius: radii.md - 2,
+    borderRadius: 13.5,
   },
   likeBubble: {
     padding: 10,
@@ -76,19 +76,5 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 12,
     fontWeight: '800',
-  },
-  name: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '900',
-    paddingHorizontal: 10,
-    paddingTop: 10,
-  },
-  english: {
-    color: colors.textMuted,
-    fontSize: 12,
-    paddingHorizontal: 10,
-    paddingBottom: 12,
-    paddingTop: 2,
   },
 });

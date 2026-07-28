@@ -79,12 +79,12 @@ function PostMasonry({
   return (
     <View style={styles.masonry}>
       {[columns.left, columns.right].map((column, columnIndex) => (
-        <View key={columnIndex} style={styles.column}>
+        <View key={columnIndex} style={[styles.column, columnIndex === 0 ? styles.columnMargin : null]}>
           {column.map((post, index) => (
             <Pressable
               key={post.id}
               onPress={() => router.push({ pathname: '/post/[id]', params: { id: post.id } } as unknown as Href)}
-              style={styles.postCard}
+              style={[styles.postCard, index < column.length - 1 ? styles.postCardMargin : null]}
             >
               <Image
                 source={getImageAsset(post.imageKey)}
@@ -116,12 +116,12 @@ function VenueMasonry({ venues, cardWidth }: { venues: BarVenue[]; cardWidth: nu
   return (
     <View style={styles.masonry}>
       {[columns.left, columns.right].map((column, columnIndex) => (
-        <View key={columnIndex} style={styles.column}>
+        <View key={columnIndex} style={[styles.column, columnIndex === 0 ? styles.columnMargin : null]}>
           {column.map((venue, index) => (
             <Pressable
               key={venue.id}
               onPress={() => router.push({ pathname: '/bar/[id]', params: { id: venue.id } } as unknown as Href)}
-              style={styles.postCard}
+              style={[styles.postCard, index < column.length - 1 ? styles.postCardMargin : null]}
             >
               <Image
                 source={getImageAsset(venue.imageKey)}
@@ -156,7 +156,7 @@ function EmptyTabHint({ text, cta, route }: { text: string; cta: string; route: 
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 16,
+    marginTop: 24,
   },
   tabBar: {
     flexDirection: 'row',
@@ -189,12 +189,13 @@ const styles = StyleSheet.create({
   },
   masonry: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 12,
+    marginTop: 14,
   },
   column: {
     flex: 1,
-    gap: 10,
+  },
+  columnMargin: {
+    marginRight: 10,
   },
   postCard: {
     borderRadius: radii.md,
@@ -202,6 +203,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.panel,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  postCardMargin: {
+    marginBottom: 12,
   },
   postImage: {
     backgroundColor: colors.bgDeep,
@@ -223,7 +227,6 @@ const styles = StyleSheet.create({
   empty: {
     alignItems: 'center',
     paddingVertical: 34,
-    gap: 12,
   },
   emptyText: {
     color: colors.textMuted,
@@ -237,6 +240,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.pink,
     paddingHorizontal: 18,
+    marginTop: 12,
   },
   emptyButtonText: {
     color: colors.pink,

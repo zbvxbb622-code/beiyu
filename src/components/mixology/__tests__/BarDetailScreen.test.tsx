@@ -50,12 +50,11 @@ jest.mock('@/state/MixologyState', () => ({
 }));
 
 describe('BarDetailScreen', () => {
-  it('uses a compact horizontal image carousel instead of one long hero image', async () => {
+  it('uses one design-size hero image at the top', async () => {
     const screen = await render(<BarDetailScreen />);
-    const images = screen.getAllByTestId('bar-detail-gallery-image');
-    const style = StyleSheet.flatten(images[0].props.style);
+    const hero = screen.getByTestId('bar-detail-hero');
+    const style = StyleSheet.flatten(hero.props.style);
 
-    expect(images.length).toBeGreaterThan(1);
-    expect(style.height).toBeLessThanOrEqual(170);
+    expect(style.height).toBeLessThanOrEqual(240);
   });
 });

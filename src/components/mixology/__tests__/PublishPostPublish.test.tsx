@@ -40,7 +40,6 @@ describe('PublishPostScreen 发布流程', () => {
 
   it('发布携带图片/话题/可见性/评论开关，成功后回社区', async () => {
     const screen = await render(<PublishPostScreen />);
-    await act(async () => {});
 
     // 预填内容就位
     await waitFor(() => {
@@ -70,7 +69,9 @@ describe('PublishPostScreen 发布流程', () => {
       expect(screen.getByTestId('allow-comments-switch').props.value).toBe(false);
     });
 
-    fireEvent.press(screen.getByTestId('publish-button'));
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('publish-button'));
+    });
 
     await waitFor(() => {
       expect(mockPublishPost).toHaveBeenCalledWith(

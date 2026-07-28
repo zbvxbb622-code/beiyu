@@ -14,3 +14,4 @@ These files are temporary prototype assets downloaded through Openverse-searchab
 - `bar-interior.jpg`: https://www.flickr.com/photos/55935853@N00/2534064953
 - `bar-shelf.jpg`: https://www.flickr.com/photos/60291025@N05/11040702525
 - `bartender.jpg`: https://www.flickr.com/photos/23653773@N06/2360538105
+- `avatar-default.jpg`, `avatar-female.jpg`, `avatar-male-2.jpg`: https://randomuser.me/photos — free to use placeholder portraits (randomuser.me grants unrestricted use of generated user data and images for any purpose).

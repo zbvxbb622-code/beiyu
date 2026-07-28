@@ -26,9 +26,9 @@ export function WelcomeScreen() {
           </Pressable>
         </View>
         <View style={styles.heroCopy}>
-          <Text style={styles.title}>欢迎来到 Mixology</Text>
-          <Text style={styles.script}>Bartender</Text>
-          <Text style={styles.subtitle}>只属于你的专业调酒师</Text>
+          <Text style={styles.title}>欢迎来到杯语</Text>
+          <Text style={styles.script}>Beiyu</Text>
+          <Text style={styles.subtitle}>你的 AI 调酒陪伴</Text>
           <GradientButton label="我已满18岁，去聊天" onPress={enterApp} style={styles.cta} />
           <Pressable onPress={() => router.push('/login' as Href)} style={styles.loginLink}>
             <Text style={styles.loginText}>手机号登录 / 游客可跳过</Text>
@@ -36,7 +36,7 @@ export function WelcomeScreen() {
         </View>
         <View style={styles.privacyBadge}>
           <ShieldCheck color={colors.acid} size={16} />
-          <Text style={styles.privacyText}>第一版仅本地 Mock，不上传酒柜、年龄或 AI 输入。</Text>
+          <Text style={styles.privacyText}>请理性饮酒。杯语不会鼓励过量饮酒。</Text>
         </View>
       </LinearGradient>
     </ImageBackground>

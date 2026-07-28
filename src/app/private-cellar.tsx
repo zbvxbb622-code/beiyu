@@ -1,113 +1,206 @@
-import { Boxes, CircleCheckBig } from 'lucide-react-native';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Heart, Upload } from 'lucide-react-native';
+import { useState } from 'react';
+import { ImageBackground, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { IngredientChip } from '@/components/mixology/IngredientChip';
+import { NeonRecipeCard } from '@/components/mixology/NeonRecipeCard';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
 import { TopBar } from '@/components/mixology/TopBar';
-import { ingredients } from '@/data/ingredients';
+import { getImageAsset } from '@/data/imageAssets';
+import { getSharedCellarCards } from '@/services/contentService';
 import { useMixology } from '@/state/MixologyState';
-import { colors, radii } from '@/styles/mixologyTheme';
-import type { IngredientCategory } from '@/types/mixology';
+import { colors, radii, spacing } from '@/styles/mixologyTheme';
+import type { CocktailIngredient } from '@/types/mixology';
 
-const categoryLabels: Record<IngredientCategory, string> = {
-  base: '基酒',
-  liqueur: '利口酒',
-  citrus: '柑橘',
-  mixer: '汽水/调和',
-  sweetener: '甜味',
-  garnish: '装饰',
-  tool: '基础材料',
+type MyCellarCard = {
+  id: string;
+  name: string;
+  englishName: string;
+  imageKey: string;
+  likes: number;
+  ingredients: CocktailIngredient[];
+  steps: string[];
+  bartender: string;
+  borderColors: readonly [string, string];
 };
 
+// 霓虹边框按序循环（与设计稿多色卡片一致）
+const borderPalette: readonly (readonly [string, string])[] = [
+  ['#ff2f9f', '#ff8a3d'],
+  ['#9b30ff', '#ff2f9f'],
+  ['#2fe7ff', '#9b30ff'],
+  ['#ffd24a', '#ff2f9f'],
+];
+
 export default function PrivateCellarScreen() {
-  const { localState, toggleCellarIngredient } = useMixology();
-  const selectedCount = localState.cellarIngredientIds.length;
+  const { interactionState } = useMixology();
+  const [activeCard, setActiveCard] = useState<MyCellarCard | null>(null);
+
+  // 优先展示盲盒抽到的卡；还没抽卡时用共享酒柜 Mock 数据垫底，保证页面与设计稿一致
+  const cards: MyCellarCard[] =
+    interactionState.drawnCards.length > 0
+      ? interactionState.drawnCards.map((record, index) => ({
+          id: record.card.id,
+          name: record.card.name,
+          englishName: record.card.englishName,
+          imageKey: record.card.imageKey,
+          likes: 0,
+          ingredients: record.card.ingredients,
+          steps: record.card.steps,
+          bartender: record.card.bartender,
+          borderColors: borderPalette[index % borderPalette.length],
+        }))
+      : getSharedCellarCards().map((card, index) => ({
+          id: card.id,
+          name: card.name,
+          englishName: card.englishName,
+          imageKey: card.imageKey,
+          likes: card.likes,
+          ingredients: card.ingredients,
+          steps: card.steps,
+          bartender: '高鹏',
+          borderColors: card.borderColors ?? borderPalette[index % borderPalette.length],
+        }));
 
   return (
     <ScreenShell>
       <TopBar title="我的酒柜" backHref="/profile" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <View style={styles.summary}>
-          <Boxes color={colors.pink} size={28} />
-          <View style={styles.summaryCopy}>
-            <Text style={styles.summaryTitle}>{selectedCount} 个材料已选择</Text>
-            <Text style={styles.summaryText}>只保存在本机，用于 AI Mock 推荐，不会上传。</Text>
-          </View>
+        <View style={styles.grid}>
+          {cards.map((card) => (
+            <LinearGradient key={card.id} colors={card.borderColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cardBorder}>
+              <Pressable onPress={() => setActiveCard(card)} style={({ pressed }) => [styles.card, pressed ? styles.pressed : null]}>
+                <ImageBackground source={getImageAsset(card.imageKey)} resizeMode="cover" imageStyle={styles.cardImageRadius} style={styles.cardImage}>
+                  <View style={styles.publicBadge}>
+                    <Text style={styles.publicBadgeText}>公开</Text>
+                  </View>
+                  <View style={styles.cardBottom}>
+                    <View style={styles.like}>
+                      <Heart color={colors.text} size={13} />
+                      <Text style={styles.likeText}>{card.likes}</Text>
+                    </View>
+                  </View>
+                </ImageBackground>
+              </Pressable>
+            </LinearGradient>
+          ))}
         </View>
-
-        {Object.entries(categoryLabels).map(([category, label]) => {
-          const categoryIngredients = ingredients.filter((ingredient) => ingredient.category === category);
-
-          return (
-            <View key={category} style={styles.category}>
-              <View style={styles.categoryTitleRow}>
-                <CircleCheckBig color={colors.cyan} size={17} />
-                <Text style={styles.categoryTitle}>{label}</Text>
-              </View>
-              <View style={styles.chips}>
-                {categoryIngredients.map((ingredient) => (
-                  <IngredientChip
-                    key={ingredient.id}
-                    label={ingredient.name}
-                    selected={localState.cellarIngredientIds.includes(ingredient.id)}
-                    onPress={() => toggleCellarIngredient(ingredient.id)}
-                  />
-                ))}
-              </View>
-            </View>
-          );
-        })}
       </ScrollView>
+
+      <Modal visible={activeCard !== null} transparent animationType="fade" onRequestClose={() => setActiveCard(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setActiveCard(null)}>
+          <Pressable onPress={(event) => event.stopPropagation()} style={styles.modalBody}>
+            {activeCard ? (
+              <>
+                <NeonRecipeCard
+                  title={activeCard.name}
+                  script={activeCard.englishName}
+                  meta={`经典调酒 / 调酒师${activeCard.bartender}`}
+                  ingredients={activeCard.ingredients}
+                  steps={activeCard.steps}
+                  showFlip
+                />
+                <Pressable style={({ pressed }) => [styles.uploadButton, pressed ? styles.pressed : null]}>
+                  <Upload color={colors.text} size={16} />
+                  <Text style={styles.uploadText}>上传封面</Text>
+                </Pressable>
+              </>
+            ) : null}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
-    paddingBottom: 36,
+    paddingTop: 14,
+    paddingBottom: spacing.bottomNavPadding,
   },
-  summary: {
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  cardBorder: {
+    width: '48.5%',
+    borderRadius: 16,
+    padding: 2.5,
+    marginBottom: 16,
+  },
+  card: {
+    borderRadius: 13.5,
+    overflow: 'hidden',
+    backgroundColor: colors.panel,
+  },
+  pressed: {
+    opacity: 0.86,
+  },
+  cardImage: {
+    height: 190,
+    justifyContent: 'space-between',
+  },
+  cardImageRadius: {
+    borderRadius: 13.5,
+  },
+  publicBadge: {
+    alignSelf: 'flex-end',
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    margin: 10,
+  },
+  publicBadgeText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  cardBottom: {
+    padding: 10,
+  },
+  like: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    borderRadius: radii.md,
-    backgroundColor: colors.panelSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 18,
-    marginTop: 10,
-    marginBottom: 28,
+    gap: 4,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(0,0,0,0.36)',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
   },
-  summaryCopy: {
-    flex: 1,
-  },
-  summaryTitle: {
+  likeText: {
     color: colors.text,
-    fontSize: 20,
-    fontWeight: '900',
+    fontSize: 12,
+    fontWeight: '800',
   },
-  summaryText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 19,
-    marginTop: 5,
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(3,0,2,0.82)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
   },
-  category: {
-    marginBottom: 24,
+  modalBody: {
+    width: '100%',
   },
-  categoryTitleRow: {
+  uploadButton: {
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 12,
+    borderRadius: radii.pill,
+    backgroundColor: '#241820',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    marginTop: 18,
   },
-  categoryTitle: {
+  uploadText: {
     color: colors.text,
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

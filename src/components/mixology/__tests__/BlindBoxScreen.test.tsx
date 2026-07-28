@@ -34,7 +34,7 @@ jest.mock('@/state/MixologyState', () => {
     todayKey: () => string;
   };
   const { blindBoxCards: cards } = jest.requireActual('@/data/blindBoxCards') as {
-    blindBoxCards: Array<unknown>;
+    blindBoxCards: unknown[];
   };
   return {
     useMixology: () => ({

@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>V5-B · 小红书表单卡片融合版</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#070004; --bgDeep:#160006; --pink:#ff2f9f; --pink2:#ff3038;
+    --cyan:#2fe7ff; --lime:#b7ff4a; --amber:#ffb84d;
+    --txt:#fff; --soft:rgba(255,255,255,.82); --mut:rgba(255,255,255,.55); --line:rgba(255,255,255,.12);
+    --card:rgba(255,255,255,.93);
+    --font:"Noto Sans SC",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    --display:"Cormorant Garamond",serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:#050103;color:var(--txt);font-family:var(--font);display:flex;justify-content:center;align-items:flex-start;min-height:100vh;padding:24px 0;}
+  .phone{width:390px;background:var(--bg);border-radius:54px;box-shadow:0 34px 80px -24px rgba(0,0,0,.85),0 0 0 2px #27272a, inset 0 0 0 5px #0a0a0c;overflow:hidden;position:relative;}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:126px;height:34px;background:#000;border-radius:0 0 22px 22px;z-index:50;}
+  .status{position:absolute;top:10px;left:0;right:0;z-index:40;display:flex;justify-content:space-between;align-items:center;padding:0 28px;font-size:12px;font-weight:800;pointer-events:none;}
+  .screen{height:844px;overflow-y:auto;position:relative;scrollbar-width:none;}
+  .screen::-webkit-scrollbar{display:none;}
+
+  /* top nav */
+  .nav{position:relative;z-index:10;display:flex;justify-content:space-between;align-items:center;padding:54px 20px 14px;background:linear-gradient(180deg,#160006,var(--bg));border-bottom:1px solid var(--line);}
+  .back{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:16px;}
+  .nav-title{font-size:17px;font-weight:900;letter-spacing:.5px;}
+  .preview{font-size:13px;font-weight:800;color:var(--pink);}
+
+  /* centered header */
+  .head{padding:26px 20px 18px;display:flex;flex-direction:column;align-items:center;}
+  .avatar-wrap{width:96px;height:96px;border-radius:50%;padding:3px;background:linear-gradient(135deg,var(--pink),var(--amber));position:relative;}
+  .avatar{width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid var(--bg);}
+  .cam{position:absolute;right:0;bottom:6px;width:26px;height:26px;border-radius:50%;background:var(--pink);display:flex;align-items:center;justify-content:center;border:2px solid var(--bg);font-size:12px;}
+  .name{font-family:var(--display);font-size:26px;font-weight:700;margin-top:14px;}
+  .id-row{display:flex;align-items:center;gap:6px;margin-top:4px;color:var(--mut);font-size:12px;}
+
+  /* form cards */
+  .card-group{margin:0 16px 14px;border-radius:18px;background:var(--card);overflow:hidden;color:#1a0512;}
+  .row{min-height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid rgba(0,0,0,.06);}
+  .row:last-child{border-bottom:none;}
+  .row-lab{font-size:14px;color:#6b5a65;font-weight:700;}
+  .row-val{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;color:#1a0512;}
+  .row-val.mut{color:#9a8a95;}
+  .arrow{color:#c4b8c0;font-size:14px;}
+  .bg-preview{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#1a3a4a,#0d1f2a);border:1px solid rgba(0,0,0,.1);}
+
+  /* stats as horizontal pills */
+  .stats{display:flex;justify-content:center;gap:10px;padding:0 16px 18px;}
+  .stat-pill{flex:1;min-height:66px;border-radius:16px;background:rgba(255,255,255,.07);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .stat-pill .num{font-size:18px;font-weight:900;color:var(--txt);}
+  .stat-pill .lab{font-size:11px;color:var(--mut);margin-top:2px;}
+
+  /* ai rec dark */
+  .ai{margin:6px 16px 16px;border-radius:18px;background:linear-gradient(135deg,rgba(255,47,159,.12),rgba(47,231,255,.06));border:1px solid rgba(255,47,159,.2);padding:14px;display:flex;gap:12px;}
+  .ai-thumb{width:56px;height:56px;border-radius:12px;object-fit:cover;}
+  .ai-body{flex:1;min-width:0;}
+  .ai-tag{font-size:11px;color:var(--cyan);font-weight:800;}
+  .ai-title{font-size:15px;font-weight:900;margin-top:4px;}
+  .ai-desc{font-size:12px;color:var(--mut);margin-top:3px;}
+
+  /* tabs */
+  .tabs{display:flex;gap:22px;padding:0 20px;border-bottom:1px solid var(--line);}
+  .tab{padding:14px 0 12px;font-size:15px;font-weight:800;color:var(--mut);position:relative;}
+  .tab.active{color:var(--txt);}
+  .tab.active::after{content:"";position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--pink);border-radius:3px 3px 0 0;}
+
+  .empty{padding:60px 30px 120px;text-align:center;color:var(--mut);}
+  .empty .big{font-size:44px;}
+  .empty p{margin:14px 0 18px;font-size:13px;}
+  .empty button{padding:11px 24px;border-radius:999px;border:none;background:linear-gradient(135deg,var(--pink),var(--pink2));color:#fff;font-size:13px;font-weight:900;}
+
+  .tabbar{position:absolute;bottom:0;left:0;right:0;height:84px;background:linear-gradient(180deg,transparent,rgba(7,0,4,.92) 40%,var(--bg) 100%);display:flex;justify-content:space-around;align-items:flex-end;padding:0 12px 18px;border-top:1px solid var(--line);backdrop-filter:blur(10px);}
+  .tbi{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--mut);font-size:10px;}
+  .tbi.active{color:var(--pink);}
+  .plus{width:48px;height:32px;background:linear-gradient(135deg,var(--pink),var(--pink2));border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:2px;}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="notch"></div>
+  <div class="status">
+    <div>13:31</div>
+    <div style="display:flex;gap:5px;align-items:center;"><span>5G</span><span>84%</span><svg width="18" height="10" viewBox="0 0 18 10"><rect x="0" y="2" width="3" height="6" rx="1" fill="#fff"/><rect x="5" y="1" width="3" height="7" rx="1" fill="#fff"/><rect x="10" y="0" width="3" height="8" rx="1" fill="#fff"/><rect x="15" y="0" width="3" height="8" rx="1" fill="#fff"/></svg></div>
+  </div>
+  <div class="screen">
+    <div class="nav"><div class="back">‹</div><div class="nav-title">个人主页</div><div class="preview">分享</div></div>
+
+    <div class="head">
+      <div class="avatar-wrap"><img class="avatar" src="../../assets/mixology/online/cocktail-mojito.jpg" /><div class="cam">📷</div></div>
+      <div class="name">bailan</div>
+      <div class="id-row">V0号 4851913166 · 认证调酒师</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-pill"><div class="num">12</div><div class="lab">关注</div></div>
+      <div class="stat-pill"><div class="num">38</div><div class="lab">粉丝</div></div>
+      <div class="stat-pill"><div class="num">156</div><div class="lab">获赞</div></div>
+      <div class="stat-pill"><div class="num">0</div><div class="lab">酒卡</div></div>
+    </div>
+
+    <div class="card-group">
+      <div class="row"><span class="row-lab">名字</span><span class="row-val">bailan<span class="arrow">›</span></span></div>
+      <div class="row"><span class="row-lab">城市</span><span class="row-val">上海<span class="arrow">›</span></span></div>
+      <div class="row"><span class="row-lab">背景图</span><span class="row-val"><span class="bg-preview"></span><span class="arrow">›</span></span></div>
+      <div class="row"><span class="row-lab">简介</span><span class="row-val mut">介绍一下自己<span class="arrow">›</span></span></div>
+    </div>
+
+    <div class="card-group">
+      <div class="row"><span class="row-lab">我的笔记</span><span class="row-val">0 篇<span class="arrow">›</span></span></div>
+      <div class="row"><span class="row-lab">我的收藏</span><span class="row-val">12 款<span class="arrow">›</span></span></div>
+      <div class="row"><span class="row-lab">浏览记录</span><span class="row-val">28 条<span class="arrow">›</span></span></div>
+      <div class="row"><span class="row-lab">草稿箱</span><span class="row-val">1 条<span class="arrow">›</span></span></div>
+    </div>
+
+    <div class="ai">
+      <img class="ai-thumb" src="../../assets/mixology/online/cocktail-old-fashioned.jpg" />
+      <div class="ai-body">
+        <div class="ai-tag">🤖 AI 调酒师</div>
+        <div class="ai-title">今晚来杯 · 古典 Old Fashioned</div>
+        <div class="ai-desc">波本威士忌 + 苦精已就绪，只差一块冰。</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active">笔记</div>
+      <div class="tab">收藏</div>
+      <div class="tab">赞过</div>
+    </div>
+    <div class="empty">
+      <div class="big">🍸</div>
+      <p>还没有点赞过笔记</p>
+      <button>去社区逛逛</button>
+    </div>
+
+    <div class="tabbar">
+      <div class="tbi">🏠<span>首页</span></div>
+      <div class="tbi">🍸<span>社区</span></div>
+      <div class="tbi"><div class="plus">＋</div></div>
+      <div class="tbi">🍷<span>酒吧</span></div>
+      <div class="tbi active">👤<span>我的</span></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

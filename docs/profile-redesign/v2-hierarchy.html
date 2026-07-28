@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>V2 · 视觉层次调整 · 手机端</title>
+<style>
+  :root{
+    --bg0:#070004; --bg1:#160006;
+    --pink:#ff2f9f; --pink2:#ff3038;
+    --cyan:#2fe7ff; --lime:#b7ff4a; --amber:#ffb84d;
+    --panel:rgba(255,255,255,.08); --panel2:rgba(255,255,255,.05);
+    --line:rgba(255,255,255,.12); --line2:rgba(255,255,255,.07);
+    --txt:#f6eef3; --mut:#a896a2; --mut2:#7d6f79;
+    --r-sm:8px; --r-md:14px; --r-lg:22px; --pill:999px;
+    --pad:20px;
+    --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{font-family:var(--font);background:radial-gradient(120% 80% at 50% -10%,#1a0410 0%,#0a0206 55%,#050103 100%);display:flex;align-items:center;justify-content:center;min-height:100vh;padding:32px 16px;color:var(--txt);}
+  .stage{display:flex;flex-direction:column;align-items:center;gap:14px;}
+  .tag{font-size:12px;letter-spacing:.18em;color:var(--mut);text-transform:uppercase;}
+  .phone{width:390px;height:844px;background:#000;border-radius:54px;padding:13px;box-shadow:0 40px 90px -20px rgba(0,0,0,.8),0 0 0 2px #2a2a2e, inset 0 0 0 4px #0a0a0c;position:relative;}
+  .island{position:absolute;top:24px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#000;border-radius:20px;z-index:60;}
+  .screen{width:100%;height:100%;border-radius:42px;overflow:hidden;position:relative;background:linear-gradient(180deg,var(--bg0),var(--bg1));}
+  .screen::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(140% 50% at 50% -5%,rgba(255,47,159,.14),transparent 55%);}
+  .statusbar{height:52px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 8px;font-size:14px;font-weight:600;color:#fff;position:relative;z-index:20;}
+  .statusbar .right{display:flex;gap:6px;align-items:center;font-size:12px;}
+  .app{position:absolute;top:52px;left:0;right:0;bottom:0;overflow-y:auto;padding:0 var(--pad) 100px;scrollbar-width:none;}
+  .app::-webkit-scrollbar{display:none;}
+
+  /* hero header (hierarchy: larger) */
+  .hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:18px 0 6px;}
+  .ava{width:88px;height:88px;border-radius:var(--pill);background:conic-gradient(from 200deg,var(--pink),var(--pink2),var(--amber),var(--pink));padding:3px;}
+  .ava i{display:block;width:100%;height:100%;border-radius:var(--pill);background:#1c0712 url('../../assets/mixology/online/cocktail-mojito.jpg') center/cover;box-shadow:inset 0 0 0 3px rgba(0,0,0,.35);}
+  .hero b{font-size:23px;font-weight:800;margin-top:14px;display:block;letter-spacing:.5px;}
+  .hero .city{font-size:12.5px;color:var(--cyan);margin-top:6px;display:flex;align-items:center;gap:4px;}
+  .hero .sig{font-size:13px;color:var(--mut);margin-top:8px;}
+
+  /* stats with emphasized amber numbers */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);margin-top:18px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:6px 0;}
+  .stats div{text-align:center;padding:12px 2px;border-right:1px solid var(--line2);}
+  .stats div:last-child{border-right:none;}
+  .stats b{font-size:21px;font-weight:800;color:var(--amber);display:block;text-shadow:0 0 14px rgba(255,184,77,.35);}
+  .stats span{font-size:11px;color:var(--mut);margin-top:4px;display:block;}
+
+  /* primary CTA (hierarchy: first visual focus) */
+  .cta{margin-top:16px;width:100%;border:none;border-radius:var(--pill);padding:15px;font-family:var(--font);font-size:15px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--pink),var(--pink2));box-shadow:0 14px 30px -10px rgba(255,47,159,.75);display:flex;align-items:center;justify-content:center;gap:8px;}
+  .cta svg{width:18px;height:18px;}
+
+  /* section header with pink accent bar */
+  .sh{display:flex;align-items:center;gap:9px;margin:24px 2px 12px;}
+  .sh::before{content:"";width:4px;height:16px;border-radius:3px;background:linear-gradient(180deg,var(--pink),var(--pink2));}
+  .sh b{font-size:14px;font-weight:700;letter-spacing:.04em;}
+  .sh span{font-size:11px;color:var(--mut2);margin-left:auto;}
+
+  /* quick actions row */
+  .qa{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  .qa button{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:14px 6px;color:var(--txt);display:flex;flex-direction:column;align-items:center;gap:9px;font-family:var(--font);}
+  .qa .ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;color:#fff;}
+  .qa .ic.a{background:rgba(255,184,77,.16);color:var(--amber);}
+  .qa .ic.c{background:rgba(47,231,255,.16);color:var(--cyan);}
+  .qa .ic.l{background:rgba(183,255,74,.14);color:var(--lime);}
+  .qa svg{width:19px;height:19px;}
+  .qa b{font-size:11.5px;font-weight:600;}
+
+  /* settings rows */
+  .center{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;}
+  .row{display:flex;align-items:center;gap:13px;padding:15px;border-bottom:1px solid var(--line2);}
+  .row:last-child{border-bottom:none;}
+  .row .ic{width:32px;height:32px;border-radius:9px;background:var(--panel2);color:var(--mut);display:grid;place-items:center;flex:none;}
+  .row svg{width:17px;height:17px;}
+  .row .t{flex:1;}
+  .row .t b{font-size:14px;font-weight:600;display:block;}
+  .row .t span{font-size:11.5px;color:var(--mut2);margin-top:2px;display:block;}
+  .row .chev{color:var(--mut2);}
+
+  /* highlighted vault panel */
+  .vault{margin-top:12px;display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,rgba(255,184,77,.16),rgba(255,48,56,.10));border:1px solid rgba(255,184,77,.4);border-radius:var(--r-md);padding:15px;}
+  .vault .ic{width:40px;height:40px;border-radius:11px;background:rgba(0,0,0,.25);display:grid;place-items:center;color:var(--amber);flex:none;}
+  .vault b{font-size:14px;font-weight:700;color:var(--amber);display:block;}
+  .vault span{font-size:11.5px;color:#e9d3b0;margin-top:3px;display:block;}
+  .vault .go{margin-left:auto;color:var(--amber);}
+
+  /* tabs underline */
+  .tabs{display:flex;gap:22px;margin:24px 2px 14px;border-bottom:1px solid var(--line);}
+  .tabs button{border:none;background:none;color:var(--mut);font-family:var(--font);font-size:14px;font-weight:600;padding:0 0 11px;position:relative;}
+  .tabs button.on{color:#fff;}
+  .tabs button.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2.5px;border-radius:2px;background:linear-gradient(90deg,var(--pink),var(--pink2));}
+
+  /* single-column large cards */
+  .list{display:flex;flex-direction:column;gap:12px;}
+  .c{display:flex;gap:13px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;padding:11px;}
+  .c .ph{width:84px;height:84px;border-radius:11px;flex:none;background:#1c0712 url('../../assets/mixology/online/cocktail-negroni.jpg') center/cover;}
+  .c:nth-child(2) .ph{background-image:url('../../assets/mixology/online/cocktail-cosmopolitan.jpg');}
+  .c:nth-child(3) .ph{background-image:url('../../assets/mixology/online/cocktail-margarita.jpg');}
+  .c .cap{flex:1;display:flex;flex-direction:column;justify-content:center;}
+  .c .cap b{font-size:15px;font-weight:700;}
+  .c .cap .m{font-size:12px;color:var(--mut);margin-top:5px;display:flex;align-items:center;gap:5px;}
+  .c .cap .tag2{margin-top:9px;align-self:flex-start;font-size:10.5px;color:var(--cyan);background:rgba(47,231,255,.12);padding:3px 9px;border-radius:var(--pill);}
+
+  .login{margin:20px 0 4px;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border:1px dashed var(--line);border-radius:var(--r-md);color:var(--mut);font-size:13px;}
+
+  .tabbar{position:absolute;left:0;right:0;bottom:0;height:84px;background:rgba(8,2,6,.92);backdrop-filter:blur(18px);border-top:1px solid var(--line);display:flex;align-items:center;padding:0 18px 18px;z-index:30;}
+  .tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--mut2);font-size:10.5px;text-decoration:none;}
+  .tabbar a svg{width:22px;height:22px;}
+  .tabbar a.on{color:var(--pink);}
+  .tabbar .plus{width:50px;height:50px;border-radius:var(--pill);background:linear-gradient(135deg,var(--pink),var(--pink2));display:grid;place-items:center;color:#fff;margin-top:-22px;box-shadow:0 10px 22px -8px rgba(255,47,159,.8);}
+  .tabbar .plus svg{width:24px;height:24px;}
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="tag">V2 · 视觉层次调整 · 手机端 390×844</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="screen">
+        <div class="statusbar"><span>22:30</span><span class="right">●●● 5G ▮▮▮ 92%</span></div>
+        <div class="app">
+          <div class="hero">
+            <div class="ava"><i></i></div>
+            <b>微醺调酒师</b>
+            <div class="city">📍 中国·上海</div>
+            <div class="sig">调一杯属于今晚的酒 🍸</div>
+          </div>
+
+          <div class="stats">
+            <div><b>28</b><span>笔记</span></div>
+            <div><b>142</b><span>收藏</span></div>
+            <div><b>36</b><span>酒柜</span></div>
+            <div><b>12</b><span>关注</span></div>
+          </div>
+
+          <button class="cta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>编辑资料</button>
+
+          <div class="sh"><b>快捷入口</b><span>常用</span></div>
+          <div class="qa">
+            <button><span class="ic a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><b>数据保险箱</b></button>
+            <button><span class="ic c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 14.6H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 9 4.6V4a2 2 0 1 1 4 0v.1A1.6 1.6 0 0 0 15 5.4a1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a2 2 0 1 1 0 4Z"/></svg></span><b>账号安全</b></button>
+            <button><span class="ic l"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg></span><b>隐私设置</b></button>
+          </div>
+
+          <div class="sh"><b>设置</b><span>账户相关</span></div>
+          <div class="center">
+            <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 14.6H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 9 4.6V4a2 2 0 1 1 4 0v.1A1.6 1.6 0 0 0 15 5.4a1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a2 2 0 1 1 0 4Z"/></svg></span><div class="t"><b>账号与安全</b><span>手机号 · 绑定 · 设备</span></div><span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></span></div>
+            <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg></span><div class="t"><b>隐私与安全</b><span>可见范围 · 黑名单</span></div><span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></span></div>
+          </div>
+          <div class="vault">
+            <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+            <div><b>本地数据保险箱</b><span>已加密 · 占用 1.2GB · 可导出</span></div>
+            <span class="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></span>
+          </div>
+
+          <div class="tabs"><button class="on">笔记</button><button>收藏</button><button>酒柜</button></div>
+          <div class="list">
+            <div class="c"><div class="ph"></div><div class="cap"><b>微醺日记</b><div class="m">🍸 内格罗尼 · 上海</div><span class="tag2">笔记</span></div></div>
+            <div class="c"><div class="ph"></div><div class="cap"><b>周末特调</b><div class="m">🍸 大都会 · 自制</div><span class="tag2">笔记</span></div></div>
+            <div class="c"><div class="ph"></div><div class="cap"><b>海边微风</b><div class="m">🍸 玛格丽特 · 三亚</div><span class="tag2">笔记</span></div></div>
+          </div>
+
+          <div class="login">未登录？<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17 15 12 10 7"/><path d="M15 12H3"/></svg> 登录后同步数据</div>
+        </div>
+
+        <nav class="tabbar">
+          <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9.5 12 3l9 6.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/></svg>首页</a>
+          <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>发现</a>
+          <a class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></a>
+          <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>社区</a>
+          <a class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>我的</a>
+        </nav>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

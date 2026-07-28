@@ -24,6 +24,17 @@ export const ingredients: Ingredient[] = [
   { id: 'cherry', name: '马拉斯奇诺樱桃', category: 'garnish' },
   { id: 'orange-peel', name: '橙皮', category: 'garnish' },
   { id: 'olive', name: '橄榄', category: 'garnish' },
+  // —— 经典系列扩充用到的基酒与辅料（仅追加，不影响既有配方）——
+  { id: 'cognac', name: '干邑白兰地', category: 'base' },
+  { id: 'champagne', name: '香槟', category: 'mixer' },
+  { id: 'cranberry-juice', name: '蔓越莓汁', category: 'mixer' },
+  { id: 'coffee-liqueur', name: '咖啡利口酒', category: 'liqueur' },
+  { id: 'tomato-juice', name: '番茄汁', category: 'mixer' },
+  { id: 'pineapple-juice', name: '菠萝汁', category: 'mixer' },
+  { id: 'peach-puree', name: '白桃果泥', category: 'mixer' },
+  { id: 'prosecco', name: '普罗塞克气泡酒', category: 'mixer' },
+  { id: 'aperol', name: '阿佩罗', category: 'liqueur' },
+  { id: 'grenadine', name: '石榴糖浆', category: 'sweetener' },
 ];
 
 export function getIngredientById(id: string) {

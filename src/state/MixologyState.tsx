@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   clearInteractionState,
@@ -9,10 +9,13 @@ import {
 } from '@/services/interactionService';
 import {
   clearLocalState,
+  defaultAccountSecurity,
   defaultLocalState,
   defaultUserProfile,
+  loadAccountSecurity,
   loadLocalState,
   loadUserProfile,
+  saveAccountSecurity,
   saveAgeVerified,
   saveCellarIngredientIds,
   savePrivacySettings,
@@ -21,13 +24,14 @@ import {
 import { canDrawToday, drawCard, todayKey } from '@/services/blindBoxService';
 import { clearPostDraft } from '@/services/postDraftService';
 import { deriveCoverImageKey } from '@/utils/postImages';
-import type { BlindBoxCard, CommunityComment, CommunityPost, DrawnCardRecord, LocalInteractionState, LocalState, PostImage, PostVisibility, PrivacySettings, UserProfile } from '@/types/mixology';
+import type { AccountSecurity, BlindBoxCard, CommunityComment, CommunityPost, DrawnCardRecord, LocalInteractionState, LocalState, PostImage, PostVisibility, PrivacySettings, UserProfile } from '@/types/mixology';
 
 type MixologyContextValue = {
   isHydrated: boolean;
   localState: LocalState;
   interactionState: LocalInteractionState;
   userProfile: UserProfile;
+  accountSecurity: AccountSecurity;
   updateUserProfile: (patch: Partial<UserProfile>) => Promise<void>;
   verifyAge: () => Promise<void>;
   toggleCellarIngredient: (ingredientId: string) => Promise<void>;
@@ -43,6 +47,16 @@ type MixologyContextValue = {
   clearSearchHistory: () => Promise<void>;
   drawBlindBoxCard: () => Promise<BlindBoxCard>;
   resetLocalState: () => Promise<void>;
+  logout: () => Promise<void>;
+  updateAccountSecurity: (patch: Partial<AccountSecurity>) => Promise<void>;
+  bindWechat: () => Promise<void>;
+  unbindWechat: () => Promise<void>;
+  setPassword: () => Promise<void>;
+  setPhone: (phone: string) => Promise<void>;
+  verifyRealname: (name: string) => Promise<void>;
+  verifyOfficial: (officialType: string) => Promise<void>;
+  removeDevice: (deviceId: string) => Promise<void>;
+  deleteAccount: () => Promise<void>;
 };
 
 export type PublishPostInput = {
@@ -64,16 +78,25 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
   const [localState, setLocalState] = useState<LocalState>(defaultLocalState);
   const [interactionState, setInteractionState] = useState<LocalInteractionState>(defaultInteractionState);
   const [userProfile, setUserProfile] = useState<UserProfile>(defaultUserProfile);
+  const [accountSecurity, setAccountSecurity] = useState<AccountSecurity>(defaultAccountSecurity);
+  const interactionStateRef = useRef<LocalInteractionState>(defaultInteractionState);
 
   useEffect(() => {
     let isMounted = true;
 
-    Promise.all([loadLocalState(), loadInteractionState(), loadUserProfile()])
-      .then(([storedLocalState, storedInteractionState, storedUserProfile]) => {
+    Promise.all([
+      loadLocalState(),
+      loadInteractionState(),
+      loadUserProfile(),
+      loadAccountSecurity(),
+    ])
+      .then(([storedLocalState, storedInteractionState, storedUserProfile, storedAccountSecurity]) => {
         if (isMounted) {
           setLocalState(storedLocalState);
+          interactionStateRef.current = storedInteractionState;
           setInteractionState(storedInteractionState);
           setUserProfile(storedUserProfile);
+          setAccountSecurity(storedAccountSecurity);
         }
       })
       .finally(() => {
@@ -126,10 +149,11 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateInteractions = useCallback(async (updater: (state: LocalInteractionState) => LocalInteractionState) => {
-    const nextState = updater(interactionState);
+    const nextState = updater(interactionStateRef.current);
+    interactionStateRef.current = nextState;
     setInteractionState(nextState);
     await saveInteractionState(nextState);
-  }, [interactionState]);
+  }, []);
 
   const togglePostLike = useCallback(
     async (postId: string) => {
@@ -255,7 +279,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
   }, [updateInteractions]);
 
   const drawBlindBoxCard = useCallback(async (): Promise<BlindBoxCard> => {
-    if (!canDrawToday(interactionState.lastDrawDate)) {
+    if (!canDrawToday(interactionStateRef.current.lastDrawDate)) {
       throw new Error('今天已经抽过了，明天再来吧');
     }
     const card = drawCard();
@@ -266,13 +290,108 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       drawnCards: [record, ...state.drawnCards],
     }));
     return card;
-  }, [interactionState.lastDrawDate, updateInteractions]);
+  }, [updateInteractions]);
 
   const resetLocalState = useCallback(async () => {
     await Promise.all([clearLocalState(), clearInteractionState(), clearPostDraft()]);
     setLocalState(defaultLocalState);
+    interactionStateRef.current = defaultInteractionState;
     setInteractionState(defaultInteractionState);
     setUserProfile(defaultUserProfile);
+  }, []);
+
+  const logout = useCallback(async () => {
+    setLocalState((state) => ({ ...state, ageVerified: false }));
+    await saveAgeVerified(false);
+  }, []);
+
+  const updateAccountSecurity = useCallback(
+    async (patch: Partial<AccountSecurity>) => {
+      const next = { ...accountSecurity, ...patch };
+      setAccountSecurity(next);
+      await saveAccountSecurity(next);
+    },
+    [accountSecurity]
+  );
+
+  const bindWechat = useCallback(async () => {
+    const next: AccountSecurity = {
+      ...accountSecurity,
+      wechatBound: true,
+      wechatAccount: 'wxid_7f3a9c2b',
+    };
+    setAccountSecurity(next);
+    await saveAccountSecurity(next);
+  }, [accountSecurity]);
+
+  const unbindWechat = useCallback(async () => {
+    const next: AccountSecurity = {
+      ...accountSecurity,
+      wechatBound: false,
+      wechatAccount: '',
+    };
+    setAccountSecurity(next);
+    await saveAccountSecurity(next);
+  }, [accountSecurity]);
+
+  const setPassword = useCallback(async () => {
+    const next: AccountSecurity = { ...accountSecurity, passwordSet: true };
+    setAccountSecurity(next);
+    await saveAccountSecurity(next);
+  }, [accountSecurity]);
+
+  const setPhone = useCallback(
+    async (phone: string) => {
+      const next: AccountSecurity = { ...accountSecurity, phone, phoneVerified: true };
+      setAccountSecurity(next);
+      await saveAccountSecurity(next);
+    },
+    [accountSecurity]
+  );
+
+  const verifyRealname = useCallback(
+    async (name: string) => {
+      const next: AccountSecurity = {
+        ...accountSecurity,
+        realnameVerified: true,
+        realnameName: name,
+      };
+      setAccountSecurity(next);
+      await saveAccountSecurity(next);
+    },
+    [accountSecurity]
+  );
+
+  const verifyOfficial = useCallback(
+    async (officialType: string) => {
+      const next: AccountSecurity = {
+        ...accountSecurity,
+        officialVerified: true,
+        officialType,
+      };
+      setAccountSecurity(next);
+      await saveAccountSecurity(next);
+    },
+    [accountSecurity]
+  );
+
+  const removeDevice = useCallback(
+    async (deviceId: string) => {
+      const next: AccountSecurity = {
+        ...accountSecurity,
+        devices: accountSecurity.devices.filter((device) => device.id !== deviceId),
+      };
+      setAccountSecurity(next);
+      await saveAccountSecurity(next);
+    },
+    [accountSecurity]
+  );
+
+  const deleteAccount = useCallback(async () => {
+    setAccountSecurity(defaultAccountSecurity);
+    await saveAccountSecurity(defaultAccountSecurity);
+    setLocalState((state) => ({ ...state, ageVerified: false }));
+    await saveAgeVerified(false);
   }, []);
 
   const value = useMemo(
@@ -296,6 +415,17 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       clearSearchHistory,
       drawBlindBoxCard,
       resetLocalState,
+      logout,
+      accountSecurity,
+      updateAccountSecurity,
+      bindWechat,
+      unbindWechat,
+      setPassword,
+      setPhone,
+      verifyRealname,
+      verifyOfficial,
+      removeDevice,
+      deleteAccount,
     }),
     [
       isHydrated,
@@ -317,6 +447,17 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       clearSearchHistory,
       drawBlindBoxCard,
       resetLocalState,
+      logout,
+      accountSecurity,
+      updateAccountSecurity,
+      bindWechat,
+      unbindWechat,
+      setPassword,
+      setPhone,
+      verifyRealname,
+      verifyOfficial,
+      removeDevice,
+      deleteAccount,
     ]
   );
 

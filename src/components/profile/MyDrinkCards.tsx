@@ -23,12 +23,12 @@ export function MyDrinkCards({ drawnCards }: { drawnCards: DrawnCardRecord[] }) 
         data={drawnCards}
         keyExtractor={(record) => `${record.card.id}-${record.drawnAt}`}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const rarity = rarityConfig[item.card.rarity];
           return (
             <Pressable
               onPress={() => router.push({ pathname: '/recipe/[id]', params: { id: item.card.recipeId } } as unknown as Href)}
-              style={[styles.card, { borderColor: rarity.borderColor }]}
+              style={[styles.card, { borderColor: rarity.borderColor }, index < drawnCards.length - 1 ? styles.cardMargin : null]}
             >
               <Image source={getImageAsset(item.card.imageKey)} style={styles.cardImage} />
               <Text style={styles.cardName} numberOfLines={1}>
@@ -39,9 +39,11 @@ export function MyDrinkCards({ drawnCards }: { drawnCards: DrawnCardRecord[] }) 
           );
         }}
         ListFooterComponent={
-          <Pressable onPress={() => router.push('/blind-box' as Href)} style={styles.drawEntry} testID="my-cards-draw-entry">
-            <PackageOpen color={colors.pink} size={26} />
-            <Text style={styles.drawEntryText}>去抽卡</Text>
+          <Pressable onPress={() => router.push('/blind-box' as Href)} style={styles.drawEntryPressable} testID="my-cards-draw-entry">
+            <View style={styles.drawEntry}>
+              <PackageOpen color={colors.pink} size={32} />
+              <Text style={styles.drawEntryText}>去抽卡</Text>
+            </View>
           </Pressable>
         }
       />
@@ -51,13 +53,13 @@ export function MyDrinkCards({ drawnCards }: { drawnCards: DrawnCardRecord[] }) 
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 20,
+    marginTop: 24,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   title: {
     color: colors.text,
@@ -70,16 +72,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   listContent: {
-    gap: 10,
     paddingRight: 8,
   },
   card: {
     width: 108,
+    height: 138,
     borderRadius: radii.md,
     overflow: 'hidden',
     backgroundColor: colors.panel,
     borderWidth: 1.5,
     paddingBottom: 8,
+  },
+  cardMargin: {
+    marginRight: 12,
   },
   cardImage: {
     width: '100%',
@@ -99,11 +104,14 @@ const styles = StyleSheet.create({
     marginTop: 2,
     paddingHorizontal: 8,
   },
+  drawEntryPressable: {
+    marginLeft: 12,
+  },
   drawEntry: {
-    width: 92,
+    width: 108,
+    height: 138,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
     borderRadius: radii.md,
     borderWidth: 1,
     borderStyle: 'dashed',
@@ -114,5 +122,6 @@ const styles = StyleSheet.create({
     color: colors.pink,
     fontSize: 12,
     fontWeight: '800',
+    marginTop: 8,
   },
 });

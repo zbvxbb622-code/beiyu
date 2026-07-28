@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
-import { Heart, Map, Phone, Star, ThumbsUp } from 'lucide-react-native';
+import { Heart, Navigation, Phone, Star, ThumbsUp } from 'lucide-react-native';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { TopBar } from '@/components/mixology/TopBar';
@@ -24,37 +24,25 @@ export default function BarDetailScreen() {
   }
 
   const favorite = interactionState.favoriteVenueIds.includes(venue.id);
-  const galleryImageKeys = Array.from(
-    new Set([
-      venue.imageKey,
-      ...venue.menu.map((item) => item.imageKey),
-      ...venue.reviews.flatMap((review) => review.imageKeys ?? []),
-    ])
-  ).slice(0, 5);
 
   return (
     <ScreenShell>
-      <TopBar title="详情" right={<Pressable onPress={() => toggleVenueFavorite(venue.id)}><Heart color={favorite ? colors.pink : colors.text} fill={favorite ? colors.pink : 'transparent'} size={24} /></Pressable>} />
+      <TopBar title="详情" right={<Pressable onPress={() => toggleVenueFavorite(venue.id)} hitSlop={10}><Heart color={favorite ? colors.pink : colors.text} fill={favorite ? colors.pink : 'transparent'} size={24} /></Pressable>} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gallery}>
-          {galleryImageKeys.map((imageKey, index) => (
-            <Image
-              key={`${imageKey}-${index}`}
-              testID="bar-detail-gallery-image"
-              source={getImageAsset(imageKey)}
-              resizeMode="cover"
-              style={styles.galleryImage}
-            />
-          ))}
-        </ScrollView>
+        <Image
+          testID="bar-detail-hero"
+          source={getImageAsset(venue.imageKey)}
+          resizeMode="cover"
+          style={styles.hero}
+        />
         <Text style={styles.name}>{venue.name}</Text>
         <View style={styles.ratingRow}>
           {[0, 1, 2, 3, 4].map((index) => (
             <Star
               key={index}
-              color={index < Math.round(venue.rating) ? colors.pink : '#6a6266'}
-              fill={index < Math.round(venue.rating) ? colors.pink : '#6a6266'}
-              size={20}
+              color={index < Math.round(venue.rating) ? colors.pink : '#5d5459'}
+              fill={index < Math.round(venue.rating) ? colors.pink : '#5d5459'}
+              size={19}
             />
           ))}
           <Text style={styles.rating}>{venue.rating.toFixed(1)}</Text>
@@ -74,7 +62,7 @@ export default function BarDetailScreen() {
           </View>
           <View style={styles.quickActions}>
             <View style={styles.quickAction}>
-              <Map color={colors.text} size={22} />
+              <Navigation color={colors.text} size={22} />
               <Text style={styles.quickText}>导航</Text>
             </View>
             <View style={styles.quickAction}>
@@ -85,19 +73,26 @@ export default function BarDetailScreen() {
         </View>
 
         <View style={styles.segment}>
-          <Text style={styles.segmentActive}>菜品</Text>
-          <Text style={styles.segmentText}>评论</Text>
+          <View style={styles.segmentItem}>
+            <Text style={styles.segmentActive}>菜品</Text>
+            <View style={styles.segmentIndicator} />
+          </View>
+          <View style={styles.segmentItem}>
+            <Text style={styles.segmentText}>评论</Text>
+          </View>
         </View>
 
         <Text style={styles.sectionTitle}>招牌 {venue.menu.length}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.menuRow}>
           {venue.menu.map((item) => (
             <View key={item.id} style={styles.menuCard}>
-              <Image source={getImageAsset(item.imageKey)} resizeMode="cover" style={styles.menuImage} />
-              {item.badge ? <Text style={styles.badge}>{item.badge}</Text> : null}
-              <View style={styles.menuLikes}>
-                <ThumbsUp color={colors.text} size={13} />
-                <Text style={styles.menuLikeText}>{item.likes}人推荐</Text>
+              <View style={styles.menuImageWrap}>
+                <Image source={getImageAsset(item.imageKey)} resizeMode="cover" style={styles.menuImage} />
+                {item.badge ? <Text style={styles.badge}>{item.badge}</Text> : null}
+                <View style={styles.menuLikes}>
+                  <ThumbsUp color={colors.text} size={12} />
+                  <Text style={styles.menuLikeText}>{item.likes}人推荐</Text>
+                </View>
               </View>
               <Text style={styles.menuName}>{item.name}</Text>
             </View>
@@ -120,7 +115,7 @@ export default function BarDetailScreen() {
               <Text style={styles.metro}>{review.date}</Text>
             </View>
             <View style={styles.reviewLike}>
-              <ThumbsUp color={colors.text} size={18} />
+              <ThumbsUp color={colors.text} size={17} />
               <Text style={styles.menuLikeText}>{review.likes}</Text>
             </View>
           </View>
@@ -139,48 +134,45 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginTop: 24,
   },
-  gallery: {
-    gap: 12,
-    paddingRight: 20,
-    marginTop: 18,
-  },
-  galleryImage: {
-    width: 236,
-    height: 156,
+  hero: {
+    width: '100%',
+    height: 228,
     borderRadius: radii.md,
     backgroundColor: colors.panel,
+    marginTop: 12,
   },
   name: {
     color: colors.text,
-    fontSize: 25,
+    fontSize: 24,
     fontWeight: '900',
-    marginTop: 24,
+    marginTop: 16,
   },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    marginTop: 12,
+    gap: 4,
+    marginTop: 10,
   },
   rating: {
     color: colors.pink,
-    fontSize: 16,
+    fontSize: 15,
     marginLeft: 6,
   },
   meta: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 15,
+    fontWeight: '700',
     marginLeft: 12,
   },
   score: {
-    color: colors.textSoft,
-    fontSize: 15,
-    marginTop: 12,
+    color: colors.textMuted,
+    fontSize: 14,
+    marginTop: 10,
   },
   openHours: {
-    color: colors.textSoft,
-    fontSize: 15,
-    marginTop: 14,
+    color: colors.textMuted,
+    fontSize: 14,
+    marginTop: 8,
   },
   tags: {
     flexDirection: 'row',
@@ -190,38 +182,39 @@ const styles = StyleSheet.create({
   },
   tag: {
     color: colors.textMuted,
+    fontSize: 12,
     backgroundColor: colors.panelSoft,
     borderRadius: radii.pill,
-    paddingHorizontal: 12,
+    paddingHorizontal: 13,
     paddingVertical: 6,
   },
   addressRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    marginTop: 20,
+    marginTop: 18,
   },
   addressCopy: {
     flex: 1,
   },
   address: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
   },
   metro: {
     color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 12,
+    lineHeight: 18,
     marginTop: 6,
   },
   quickActions: {
     flexDirection: 'row',
-    gap: 14,
+    gap: 16,
   },
   quickAction: {
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
   },
   quickText: {
     color: colors.textMuted,
@@ -230,74 +223,90 @@ const styles = StyleSheet.create({
   segment: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 50,
-    marginTop: 32,
-    marginBottom: 18,
+    gap: 56,
+    marginTop: 26,
+    marginBottom: 16,
+  },
+  segmentItem: {
+    alignItems: 'center',
   },
   segmentActive: {
     color: colors.text,
-    fontSize: 20,
-    fontWeight: '900',
-    textDecorationLine: 'underline',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  segmentIndicator: {
+    width: 26,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: colors.pink,
+    marginTop: 5,
   },
   segmentText: {
     color: colors.textMuted,
-    fontSize: 20,
-    fontWeight: '900',
+    fontSize: 18,
+    fontWeight: '800',
   },
   sectionTitle: {
     color: colors.text,
-    fontSize: 17,
-    fontWeight: '900',
+    fontSize: 16,
+    fontWeight: '800',
     marginBottom: 12,
   },
   menuRow: {
-    gap: 14,
+    gap: 12,
     paddingRight: 20,
   },
   menuCard: {
-    width: 140,
+    width: 118,
+  },
+  menuImageWrap: {
+    width: 118,
+    height: 148,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: colors.panel,
   },
   menuImage: {
-    width: 140,
-    height: 118,
-    borderRadius: radii.sm,
-    backgroundColor: colors.panel,
+    width: '100%',
+    height: '100%',
   },
   badge: {
     position: 'absolute',
-    left: 8,
-    top: 8,
+    left: 6,
+    top: 6,
     color: colors.text,
     backgroundColor: colors.pink,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    fontSize: 12,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 5,
+    fontSize: 11,
     fontWeight: '900',
   },
   menuLikes: {
     position: 'absolute',
-    left: 8,
-    bottom: 32,
+    left: 7,
+    bottom: 7,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
   menuLikeText: {
     color: colors.text,
-    fontSize: 12,
+    fontSize: 11,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowRadius: 4,
   },
   menuName: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: 13,
     textAlign: 'center',
     marginTop: 8,
   },
   review: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 26,
+    marginTop: 24,
   },
   reviewAvatar: {
     width: 40,
@@ -309,14 +318,14 @@ const styles = StyleSheet.create({
   },
   reviewAuthor: {
     color: colors.text,
-    fontSize: 17,
-    fontWeight: '900',
+    fontSize: 16,
+    fontWeight: '800',
   },
   reviewText: {
     color: colors.textSoft,
-    fontSize: 15,
-    lineHeight: 23,
-    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: 7,
   },
   reviewImages: {
     flexDirection: 'row',
@@ -326,7 +335,7 @@ const styles = StyleSheet.create({
   reviewImage: {
     width: 72,
     height: 72,
-    borderRadius: radii.sm,
+    borderRadius: 8,
   },
   reviewLike: {
     alignItems: 'center',

@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { LocalState, PrivacySettings, UserProfile } from '@/types/mixology';
+import type { AccountSecurity, LocalState, PrivacySettings, UserProfile } from '@/types/mixology';
 
 const AGE_VERIFIED_KEY = 'mixology.ageVerified';
 const CELLAR_KEY = 'mixology.cellarIngredientIds';
 const PRIVACY_KEY = 'mixology.privacySettings';
 const USER_PROFILE_KEY = 'mixology.userProfile';
+const ACCOUNT_SECURITY_KEY = 'mixology.accountSecurity';
 
 export const defaultPrivacySettings: PrivacySettings = {
   localOnlyMode: true,
@@ -25,6 +26,41 @@ export const defaultUserProfile: UserProfile = {
   avatarUri: null,
   signature: '',
   city: '',
+  gender: null,
+  birthday: null,
+  showBirthdayTag: true,
+  showAge: true,
+  showZodiac: false,
+  occupation: null,
+  school: null,
+};
+
+export const defaultAccountSecurity: AccountSecurity = {
+  phone: '+86190****9105',
+  phoneVerified: true,
+  wechatBound: false,
+  wechatAccount: '',
+  passwordSet: false,
+  realnameVerified: false,
+  realnameName: '',
+  officialVerified: false,
+  officialType: '',
+  devices: [
+    {
+      id: 'device-current',
+      name: 'iPhone 15 Pro',
+      platform: 'iOS',
+      lastActive: '当前使用',
+      isCurrent: true,
+    },
+    {
+      id: 'device-ipad',
+      name: 'iPad Air',
+      platform: 'iOS',
+      lastActive: '3 天前',
+      isCurrent: false,
+    },
+  ],
 };
 
 async function readJson<T>(key: string, fallback: T): Promise<T> {
@@ -74,11 +110,21 @@ export async function savePrivacySettings(privacySettings: PrivacySettings) {
 }
 
 export async function loadUserProfile(): Promise<UserProfile> {
-  return readJson<UserProfile>(USER_PROFILE_KEY, defaultUserProfile);
+  const stored = await readJson<UserProfile>(USER_PROFILE_KEY, defaultUserProfile);
+  return { ...defaultUserProfile, ...stored };
 }
 
 export async function saveUserProfile(profile: UserProfile) {
   await writeJson(USER_PROFILE_KEY, profile);
+}
+
+export async function loadAccountSecurity(): Promise<AccountSecurity> {
+  const stored = await readJson<Partial<AccountSecurity>>(ACCOUNT_SECURITY_KEY, defaultAccountSecurity);
+  return { ...defaultAccountSecurity, ...stored };
+}
+
+export async function saveAccountSecurity(accountSecurity: AccountSecurity) {
+  await writeJson(ACCOUNT_SECURITY_KEY, accountSecurity);
 }
 
 export async function clearLocalState() {
@@ -87,6 +133,7 @@ export async function clearLocalState() {
     removeKey(CELLAR_KEY),
     removeKey(PRIVACY_KEY),
     removeKey(USER_PROFILE_KEY),
+    removeKey(ACCOUNT_SECURITY_KEY),
   ]);
 }
 

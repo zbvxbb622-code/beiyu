@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>V5-C · 小红书菜单融合版</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#070004; --bgDeep:#160006; --pink:#ff2f9f; --pink2:#ff3038;
+    --cyan:#2fe7ff; --lime:#b7ff4a; --amber:#ffb84d;
+    --txt:#fff; --soft:rgba(255,255,255,.82); --mut:rgba(255,255,255,.55); --line:rgba(255,255,255,.12);
+    --card:rgba(255,255,255,.06);
+    --font:"Noto Sans SC",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    --display:"Syne",sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:#050103;color:var(--txt);font-family:var(--font);display:flex;justify-content:center;align-items:flex-start;min-height:100vh;padding:24px 0;}
+  .phone{width:390px;background:var(--bg);border-radius:54px;box-shadow:0 34px 80px -24px rgba(0,0,0,.85),0 0 0 2px #27272a, inset 0 0 0 5px #0a0a0c;overflow:hidden;position:relative;}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:126px;height:34px;background:#000;border-radius:0 0 22px 22px;z-index:50;}
+  .status{position:absolute;top:10px;left:0;right:0;z-index:40;display:flex;justify-content:space-between;align-items:center;padding:0 28px;font-size:12px;font-weight:800;pointer-events:none;}
+  .screen{height:844px;overflow-y:auto;position:relative;scrollbar-width:none;}
+  .screen::-webkit-scrollbar{display:none;}
+
+  /* compact header */
+  .hero{padding:56px 16px 18px;background:linear-gradient(180deg,#160006,var(--bg));border-bottom:1px solid var(--line);}
+  .hero-top{display:flex;justify-content:space-between;align-items:center;}
+  .brand{font-family:var(--display);font-size:18px;font-weight:800;letter-spacing:.5px;}
+  .top-actions{display:flex;gap:10px;}
+  .icn{width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:16px;}
+  .identity{display:flex;align-items:center;gap:14px;margin-top:18px;}
+  .avatar-wrap{width:72px;height:72px;border-radius:50%;padding:2.5px;background:linear-gradient(135deg,var(--pink),var(--amber));position:relative;}
+  .avatar{width:67px;height:67px;border-radius:50%;object-fit:cover;border:2.5px solid var(--bg);}
+  .verified{position:absolute;right:-2px;bottom:2px;width:22px;height:22px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;border:2px solid var(--bg);font-size:10px;color:#000;}
+  .id-copy{flex:1;}
+  .name{font-size:20px;font-weight:900;}
+  .id-row{font-size:12px;color:var(--mut);margin-top:4px;}
+  .signature{font-size:12px;color:var(--soft);margin-top:6px;}
+
+  /* highlighted ai */
+  .ai{margin:14px 16px 10px;border-radius:20px;background:linear-gradient(135deg,rgba(255,47,159,.18),rgba(47,231,255,.08));border:1px solid rgba(255,47,255,.2);padding:14px;display:flex;gap:12px;position:relative;overflow:hidden;}
+  .ai::before{content:"";position:absolute;right:-20px;top:-20px;width:100px;height:100px;background:radial-gradient(circle,rgba(255,47,159,.3),transparent 70%);filter:blur(16px);}
+  .ai-thumb{width:60px;height:60px;border-radius:14px;object-fit:cover;position:relative;z-index:1;}
+  .ai-body{flex:1;min-width:0;position:relative;z-index:1;}
+  .ai-tag{font-size:11px;color:var(--cyan);font-weight:800;}
+  .ai-title{font-size:15px;font-weight:900;margin-top:4px;}
+  .ai-desc{font-size:12px;color:var(--mut);margin-top:3px;}
+  .ai-go{position:relative;z-index:1;align-self:center;color:var(--pink);font-size:12px;font-weight:800;white-space:nowrap;}
+
+  /* grouped menu cards */
+  .group{margin:0 16px 12px;border-radius:18px;background:var(--card);border:1px solid var(--line);overflow:hidden;}
+  .item{min-height:56px;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid var(--line);}
+  .item:last-child{border-bottom:none;}
+  .item-icon{width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;margin-right:12px;font-size:14px;}
+  .item-body{flex:1;}
+  .item-title{font-size:14px;font-weight:800;}
+  .item-sub{font-size:11px;color:var(--mut);margin-top:1px;}
+  .item-right{display:flex;align-items:center;gap:8px;}
+  .badge{min-width:20px;height:20px;border-radius:10px;background:var(--pink2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;padding:0 6px;}
+  .arrow{color:var(--mut);font-size:14px;}
+  .group-title{padding:14px 16px 6px;font-size:12px;color:var(--mut);font-weight:800;letter-spacing:.1em;text-transform:uppercase;}
+
+  /* mini tabs + content */
+  .tabs{display:flex;gap:22px;padding:6px 20px 0;border-bottom:1px solid var(--line);}
+  .tab{padding:13px 0 11px;font-size:15px;font-weight:800;color:var(--mut);position:relative;}
+  .tab.active{color:var(--txt);}
+  .tab.active::after{content:"";position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--pink);border-radius:3px 3px 0 0;}
+  .empty{padding:50px 30px 130px;text-align:center;color:var(--mut);}
+  .empty .big{font-size:42px;}
+  .empty p{margin:12px 0 18px;font-size:13px;}
+  .empty button{padding:10px 22px;border-radius:999px;border:1px solid var(--pink);background:transparent;color:var(--pink);font-size:13px;font-weight:800;}
+
+  /* bottom action bar */
+  .bottom-actions{position:absolute;bottom:84px;left:16px;right:16px;display:flex;justify-content:space-between;gap:10px;}
+  .bact{flex:1;min-height:58px;border-radius:16px;background:rgba(255,255,255,.06);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;}
+  .bact svg{width:20px;height:20px;}
+  .bact span{font-size:11px;color:var(--soft);}
+
+  .tabbar{position:absolute;bottom:0;left:0;right:0;height:84px;background:linear-gradient(180deg,transparent,rgba(7,0,4,.92) 40%,var(--bg) 100%);display:flex;justify-content:space-around;align-items:flex-end;padding:0 12px 18px;border-top:1px solid var(--line);backdrop-filter:blur(10px);}
+  .tbi{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--mut);font-size:10px;}
+  .tbi.active{color:var(--pink);}
+  .plus{width:48px;height:32px;background:linear-gradient(135deg,var(--pink),var(--pink2));border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:2px;}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="notch"></div>
+  <div class="status">
+    <div>13:31</div>
+    <div style="display:flex;gap:5px;align-items:center;"><span>5G</span><span>84%</span><svg width="18" height="10" viewBox="0 0 18 10"><rect x="0" y="2" width="3" height="6" rx="1" fill="#fff"/><rect x="5" y="1" width="3" height="7" rx="1" fill="#fff"/><rect x="10" y="0" width="3" height="8" rx="1" fill="#fff"/><rect x="15" y="0" width="3" height="8" rx="1" fill="#fff"/></svg></div>
+  </div>
+  <div class="screen">
+    <section class="hero">
+      <div class="hero-top">
+        <div class="brand">V0 调酒师</div>
+        <div class="top-actions"><div class="icn">✎</div><div class="icn">⇧</div></div>
+      </div>
+      <div class="identity">
+        <div class="avatar-wrap"><img class="avatar" src="../../assets/mixology/online/cocktail-mojito.jpg" /><div class="verified">✓</div></div>
+        <div class="id-copy">
+          <div class="name">bailan</div>
+          <div class="id-row">V0号 4851913166</div>
+          <div class="signature">连续打卡 36 天 · 上海</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="ai">
+      <img class="ai-thumb" src="../../assets/mixology/online/cocktail-old-fashioned.jpg" />
+      <div class="ai-body">
+        <div class="ai-tag">🤖 AI 调酒师</div>
+        <div class="ai-title">今晚来杯 · 古典 Old Fashioned</div>
+        <div class="ai-desc">波本威士忌 + 苦精已就绪</div>
+      </div>
+      <div class="ai-go">查看 ›</div>
+    </div>
+
+    <div class="group-title">我的服务</div>
+    <div class="group">
+      <div class="item"><div class="item-icon">👤</div><div class="item-body"><div class="item-title">添加酒友</div></div><div class="item-right"><span class="arrow">›</span></div></div>
+      <div class="item"><div class="item-icon">⚡</div><div class="item-body"><div class="item-title">创作者中心</div></div><div class="item-right"><span class="arrow">›</span></div></div>
+    </div>
+
+    <div class="group">
+      <div class="item"><div class="item-icon">📝</div><div class="item-body"><div class="item-title">我的草稿</div><div class="item-sub">未发布笔记</div></div><div class="item-right"><span class="badge">1</span><span class="arrow">›</span></div></div>
+      <div class="item"><div class="item-icon">🎉</div><div class="item-body"><div class="item-title">我的活动</div></div><div class="item-right"><span class="badge">新</span><span class="arrow">›</span></div></div>
+      <div class="item"><div class="item-icon">⏱</div><div class="item-body"><div class="item-title">浏览记录</div></div><div class="item-right"><span class="arrow">›</span></div></div>
+      <div class="item"><div class="item-icon">⬇</div><div class="item-body"><div class="item-title">我的下载</div></div><div class="item-right"><span class="arrow">›</span></div></div>
+    </div>
+
+    <div class="group">
+      <div class="item"><div class="item-icon">🛒</div><div class="item-body"><div class="item-title">酒柜</div><div class="item-sub">已收录 0 张酒卡</div></div><div class="item-right"><span class="arrow">›</span></div></div>
+      <div class="item"><div class="item-icon">⬜</div><div class="item-body"><div class="item-title">钱包</div></div><div class="item-right"><span class="arrow">›</span></div></div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active">笔记</div>
+      <div class="tab">收藏</div>
+      <div class="tab">赞过</div>
+    </div>
+    <div class="empty">
+      <div class="big">🍸</div>
+      <p>还没有点赞过笔记</p>
+      <button>去社区逛逛</button>
+    </div>
+
+    <div class="bottom-actions">
+      <div class="bact"><span>🔍</span><span>扫一扫</span></div>
+      <div class="bact"><span>🎧</span><span>帮助与客服</span></div>
+      <div class="bact"><span>⚙</span><span>设置</span></div>
+    </div>
+
+    <div class="tabbar">
+      <div class="tbi">🏠<span>首页</span></div>
+      <div class="tbi">🍸<span>社区</span></div>
+      <div class="tbi"><div class="plus">＋</div></div>
+      <div class="tbi">🍷<span>酒吧</span></div>
+      <div class="tbi active">👤<span>我的</span></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

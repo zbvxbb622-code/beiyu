@@ -9,14 +9,16 @@ export function GradientButton({
   onPress,
   icon,
   style,
+  testID,
 }: {
   label: string;
   onPress?: () => void;
   icon?: ReactNode;
   style?: ViewStyle;
+  testID?: string;
 }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.pressable, style, pressed ? styles.pressed : null]}>
+    <Pressable testID={testID} onPress={onPress} style={({ pressed }) => [styles.pressable, style, pressed ? styles.pressed : null]}>
       <LinearGradient colors={gradients.cta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradient}>
         <Text style={styles.label}>{label}</Text>
         {icon}

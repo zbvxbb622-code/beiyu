@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>经典系列 · 布局方案对比</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Schibsted+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#070004;
+    --bg-2:#0d0208;
+    --panel:#151112;
+    --panel-2:#1c1216;
+    --pink:#ff2f9f;
+    --cyan:#2fe7ff;
+    --amber:#ffb84d;
+    --text:#ffffff;
+    --soft:#d8cfd4;
+    --muted:#a99ca3;
+    --line:rgba(255,255,255,0.10);
+    --display:"Fraunces","Songti SC",Georgia,serif;
+    --body:"Schibsted Grotesk","PingFang SC","Helvetica Neue",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--text);font-family:var(--body);-webkit-font-smoothing:antialiased}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(255,47,159,0.12), transparent 60%),
+      radial-gradient(900px 500px at -10% 10%, rgba(47,231,255,0.08), transparent 55%),
+      var(--bg);
+    min-height:100vh;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px}
+
+  /* ---------- 顶部栏 ---------- */
+  .topbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+  .brand{display:flex;flex-direction:column;gap:4px}
+  .brand .kicker{font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:var(--pink);font-weight:700}
+  .brand h1{font-family:var(--display);font-weight:900;font-size:clamp(30px,5vw,46px);line-height:1;letter-spacing:-.01em}
+  .brand .sub{color:var(--muted);font-size:13px;margin-top:2px}
+
+  .search{
+    display:flex;align-items:center;gap:10px;min-height:48px;padding:0 16px;
+    border-radius:18px;background:rgba(255,255,255,0.06);border:1px solid var(--line);
+    min-width:240px;flex:1;max-width:360px;
+  }
+  .search svg{flex:none;opacity:.7}
+  .search input{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--body);font-size:15px}
+  .search input::placeholder{color:#806f79}
+
+  /* ---------- 方案切换器 ---------- */
+  .switcher{display:flex;gap:8px;background:rgba(255,255,255,0.05);border:1px solid var(--line);
+    padding:6px;border-radius:16px;margin:22px 0 28px;flex-wrap:wrap}
+  .switcher button{
+    flex:1;min-width:120px;border:none;cursor:pointer;font-family:var(--body);font-weight:700;
+    color:var(--muted);background:transparent;padding:11px 14px;border-radius:11px;font-size:14px;
+    transition:.25s ease;display:flex;flex-direction:column;gap:2px;align-items:flex-start
+  }
+  .switcher button .t{font-size:14px}
+  .switcher button .d{font-size:11px;font-weight:500;opacity:.8}
+  .switcher button:hover{color:var(--text);background:rgba(255,255,255,0.05)}
+  .switcher button.active{color:#0a0006;background:linear-gradient(135deg,var(--pink),#ff5fb0);box-shadow:0 8px 24px rgba(255,47,159,.35)}
+
+  .scheme{display:none;animation:rise .5s cubic-bezier(.2,.8,.2,1) both}
+  .scheme.active{display:block}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+  .sec-label{display:flex;align-items:center;gap:12px;margin:6px 0 18px;color:var(--soft)}
+  .sec-label .line{flex:1;height:1px;background:var(--line)}
+  .sec-label .txt{font-size:12px;letter-spacing:.28em;text-transform:uppercase;font-weight:700}
+
+  /* ============ 方案 A：编辑杂志风 ============ */
+  .hero{
+    position:relative;border-radius:26px;overflow:hidden;border:1px solid var(--line);
+    padding:34px;min-height:300px;display:flex;flex-direction:column;justify-content:flex-end;
+    background:var(--g,linear-gradient(135deg,#3a0d2a,#120016));isolation:isolate
+  }
+  .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(7,0,4,.92),rgba(7,0,4,.15) 55%,transparent);z-index:-1}
+  .hero .badge{position:absolute;top:22px;left:24px;font-size:11px;letter-spacing:.25em;text-transform:uppercase;
+    background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);padding:6px 12px;border-radius:999px;font-weight:700}
+  .hero h2{font-family:var(--display);font-weight:900;font-size:clamp(34px,6vw,58px);line-height:.98;letter-spacing:-.02em}
+  .hero .en{font-family:var(--display);font-style:italic;font-size:20px;color:var(--soft);margin-top:6px}
+  .hero p{color:var(--soft);max-width:560px;margin-top:14px;font-size:15px;line-height:1.6}
+  .hero .meta{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);
+    padding:7px 13px;border-radius:999px;font-size:13px;font-weight:700}
+  .hero .cta{margin-top:22px;align-self:flex-start;background:linear-gradient(135deg,var(--pink),var(--cyan));
+    color:#070004;font-weight:700;padding:13px 22px;border-radius:14px;font-size:15px;border:none;cursor:pointer}
+
+  .ed-list{margin-top:8px}
+  .ed-row{display:flex;align-items:center;gap:18px;padding:18px 4px;border-bottom:1px solid var(--line)}
+  .ed-row:last-child{border-bottom:none}
+  .ed-thumb{width:74px;height:74px;border-radius:16px;flex:none;background:var(--g,linear-gradient(135deg,#2a0a1e,#100014));
+    display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:900;font-size:24px;color:#fff;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+  .ed-main{flex:1;min-width:0}
+  .ed-main .nm{font-family:var(--display);font-weight:600;font-size:21px;line-height:1.1}
+  .ed-main .en{color:var(--muted);font-size:13px;margin-top:2px}
+  .ed-main .ds{color:var(--soft);font-size:13px;margin-top:6px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+  .ed-meta{display:flex;gap:14px;align-items:center;flex:none}
+  .ed-meta .m{text-align:right}
+  .ed-meta .m .v{font-family:var(--display);font-weight:600;font-size:17px}
+  .ed-meta .m .k{font-size:11px;color:var(--muted);letter-spacing:.05em}
+
+  /* ============ 方案 B：画廊网格 ============ */
+  .grid{display:grid;grid-template-columns:1fr;gap:18px}
+  @media(min-width:640px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media(min-width:1024px){.grid{grid-template-columns:repeat(3,1fr)}}
+  .g-card{position:relative;border-radius:20px;overflow:hidden;border:1px solid var(--line);background:var(--panel);
+    transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .35s;cursor:pointer;animation:pop .5s both}
+  .g-card:hover{transform:translateY(-6px);box-shadow:0 18px 40px rgba(0,0,0,.5)}
+  .g-img{height:170px;background:var(--g,linear-gradient(135deg,#2a0a1e,#100014));position:relative;overflow:hidden}
+  .g-img::before{content:"";position:absolute;inset:0;background:
+    radial-gradient(120px 80px at 70% 20%,rgba(255,255,255,.18),transparent),
+    repeating-linear-gradient(45deg,rgba(255,255,255,.04) 0 2px,transparent 2px 10px)}
+  .g-watermark{position:absolute;right:12px;bottom:8px;font-family:var(--display);font-weight:900;font-size:46px;color:rgba(255,255,255,.14);line-height:1}
+  .g-tag{position:absolute;top:12px;left:12px;background:rgba(7,0,4,.6);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.2);
+    padding:5px 11px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.04em}
+  .g-body{padding:14px 15px 16px}
+  .g-body .nm{font-family:var(--display);font-weight:600;font-size:19px;line-height:1.1}
+  .g-body .en{color:var(--muted);font-size:12px;margin-top:2px;font-style:italic}
+  .g-body .meta{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .g-pill{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.08);border:1px solid var(--line);
+    padding:5px 10px;border-radius:999px;font-size:11px;font-weight:700;color:var(--soft)}
+
+  /* ============ 方案 C：目录清单 ============ */
+  .cat{border:1px solid var(--line);border-radius:22px;overflow:hidden;background:var(--panel)}
+  .cat-row{display:flex;align-items:center;gap:18px;padding:18px 20px;border-bottom:1px solid var(--line);transition:background .25s}
+  .cat-row:last-child{border-bottom:none}
+  .cat-row:hover{background:rgba(255,255,255,.03)}
+  .cat-thumb{width:60px;height:60px;border-radius:14px;flex:none;background:var(--g,linear-gradient(135deg,#2a0a1e,#100014));
+    display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:900;font-size:20px;color:#fff}
+  .cat-main{flex:1;min-width:0}
+  .cat-main .nm{font-family:var(--display);font-weight:600;font-size:19px;line-height:1.15}
+  .cat-main .en{color:var(--muted);font-size:12px;margin-top:1px}
+  .cat-main .ds{color:var(--soft);font-size:13px;margin-top:6px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+  .cat-meta{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none;min-width:84px}
+  .cat-meta .time{font-family:var(--display);font-weight:600;font-size:16px}
+  .cat-meta .diff{font-size:11px;color:var(--muted);letter-spacing:.06em}
+  .cat-go{flex:none;width:42px;height:42px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+    color:var(--pink);font-size:20px;transition:.25s}
+  .cat-row:hover .cat-go{background:var(--pink);color:#070004;border-color:var(--pink)}
+
+  .note{margin-top:34px;color:var(--muted);font-size:13px;line-height:1.7;border-top:1px solid var(--line);padding-top:18px}
+  .note b{color:var(--soft)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand">
+      <span class="kicker">Mixology · 经典系列</span>
+      <h1>经典鸡尾酒谱</h1>
+      <span class="sub">13 款经得起时间考验的配方 · 布局方案对比原型</span>
+    </div>
+    <label class="search">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input placeholder="搜索金酒、酸甜、清爽..." />
+    </label>
+  </div>
+
+  <div class="switcher" id="switcher">
+    <button data-s="A" class="active"><span class="t">A · 编辑杂志</span><span class="d">大图首推 + 留白清单</span></button>
+    <button data-s="B"><span class="t">B · 画廊网格</span><span class="d">响应式卡片墙 + 悬停</span></button>
+    <button data-s="C"><span class="t">C · 目录清单</span><span class="d">对齐行式 + 极简</span></button>
+  </div>
+
+  <!-- 方案 A -->
+  <section class="scheme active" id="scheme-A">
+    <div class="hero" id="hero"></div>
+    <div class="sec-label"><span class="txt">全部经典 · 13 款</span><span class="line"></span></div>
+    <div class="ed-list" id="edList"></div>
+  </section>
+
+  <!-- 方案 B -->
+  <section class="scheme" id="scheme-B">
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <!-- 方案 C -->
+  <section class="scheme" id="scheme-C">
+    <div class="cat" id="cat"></div>
+  </section>
+
+  <div class="note">
+    <b>对比说明：</b>三套方案共用同一份酒品数据与相同功能（搜索、跳转、空状态）。
+    <b>A</b> 用一张大图首推建立视觉锚点，下方清单靠留白与细分隔线制造呼吸感，适合"内容即主角"；
+    <b>B</b> 用响应式卡片墙（手机 1 列 / 平板 2 列 / 桌面 3 列）最大化信息密度，悬停上浮增强互动；
+    <b>C</b> 用严格对齐的行式清单，左图右文、右侧元信息右对齐，最克制也最易扫读。
+    选中一套后，我可将其移植到 Expo 原生端（RecipeCard + recipes.tsx），保持现有功能不变。
+  </div>
+</div>
+
+<script>
+  const recipes = [
+    {nm:"玛格丽特",en:"Margarita",ds:"龙舌兰、青柠和橙味利口酒带来清爽酸甜，是最适合作为第一杯练习的经典配方。",time:6,diff:"入门",tag:"酸甜",h:330},
+    {nm:"金汤力",en:"Gin Tonic",ds:"金酒和汤力水的高容错组合，适合快速完成一杯清爽长饮。",time:3,diff:"入门",tag:"清爽",h:200},
+    {nm:"莫吉托",en:"Mojito",ds:"薄荷、青柠和白朗姆带来的明亮气泡感，适合夏夜和朋友聚会。",time:8,diff:"进阶",tag:"薄荷",h:150},
+    {nm:"尼格罗尼",en:"Negroni",ds:"金酒、金巴利和橙香的苦甜结构，适合喜欢浓郁口感的人。",time:5,diff:"进阶",tag:"苦甜",h:10},
+    {nm:"莫斯科骡子",en:"Moscow Mule",ds:"伏特加、青柠和姜汁汽水组合出辛香清爽的长饮。",time:4,diff:"入门",tag:"辛香",h:280},
+    {nm:"曼哈顿",en:"Manhattan",ds:"威士忌与甜味美思的经典搅拌，口感圆润深沉，是永不过时的鸡尾酒皇后。",time:5,diff:"进阶",tag:"浓郁",h:30},
+    {nm:"落日古典",en:"Old Fashioned",ds:"威士忌、糖与苦精的极简组合，慢饮细品，是最能体现基酒本味的老派做法。",time:6,diff:"进阶",tag:"老派",h:25},
+    {nm:"意大利女士",en:"Italian Lady",ds:"伏特加与金巴利的意式组合，橙香微苦，是颜值与口感并存的红色佳人。",time:5,diff:"进阶",tag:"微苦",h:350},
+    {nm:"金酸酒",en:"Gin Sour",ds:"金酒、柠檬与糖浆的经典酸酒结构，橙片点缀，酸甜清爽易入口。",time:5,diff:"入门",tag:"酸甜",h:190},
+    {nm:"蓝色之恋",en:"Blue Love",ds:"伏特加与蓝橙利口酒调出海洋般的湛蓝，柠檬提香，是一杯高颜值的清爽长饮。",time:4,diff:"入门",tag:"颜值",h:210},
+    {nm:"威士忌酸",en:"Whiskey Sour",ds:"威士忌、柠檬与糖浆的黄金三角，酸甜平衡，是最易入口的威士忌鸡尾酒。",time:5,diff:"入门",tag:"易饮",h:35},
+    {nm:"长岛冰茶",en:"Long Island Iced Tea",ds:"四种烈酒与可乐的完美伪装，入口像冰茶，后劲十足，点它请量力而行。",time:7,diff:"专业",tag:"烈",h:160},
+    {nm:"干马天尼",en:"Dry Martini",ds:"金酒与干味美思的极简之作，越干越纯粹，是仪式感十足的开场酒。",time:4,diff:"专业",tag:"仪式感",h:220},
+  ];
+  const grad = h => `linear-gradient(135deg, hsl(${h} 70% 22%), hsl(${(h+40)%360} 60% 10%))`;
+  const initial = n => n.trim().charAt(0);
+
+  // 方案 A
+  const hero = recipes[0];
+  document.getElementById('hero').style.setProperty('--g', grad(hero.h));
+  document.getElementById('hero').innerHTML = `
+    <span class="badge">本周精选 · ${hero.tag}</span>
+    <h2>${hero.nm}</h2>
+    <div class="en">${hero.en}</div>
+    <p>${hero.ds}</p>
+    <div class="meta">
+      <span class="pill">⏱ ${hero.time} 分钟</span>
+      <span class="pill">难度 ${hero.diff}</span>
+      <span class="pill">经典系列</span>
+    </div>
+    <button class="cta">查看完整配方 →</button>`;
+
+  document.getElementById('edList').innerHTML = recipes.slice(1).map(r => `
+    <div class="ed-row">
+      <div class="ed-thumb" style="--g:${grad(r.h)}">${initial(r.nm)}</div>
+      <div class="ed-main">
+        <div class="nm">${r.nm}</div>
+        <div class="en">${r.en}</div>
+        <div class="ds">${r.ds}</div>
+      </div>
+      <div class="ed-meta">
+        <div class="m"><div class="v">${r.time}'</div><div class="k">时长</div></div>
+        <div class="m"><div class="v">${r.diff}</div><div class="k">难度</div></div>
+      </div>
+    </div>`).join('');
+
+  // 方案 B
+  document.getElementById('grid').innerHTML = recipes.map((r,i) => `
+    <div class="g-card" style="animation-delay:${i*40}ms">
+      <div class="g-img" style="--g:${grad(r.h)}">
+        <span class="g-tag">${r.tag}</span>
+        <span class="g-watermark">${initial(r.nm)}</span>
+      </div>
+      <div class="g-body">
+        <div class="nm">${r.nm}</div>
+        <div class="en">${r.en}</div>
+        <div class="meta">
+          <span class="g-pill">⏱ ${r.time} 分钟</span>
+          <span class="g-pill">${r.diff}</span>
+        </div>
+      </div>
+    </div>`).join('');
+
+  // 方案 C
+  document.getElementById('cat').innerHTML = recipes.map(r => `
+    <div class="cat-row">
+      <div class="cat-thumb" style="--g:${grad(r.h)}">${initial(r.nm)}</div>
+      <div class="cat-main">
+        <div class="nm">${r.nm}</div>
+        <div class="en">${r.en}</div>
+        <div class="ds">${r.ds}</div>
+      </div>
+      <div class="cat-meta">
+        <div class="time">${r.time} 分钟</div>
+        <div class="diff">${r.diff}</div>
+      </div>
+      <div class="cat-go">→</div>
+    </div>`).join('');
+
+  // 切换
+  const sw = document.getElementById('switcher');
+  sw.addEventListener('click', e => {
+    const btn = e.target.closest('button'); if(!btn) return;
+    const s = btn.dataset.s;
+    [...sw.children].forEach(b => b.classList.toggle('active', b===btn));
+    document.querySelectorAll('.scheme').forEach(el => el.classList.toggle('active', el.id === 'scheme-'+s));
+  });
+</script>
+</body>
+</html>

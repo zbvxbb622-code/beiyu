@@ -160,6 +160,8 @@ export type SharedCellarCard = {
   likes: number;
   comments: number;
   borderColor: string;
+  // 霓虹渐变边框（起止色），缺省时退化为 borderColor 纯色
+  borderColors?: readonly [string, string];
   ingredients: CocktailIngredient[];
   steps: string[];
 };
@@ -200,6 +202,29 @@ export type LocalState = {
   privacySettings: PrivacySettings;
 };
 
+// 登录设备（账号安全 - 登录设备管理）
+export type LoginDevice = {
+  id: string;
+  name: string; // 设备名，如「iPhone 15 Pro」
+  platform: 'iOS' | 'Android' | 'Web';
+  lastActive: string; // 「当前使用」或相对时间，如「3 天前」
+  isCurrent: boolean;
+};
+
+// 账号与安全状态（本地 Mock，结构对应后端账号中心）
+export type AccountSecurity = {
+  phone: string; // 展示用手机号（可含掩码）
+  phoneVerified: boolean;
+  wechatBound: boolean;
+  wechatAccount: string; // 绑定后展示的微信账号
+  passwordSet: boolean;
+  realnameVerified: boolean;
+  realnameName: string; // 认证后展示的姓名（脱敏）
+  officialVerified: boolean;
+  officialType: string; // 官方认证类型，如「个人职业资质」
+  devices: LoginDevice[];
+};
+
 // 经典盲盒抽卡
 export type CardRarity = 'common' | 'rare' | 'legendary';
 
@@ -228,6 +253,13 @@ export type UserProfile = {
   avatarUri: string | null; // 相册上传的本地 uri，优先于 avatarKey
   signature: string; // ≤60 字
   city: string; // ≤12 字
+  gender: string | null;
+  birthday: string | null; // 格式 YYYY-MM-DD
+  showBirthdayTag: boolean;
+  showAge: boolean;
+  showZodiac: boolean;
+  occupation: string | null;
+  school: string | null;
 };
 
 // 酒品知识（寓意与故事，区别于酒单的风味描述）
@@ -257,3 +289,4 @@ export type SearchResult = {
   subtitle: string;
   imageKey: string;
 };
+

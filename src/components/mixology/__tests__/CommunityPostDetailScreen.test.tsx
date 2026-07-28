@@ -51,11 +51,11 @@ jest.mock('@/state/MixologyState', () => ({
 }));
 
 describe('CommunityPostDetailScreen', () => {
-  it('keeps the post image compact instead of filling the first screen', async () => {
+  it('renders the full-width cover image with the design aspect ratio', async () => {
     const screen = await render(<CommunityPostDetailScreen />);
     const image = screen.getByTestId('community-detail-image');
     const style = StyleSheet.flatten(image.props.style);
 
-    expect(style.height).toBeLessThanOrEqual(240);
+    expect(style.aspectRatio).toBeCloseTo(0.85, 2);
   });
 });

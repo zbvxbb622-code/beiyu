@@ -35,7 +35,7 @@ export function TopBar({
           onPress={handleBack}
           hitSlop={12}
           style={styles.iconButton}>
-          <ChevronLeft color={colors.text} size={30} />
+          <ChevronLeft color={colors.pink} size={30} />
         </Pressable>
       ) : (
         <View style={styles.iconButton} />
@@ -61,8 +61,8 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: 22,
-    fontWeight: '900',
+    fontSize: 18,
+    fontWeight: '700',
   },
   right: {
     width: 44,
