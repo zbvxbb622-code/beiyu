@@ -15,6 +15,7 @@ export type AuthRuntime = {
   getDeviceIdentity: () => Promise<DeviceInput>;
   loadLocalSyncInput: () => Promise<LocalSyncInput>;
   setAccessToken: (accessToken: string | null) => void;
+  setUnauthorizedHandler: (handler: () => Promise<void>) => void;
 };
 
 type AuthContextValue = {
@@ -43,6 +44,9 @@ async function loadLocalSyncInput(): Promise<LocalSyncInput> {
 export function createAuthRuntime(): AuthRuntime {
   let accessToken: string | null = null;
   let repository: AuthRepository;
+  let unauthorizedHandler = async () => {
+    await tokenStore.clearRefreshToken();
+  };
   const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL ?? '';
 
   const authenticatedClient = createAuthenticatedClient({
@@ -56,7 +60,7 @@ export function createAuthRuntime(): AuthRuntime {
     },
     onUnauthorized: async () => {
       accessToken = null;
-      await tokenStore.clearRefreshToken();
+      await unauthorizedHandler();
     },
   });
 
@@ -75,6 +79,9 @@ export function createAuthRuntime(): AuthRuntime {
     setAccessToken: (nextAccessToken) => {
       accessToken = nextAccessToken;
     },
+    setUnauthorizedHandler: (handler) => {
+      unauthorizedHandler = handler;
+    },
   };
 }
 
@@ -91,6 +98,19 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
     }
   }, []);
 
+  const clearSession = useCallback(async () => {
+    activeRuntime.setAccessToken(null);
+    try {
+      await tokenStore.clearRefreshToken();
+    } catch {
+      // Token cleanup is best effort and must not obscure the authentication failure.
+    }
+    setIfMounted(() => {
+      setBootstrapData(null);
+      setStatus('signedOut');
+    });
+  }, [activeRuntime, setIfMounted]);
+
   const bootstrap = useCallback(async () => {
     const data = await activeRuntime.repository.bootstrap();
     setIfMounted(() => {
@@ -101,30 +121,39 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
   }, [activeRuntime, setIfMounted]);
 
   useEffect(() => {
+    activeRuntime.setUnauthorizedHandler(clearSession);
+    return () => {
+      activeRuntime.setUnauthorizedHandler(async () => {
+        activeRuntime.setAccessToken(null);
+        try {
+          await tokenStore.clearRefreshToken();
+        } catch {
+          // The authenticated client preserves its original unauthorized error.
+        }
+      });
+    };
+  }, [activeRuntime, clearSession]);
+
+  useEffect(() => {
     isMountedRef.current = true;
     let cancelled = false;
 
     const restore = async () => {
-      const refreshToken = await tokenStore.getRefreshToken();
-      if (!refreshToken) {
-        if (!cancelled) {
-          setIfMounted(() => setStatus('signedOut'));
-        }
-        return;
-      }
-
       try {
+        const refreshToken = await tokenStore.getRefreshToken();
+        if (!refreshToken) {
+          if (!cancelled) {
+            setIfMounted(() => setStatus('signedOut'));
+          }
+          return;
+        }
+
         const tokens = await activeRuntime.repository.refresh();
         activeRuntime.setAccessToken(tokens.accessToken);
         await bootstrap();
       } catch {
-        activeRuntime.setAccessToken(null);
-        await tokenStore.clearRefreshToken();
         if (!cancelled) {
-          setIfMounted(() => {
-            setBootstrapData(null);
-            setStatus('signedOut');
-          });
+          await clearSession();
         }
       }
     };
@@ -134,7 +163,7 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
       cancelled = true;
       isMountedRef.current = false;
     };
-  }, [activeRuntime, bootstrap, setIfMounted]);
+  }, [activeRuntime, bootstrap, clearSession, setIfMounted]);
 
   const requestSmsCode = useCallback(
     async (phone: string) => {
@@ -156,24 +185,20 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
         }
         await bootstrap();
       } catch (error) {
-        setIfMounted(() => setStatus('signedOut'));
+        await clearSession();
         throw error;
       }
     },
-    [activeRuntime, bootstrap, setIfMounted]
+    [activeRuntime, bootstrap, clearSession]
   );
 
   const logout = useCallback(async () => {
     try {
       await activeRuntime.repository.logout();
     } finally {
-      activeRuntime.setAccessToken(null);
-      setIfMounted(() => {
-        setBootstrapData(null);
-        setStatus('signedOut');
-      });
+      await clearSession();
     }
-  }, [activeRuntime, setIfMounted]);
+  }, [activeRuntime, clearSession]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

@@ -34,11 +34,17 @@ type RepositoryMethods = Pick<
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((nextResolve) => { resolve = nextResolve; });
-  return { promise, resolve };
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+  return { promise, resolve, reject };
 }
 
-function createRuntime(methods: Partial<RepositoryMethods> = {}, isNewUser = false): AuthRuntime {
+type TestRuntime = AuthRuntime & { triggerUnauthorized: () => Promise<void> };
+
+function createRuntime(methods: Partial<RepositoryMethods> = {}, isNewUser = false): TestRuntime {
   const requestSmsCode = jest.fn<AuthRepository['requestSmsCode']>();
   const login = jest.fn<AuthRepository['login']>().mockResolvedValue({
     accessToken: 'login-access',
@@ -72,6 +78,7 @@ function createRuntime(methods: Partial<RepositoryMethods> = {}, isNewUser = fal
     ...methods,
   } as unknown as AuthRuntime['repository'];
 
+  let unauthorizedHandler: () => Promise<void> = async () => undefined;
   return {
     repository,
     authenticatedRequest: (async () => undefined) as AuthRuntime['authenticatedRequest'],
@@ -85,6 +92,10 @@ function createRuntime(methods: Partial<RepositoryMethods> = {}, isNewUser = fal
       privacySettings: { localOnlyMode: true },
       cellarIngredientIds: ['gin'],
     }),
+    setUnauthorizedHandler: (handler) => {
+      unauthorizedHandler = handler;
+    },
+    triggerUnauthorized: () => unauthorizedHandler(),
   };
 }
 
@@ -135,6 +146,15 @@ describe('AuthProvider', () => {
     expect(clearRefreshToken).toHaveBeenCalledTimes(1);
   });
 
+  it('ends restoration as signed out when SecureStore cannot read the refresh token', async () => {
+    jest.spyOn(tokenStore, 'getRefreshToken').mockRejectedValue(new Error('secure storage unavailable'));
+    const runtime = createRuntime();
+    const screen = await render(<AuthProvider runtime={runtime}><StatusProbe /></AuthProvider>);
+
+    expect(await screen.findByText('signedOut')).toBeTruthy();
+    expect(runtime.repository.refresh).not.toHaveBeenCalled();
+  });
+
   it('syncs local first-run data before bootstrapping a new account', async () => {
     jest.spyOn(tokenStore, 'getRefreshToken').mockResolvedValue(null);
     const runtime = createRuntime({}, true);
@@ -170,6 +190,40 @@ describe('AuthProvider', () => {
     expect(runtime.loadLocalSyncInput).not.toHaveBeenCalled();
     expect(runtime.repository.syncLocalState).not.toHaveBeenCalled();
     expect(runtime.repository.bootstrap).toHaveBeenCalledTimes(1);
+  });
+
+  it('rolls back both token stores when post-login initialization fails', async () => {
+    jest.spyOn(tokenStore, 'getRefreshToken').mockResolvedValue(null);
+    const clearRefreshToken = jest.spyOn(tokenStore, 'clearRefreshToken').mockResolvedValue();
+    const initializationFailure = new Error('local sync timed out');
+    const runtime = createRuntime({ syncLocalState: jest.fn<AuthRepository['syncLocalState']>().mockRejectedValue(initializationFailure) }, true);
+    let auth: ReturnType<typeof useAuth> | undefined;
+    const screen = await render(<AuthProvider runtime={runtime}><AuthProbe onReady={(value) => { auth = value; }} /></AuthProvider>);
+    await screen.findByText('signedOut');
+    expect(auth?.repository).toBe(runtime.repository);
+
+    await act(async () => {
+      await expect(auth?.login('13800000000', '123456')).rejects.toThrow(initializationFailure);
+    });
+
+    expect(runtime.repository.syncLocalState).toHaveBeenCalledTimes(1);
+    expect(runtime.setAccessToken).toHaveBeenLastCalledWith(null);
+    expect(clearRefreshToken).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('signedOut')).toBeTruthy();
+  });
+
+  it('moves a mounted provider to signed out when the authenticated client invalidates a session', async () => {
+    jest.spyOn(tokenStore, 'getRefreshToken').mockResolvedValue('stored-refresh-token');
+    const clearRefreshToken = jest.spyOn(tokenStore, 'clearRefreshToken').mockResolvedValue();
+    const runtime = createRuntime();
+    const screen = await render(<AuthProvider runtime={runtime}><StatusProbe /></AuthProvider>);
+    await screen.findByText('signedIn');
+
+    await act(async () => { await runtime.triggerUnauthorized(); });
+
+    expect(runtime.setAccessToken).toHaveBeenLastCalledWith(null);
+    expect(clearRefreshToken).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('signedOut')).toBeTruthy();
   });
 
   it('logs out through the repository and clears the in-memory authenticated state', async () => {

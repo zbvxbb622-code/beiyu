@@ -19,14 +19,30 @@ export default function LoginScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const submitInFlight = useRef(false);
+  const isMountedRef = useRef(true);
 
   const validPhone = /^1\d{10}$/.test(phone);
   const canRequestCode = validPhone && retryAfter === 0 && !isRequesting;
   const canSubmit = validPhone && code.length === 6 && agreed && !isSubmitting;
 
   useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const setIfMounted = (callback: () => void) => {
+    if (isMountedRef.current) {
+      callback();
+    }
+  };
+
+  useEffect(() => {
     if (retryAfter <= 0) return;
-    const timeout = setTimeout(() => setRetryAfter((current) => Math.max(0, current - 1)), 1_000);
+    const timeout = setTimeout(() => {
+      setIfMounted(() => setRetryAfter((current) => Math.max(0, current - 1)));
+    }, 1_000);
     return () => clearTimeout(timeout);
   }, [retryAfter]);
 
@@ -38,11 +54,11 @@ export default function LoginScreen() {
     setError(null);
     try {
       const result = await requestSmsCode(phone);
-      setRetryAfter(result.retryAfter);
+      setIfMounted(() => setRetryAfter(result.retryAfter));
     } catch (reason) {
-      setError(messageFor(reason));
+      setIfMounted(() => setError(messageFor(reason)));
     } finally {
-      setIsRequesting(false);
+      setIfMounted(() => setIsRequesting(false));
     }
   };
 
@@ -53,12 +69,14 @@ export default function LoginScreen() {
     setError(null);
     try {
       await login(phone, code);
-      router.replace('/');
+      if (isMountedRef.current) {
+        router.replace('/');
+      }
     } catch (reason) {
-      setError(messageFor(reason));
+      setIfMounted(() => setError(messageFor(reason)));
     } finally {
       submitInFlight.current = false;
-      setIsSubmitting(false);
+      setIfMounted(() => setIsSubmitting(false));
     }
   };
 

@@ -8,6 +8,16 @@ const mockReplace = jest.fn();
 const mockRequestSmsCode = jest.fn<(phone: string) => Promise<{ expiresIn: number; retryAfter: number }>>();
 const mockLogin = jest.fn<(phone: string, code: string) => Promise<void>>();
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+  return { promise, resolve, reject };
+}
+
 jest.mock('expo-router', () => ({ useRouter: () => ({ replace: mockReplace }) }));
 jest.mock('@/state/AuthState', () => ({ useAuth: jest.fn() }));
 
@@ -74,5 +84,27 @@ describe('LoginScreen', () => {
 
     expect(screen.getByText('验证码错误')).toBeTruthy();
     expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('does not update state after unmount when SMS and login async work complete', async () => {
+    const request = deferred<{ expiresIn: number; retryAfter: number }>();
+    const login = deferred<void>();
+    mockRequestSmsCode.mockImplementationOnce(() => request.promise);
+    mockLogin.mockImplementationOnce(() => login.promise);
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const screen = await render(<LoginScreen />);
+    await fireEvent.changeText(screen.getByTestId('login-phone'), '13800000000');
+    await fireEvent.press(screen.getByTestId('request-sms-code'));
+    await fireEvent.changeText(screen.getByTestId('login-code'), '123456');
+    await fireEvent.press(screen.getByTestId('login-agreement'));
+    await fireEvent.press(screen.getByTestId('login-submit'));
+
+    screen.rerender(<></>);
+    await act(async () => {
+      request.resolve({ expiresIn: 300, retryAfter: 60 });
+      login.reject(new Error('bootstrap failed'));
+    });
+
+    expect(consoleError).not.toHaveBeenCalledWith(expect.stringContaining('unmounted'));
   });
 });
