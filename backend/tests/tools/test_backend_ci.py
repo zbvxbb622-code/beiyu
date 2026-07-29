@@ -16,6 +16,6 @@ def test_backend_ci_seeds_only_the_dedicated_test_database() -> None:
     assert workflow.index("uv run alembic upgrade head") < workflow.index(
         "uv run python -m app.cli seed-content"
     )
-    assert workflow.index("uv run python -m app.cli seed-content") < workflow.index(
-        "uv run pytest --ignore=tests/migrations"
+    assert workflow.index("uv run pytest --ignore=tests/migrations") < workflow.index(
+        "uv run python -m app.cli seed-content"
     )
