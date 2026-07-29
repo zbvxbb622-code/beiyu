@@ -119,6 +119,25 @@ def test_current_crisis_after_reported_language_and_turn_is_detected(user: User)
     )
 
 
+@pytest.mark.parametrize(
+    ("content", "label"),
+    [
+        ("朋友说我想自杀，我现在真的不想活了。", AiSafetyLabel.SELF_HARM_CRISIS),
+        ("朋友说我想自杀，而我现在真的不想活了。", AiSafetyLabel.SELF_HARM_CRISIS),
+        ("朋友说我想自杀我现在真的不想活了。", AiSafetyLabel.SELF_HARM_CRISIS),
+        ("朋友说我想自杀；我现在真的不想活了。", AiSafetyLabel.SELF_HARM_CRISIS),
+        ("朋友说我想自杀，我不是这么想的。", AiSafetyLabel.SAFE),
+        ("朋友说他想自杀。", AiSafetyLabel.SAFE),
+    ],
+)
+def test_crisis_attribution_keeps_later_current_intent_clauses(
+    user: User,
+    content: str,
+    label: AiSafetyLabel,
+) -> None:
+    assert classify_input(content, user).label is label
+
+
 def test_email_and_exact_address_are_classified_and_redacted_everywhere(user: User) -> None:
     private_value = "alice@example.com，浙江省杭州市西湖区文三路138号1201室"
     decision = classify_input(f"请记住我的邮箱和地址：{private_value}", user)
@@ -293,6 +312,70 @@ def test_review_output_replaces_compositional_safety_paraphrases(
     ],
 )
 def test_review_output_keeps_nearby_safe_language(user: User, reply_text: str) -> None:
+    reviewed = review_output(
+        AiGenerationResult(reply_text=reply_text, provider="test", model="test"),
+        classify_input("今天有点难过", user),
+        [],
+    )
+
+    assert reviewed.reply_text == reply_text
+    assert reviewed.safety_label is AiSafetyLabel.SAFE
+
+
+@pytest.mark.parametrize(
+    "reply_text",
+    [
+        "只要有我就够了。",
+        "只要我一个就足够了。",
+        "你得了抑郁症。",
+        "你这是焦虑症。",
+        "喝一杯就能忘记难过。",
+        "来一杯可以缓解焦虑。",
+        "灌一杯能麻痹痛苦。",
+    ],
+)
+def test_review_output_replaces_grouped_dependency_diagnosis_and_alcohol_claims(
+    user: User,
+    reply_text: str,
+) -> None:
+    reviewed = review_output(
+        AiGenerationResult(
+            reply_text=reply_text,
+            recipe_ids=[uuid4()],
+            memory_candidates=[
+                AiMemoryCandidate(
+                    category=AiMemoryCategory.DRINK_PREFERENCE,
+                    memory_key="dry",
+                    summary="偏好干型",
+                    confidence=0.9,
+                    sensitive=False,
+                )
+            ],
+            provider="test",
+            model="test",
+        ),
+        classify_input("今天有点难过", user),
+        [],
+    )
+
+    assert reviewed.reply_text == OUTPUT_REPLACED_REPLY
+    assert reviewed.safety_label is AiSafetyLabel.OUTPUT_REPLACED
+    assert reviewed.recipe_ids == []
+    assert reviewed.memory_candidates == []
+
+
+@pytest.mark.parametrize(
+    "reply_text",
+    [
+        "有我陪你，也请联系可信任的人。",
+        "我不能判断你是否得了抑郁症。",
+        "喝一杯不能解决难过。",
+    ],
+)
+def test_review_output_keeps_grouped_safety_nearby_negations(
+    user: User,
+    reply_text: str,
+) -> None:
     reviewed = review_output(
         AiGenerationResult(reply_text=reply_text, provider="test", model="test"),
         classify_input("今天有点难过", user),

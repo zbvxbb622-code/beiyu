@@ -263,3 +263,60 @@ All checks passed!
 .venv/bin/ty check
 All checks passed!
 ```
+
+## Review Round 3 / 5
+
+### Critical Attribution Fix
+
+Reported-crisis handling now segments the input at Chinese and English commas,
+semicolons, and sentence-ending punctuation. Only a clause containing both a
+third-party reporting verb and a crisis phrase has that reported phrase
+removed. Later clauses are evaluated independently. Within one clause, `但`,
+`而`, `不过`, `可是`, `然而`, and explicit current-intent starts such as
+`我现在`, `我真的`, and `其实我` split the reported portion from the current
+user portion. This makes `朋友说我想自杀，我现在真的不想活了。` and the
+semicolon, `而`, and unpunctuated-current-intent variants take the crisis path,
+while third-party reports and a following user denial remain safe.
+
+### Output Review Rules
+
+Table-driven fixtures cover unsafe and nearby-safe variants for:
+
+1. Exclusive dependency, including `只要有我就够了` and `只要我一个就足够了`,
+   while preserving `有我陪你，也请联系可信任的人`.
+2. Diagnosis assertions, including `你得了抑郁症` and `你这是焦虑症`, while
+   preserving `我不能判断你是否得了抑郁症`.
+3. Alcohol as emotional treatment, including `喝一杯/来一杯/灌一杯` paired
+   with forgetting, relief, or numbing emotional pain, while preserving
+   `喝一杯不能解决难过`.
+
+Every unsafe Provider result is replaced with the fixed safety reply and label,
+and clears recipe IDs and memory candidates.
+
+### RED / GREEN
+
+```text
+RED
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest tests/modules/ai/test_safety.py -q
+10 failed, 45 passed
+
+GREEN (focused PostgreSQL)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest tests/modules/ai/test_schemas.py \
+  tests/modules/ai/test_safety.py tests/modules/ai/test_context.py \
+  tests/tools/test_makefile_test_database.py -q
+73 passed in 3.73s
+
+GREEN (full, natural exit)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest -q
+289 passed in 12.86s
+PYTEST_EXIT=0
+
+.venv/bin/ruff check .
+All checks passed!
+
+.venv/bin/ty check
+All checks passed!
+```
