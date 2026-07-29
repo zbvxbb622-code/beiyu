@@ -1,7 +1,6 @@
 import uuid
-from datetime import UTC, datetime, time, timedelta
+from datetime import datetime
 from typing import Any, cast
-from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlmodel import Session, select
@@ -17,6 +16,7 @@ from app.db.models import (
     UserStatus,
 )
 from app.db.models.accounts import default_visibility, utc_now
+from app.modules.ai.quota import quota_snapshot
 from app.modules.auth.schemas import AuthenticatedUser
 from app.modules.auth.service import list_user_devices
 from app.modules.cellar.service import (
@@ -145,23 +145,6 @@ def confirm_age(*, session: Session, user: User) -> User:
     return user
 
 
-def next_beijing_reset(now: datetime) -> datetime:
-    local_now = now.astimezone(ZoneInfo("Asia/Shanghai"))
-    next_day = local_now.date() + timedelta(days=1)
-    return datetime.combine(next_day, time.min, ZoneInfo("Asia/Shanghai")).astimezone(
-        UTC
-    )
-
-
-def ai_allowance(*, settings: Settings, now: datetime) -> AiAllowance:
-    return AiAllowance(
-        daily_message_limit=settings.ai_daily_limit,
-        messages_used_today=0,
-        remaining=settings.ai_daily_limit,
-        resets_at=next_beijing_reset(now),
-    )
-
-
 def bootstrap_response(
     *,
     session: Session,
@@ -172,6 +155,7 @@ def bootstrap_response(
 ) -> BootstrapResponse:
     profile = get_user_profile(session, user)
     devices = list_user_devices(session=session, user=user)
+    quota = quota_snapshot(session, user.id, settings, now)
     return BootstrapResponse(
         user=AuthenticatedUser(
             id=user.id,
@@ -198,7 +182,12 @@ def bootstrap_response(
             ],
         ),
         cellar=cellar_list_response(list_cellar_items(session=session, user=user)),
-        ai=ai_allowance(settings=settings, now=now),
+        ai=AiAllowance(
+            daily_message_limit=quota.daily_message_limit,
+            messages_used_today=quota.messages_used_today,
+            remaining=quota.remaining,
+            resets_at=quota.resets_at,
+        ),
         feature_flags=FeatureFlags(ai_chat=settings.ai_enabled),
     )
 

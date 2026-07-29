@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 from sqlmodel import Session, select
@@ -6,7 +6,7 @@ from starlette.testclient import TestClient
 
 from app.api.routes import me
 from app.core.config import Settings, get_settings
-from app.db.models import User, UserProfile, UserStatus
+from app.db.models import AiDailyQuota, User, UserProfile, UserStatus
 from tests.api.test_auth_sessions import bearer, create_login
 
 
@@ -137,6 +137,7 @@ def test_bootstrap_exposes_mobile_contract_without_internal_secrets(
 
 def test_bootstrap_exposes_configured_ai_allowance(
     database_client: TestClient,
+    database_session: Session,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     settings = Settings(
@@ -148,6 +149,17 @@ def test_bootstrap_exposes_configured_ai_allowance(
     database_client.app.dependency_overrides[get_settings] = lambda: settings
     monkeypatch.setattr(me, "utc_now", lambda: now)
     login = create_login(database_client)
+    user = database_session.exec(select(User)).one()
+    database_session.add(
+        AiDailyQuota(
+            user_id=user.id,
+            quota_date=date(2026, 7, 29),
+            free_limit=50,
+            used_count=17,
+            reserved_count=2,
+        )
+    )
+    database_session.flush()
 
     response = database_client.get(
         "/api/v1/me/bootstrap",
@@ -158,8 +170,8 @@ def test_bootstrap_exposes_configured_ai_allowance(
     body = response.json()
     assert body["ai"] == {
         "dailyMessageLimit": 50,
-        "messagesUsedToday": 0,
-        "remaining": 50,
+        "messagesUsedToday": 17,
+        "remaining": 31,
         "resetsAt": "2026-07-29T16:00:00Z",
     }
     assert body["featureFlags"]["aiChat"] is True
