@@ -82,6 +82,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
+    # Preserve newest-message ordering for conversation history scans.
     op.create_index(
         "ix_ai_conversations_user_last_message",
         "ai_conversations",

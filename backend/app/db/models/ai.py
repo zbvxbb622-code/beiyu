@@ -61,34 +61,51 @@ class AiMemoryCategory(StrEnum):
 class RecipeIdsType(TypeDecorator):
     impl = JSON
     cache_ok = True
+    should_evaluate_none = True
 
     def load_dialect_impl(self, dialect: Any) -> Any:
         return JSON().with_variant(JSONB, "postgresql").dialect_impl(dialect)
 
     def process_bind_param(
         self,
-        value: list[uuid.UUID] | None,
+        value: object,
         dialect: Any,
-    ) -> list[str] | None:
-        if value is None:
-            return None
-        return [str(recipe_id) for recipe_id in value]
+    ) -> list[str]:
+        if not isinstance(value, list):
+            raise TypeError("recipe_ids must be a JSON array")
+        return [str(self._parse_recipe_id(recipe_id)) for recipe_id in value]
 
     def process_result_value(
         self,
-        value: list[str] | None,
+        value: object,
         dialect: Any,
-    ) -> list[uuid.UUID] | None:
-        if value is None:
-            return None
-        return [uuid.UUID(recipe_id) for recipe_id in value]
+    ) -> list[uuid.UUID]:
+        if not isinstance(value, list):
+            raise TypeError("recipe_ids database value must be a JSON array")
+        recipe_ids: list[uuid.UUID] = []
+        for recipe_id in value:
+            if not isinstance(recipe_id, str):
+                raise TypeError("recipe_ids database values must be UUID strings")
+            recipe_ids.append(self._parse_recipe_id(recipe_id))
+        return recipe_ids
+
+    @staticmethod
+    def _parse_recipe_id(value: object) -> uuid.UUID:
+        if isinstance(value, uuid.UUID):
+            return value
+        if not isinstance(value, str):
+            raise TypeError("recipe_ids values must be UUIDs or UUID strings")
+        recipe_id = uuid.UUID(value)
+        if str(recipe_id) != value:
+            raise ValueError("recipe_ids UUID strings must be canonical")
+        return recipe_id
 
 
 def recipe_ids_column() -> Column:
     return Column(
         RecipeIdsType(),
         nullable=False,
-        server_default=text("'[]'::jsonb"),
+        server_default=text("'[]'"),
     )
 
 

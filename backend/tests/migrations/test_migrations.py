@@ -1,4 +1,5 @@
 import os
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -70,6 +71,311 @@ AI_ENUM_VALUES = {
         "SAFETY_REMINDER",
     ],
 }
+
+AI_COLUMN_MANIFEST: dict[str, dict[str, tuple[str, bool, str | None]]] = {
+    "ai_conversations": {
+        "id": ("uuid", False, None),
+        "user_id": ("uuid", False, None),
+        "title": ("varchar(80)", False, "'新的对话'"),
+        "last_message_at": ("timestamptz", True, None),
+        "created_at": ("timestamptz", False, None),
+        "updated_at": ("timestamptz", False, None),
+    },
+    "ai_messages": {
+        "id": ("uuid", False, None),
+        "conversation_id": ("uuid", False, None),
+        "user_id": ("uuid", False, None),
+        "role": ("ai_message_role", False, None),
+        "content": ("text", False, None),
+        "recipe_ids": ("jsonb", False, "'[]'"),
+        "safety_label": ("ai_safety_label", False, "'safe'"),
+        "created_at": ("timestamptz", False, None),
+    },
+    "ai_requests": {
+        "id": ("uuid", False, None),
+        "user_id": ("uuid", False, None),
+        "conversation_id": ("uuid", True, None),
+        "client_message_id": ("uuid", False, None),
+        "mode": ("ai_chat_mode", False, None),
+        "status": ("ai_request_status", False, "'reserved'"),
+        "attempt_count": ("integer", False, "1"),
+        "quota_date": ("date", False, None),
+        "reservation_expires_at": ("timestamptz", True, None),
+        "response_message_id": ("uuid", True, None),
+        "failure_code": ("varchar(80)", True, None),
+        "safety_label": ("ai_safety_label", True, None),
+        "created_at": ("timestamptz", False, None),
+        "completed_at": ("timestamptz", True, None),
+    },
+    "ai_daily_quotas": {
+        "id": ("uuid", False, None),
+        "user_id": ("uuid", False, None),
+        "quota_date": ("date", False, None),
+        "free_limit": ("integer", False, "50"),
+        "used_count": ("integer", False, "0"),
+        "reserved_count": ("integer", False, "0"),
+        "created_at": ("timestamptz", False, None),
+        "updated_at": ("timestamptz", False, None),
+    },
+    "ai_usage_logs": {
+        "id": ("uuid", False, None),
+        "request_id": ("uuid", False, None),
+        "attempt_no": ("integer", False, None),
+        "user_id": ("uuid", False, None),
+        "conversation_id": ("uuid", True, None),
+        "mode": ("ai_chat_mode", False, None),
+        "outcome": ("varchar(40)", False, None),
+        "provider": ("varchar(80)", False, None),
+        "model": ("varchar(120)", False, None),
+        "prompt_version": ("varchar(40)", False, None),
+        "input_tokens": ("integer", True, None),
+        "output_tokens": ("integer", True, None),
+        "latency_ms": ("integer", False, None),
+        "cost_estimate": ("numeric(12,6)", True, None),
+        "safety_label": ("ai_safety_label", True, None),
+        "created_at": ("timestamptz", False, None),
+    },
+    "ai_memories": {
+        "id": ("uuid", False, None),
+        "user_id": ("uuid", False, None),
+        "category": ("ai_memory_category", False, None),
+        "memory_key": ("varchar(80)", False, None),
+        "summary": ("varchar(240)", False, None),
+        "created_at": ("timestamptz", False, None),
+        "updated_at": ("timestamptz", False, None),
+    },
+    "ai_memory_sources": {
+        "id": ("uuid", False, None),
+        "memory_id": ("uuid", False, None),
+        "conversation_id": ("uuid", False, None),
+        "source_message_id": ("uuid", False, None),
+        "created_at": ("timestamptz", False, None),
+    },
+    "ai_memory_tombstones": {
+        "id": ("uuid", False, None),
+        "user_id": ("uuid", False, None),
+        "category": ("ai_memory_category", False, None),
+        "key_hash": ("char(64)", False, None),
+        "deleted_at": ("timestamptz", False, None),
+    },
+}
+
+AI_FOREIGN_KEY_MANIFEST = {
+    "ai_conversations": {("user_id", "users", "CASCADE")},
+    "ai_messages": {
+        ("conversation_id", "ai_conversations", "CASCADE"),
+        ("user_id", "users", "CASCADE"),
+    },
+    "ai_requests": {
+        ("user_id", "users", "CASCADE"),
+        ("conversation_id", "ai_conversations", "SET NULL"),
+        ("response_message_id", "ai_messages", "SET NULL"),
+    },
+    "ai_daily_quotas": {("user_id", "users", "CASCADE")},
+    "ai_usage_logs": {
+        ("request_id", "ai_requests", "CASCADE"),
+        ("user_id", "users", "CASCADE"),
+        ("conversation_id", "ai_conversations", "SET NULL"),
+    },
+    "ai_memories": {("user_id", "users", "CASCADE")},
+    "ai_memory_sources": {
+        ("memory_id", "ai_memories", "CASCADE"),
+        ("conversation_id", "ai_conversations", "CASCADE"),
+        ("source_message_id", "ai_messages", "CASCADE"),
+    },
+    "ai_memory_tombstones": {("user_id", "users", "CASCADE")},
+}
+
+AI_CHECK_MANIFEST = {
+    "ai_conversations": {},
+    "ai_messages": {},
+    "ai_requests": {
+        "ck_ai_requests_temporary_without_messages": "mode!='temporary'orconversation_idisnullandresponse_message_idisnull",
+        "ck_ai_requests_attempt_count": "attempt_count>=1",
+    },
+    "ai_daily_quotas": {
+        "ck_ai_daily_quotas_used_count": "used_count>=0",
+        "ck_ai_daily_quotas_reserved_count": "reserved_count>=0",
+        "ck_ai_daily_quotas_within_limit": "used_count+reserved_count<=free_limit",
+    },
+    "ai_usage_logs": {
+        "ck_ai_usage_logs_attempt_no": "attempt_no>=1",
+        "ck_ai_usage_logs_latency_ms": "latency_ms>=0",
+        "ck_ai_usage_logs_input_tokens": "input_tokensisnullorinput_tokens>=0",
+        "ck_ai_usage_logs_output_tokens": "output_tokensisnulloroutput_tokens>=0",
+        "ck_ai_usage_logs_cost_estimate": "cost_estimateisnullorcost_estimate>=0",
+    },
+    "ai_memories": {},
+    "ai_memory_sources": {},
+    "ai_memory_tombstones": {},
+}
+
+AI_UNIQUE_MANIFEST = {
+    "ai_conversations": set(),
+    "ai_messages": set(),
+    "ai_requests": {("user_id", "client_message_id")},
+    "ai_daily_quotas": {("user_id", "quota_date")},
+    "ai_usage_logs": {("request_id", "attempt_no")},
+    "ai_memories": {("user_id", "category", "memory_key")},
+    "ai_memory_sources": {("memory_id", "source_message_id")},
+    "ai_memory_tombstones": {("user_id", "category", "key_hash")},
+}
+
+AI_INDEX_MANIFEST = {
+    "ix_ai_conversations_user_last_message": (
+        "user_id,last_message_atdesc,iddesc",
+        ("uuid_ops", "timestamptz_ops", "uuid_ops"),
+    ),
+    "ix_ai_messages_conversation_created": (
+        "conversation_id,created_at,id",
+        ("uuid_ops", "timestamptz_ops", "uuid_ops"),
+    ),
+    "ix_ai_messages_user_created": (
+        "user_id,created_atdesc",
+        ("uuid_ops", "timestamptz_ops"),
+    ),
+}
+
+
+def normalize_sql(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = re.sub(r"\s+", "", value.lower())
+    normalized = re.sub(r"::[a-z_][a-z_0-9]*", "", normalized)
+    normalized = normalized.removeprefix("check")
+    normalized = normalized.replace("<>", "!=")
+    return normalized.replace("(", "").replace(")", "")
+
+
+def assert_ai_core_design_manifest(connection: Any) -> None:
+    column_rows = connection.execute(
+        text(
+            "SELECT table_name, column_name, data_type, udt_name, "
+            "character_maximum_length, numeric_precision, numeric_scale, "
+            "is_nullable, column_default "
+            "FROM information_schema.columns "
+            "WHERE table_schema = current_schema() "
+            "AND table_name = ANY(:table_names)"
+        ),
+        {"table_names": list(AI_COLUMN_MANIFEST)},
+    ).mappings()
+    actual_columns: dict[str, dict[str, tuple[str, bool, str | None]]] = {}
+    for row in column_rows:
+        data_type = str(row["data_type"])
+        if data_type == "USER-DEFINED":
+            column_type = str(row["udt_name"])
+        elif data_type == "character varying":
+            column_type = f"varchar({row['character_maximum_length']})"
+        elif data_type == "character":
+            column_type = f"char({row['character_maximum_length']})"
+        elif data_type == "numeric":
+            column_type = f"numeric({row['numeric_precision']},{row['numeric_scale']})"
+        elif data_type == "timestamp with time zone":
+            column_type = "timestamptz"
+        else:
+            column_type = data_type
+        actual_columns.setdefault(str(row["table_name"]), {})[str(row["column_name"])] = (
+            column_type,
+            row["is_nullable"] == "YES",
+            normalize_sql(row["column_default"]),
+        )
+    assert actual_columns == AI_COLUMN_MANIFEST
+
+    foreign_key_rows = connection.execute(
+        text(
+            "SELECT source.relname AS table_name, source_column.attname AS column_name, "
+            "target.relname AS target_table, con.confdeltype "
+            "FROM pg_constraint AS con "
+            "JOIN pg_class AS source ON source.oid = con.conrelid "
+            "JOIN pg_class AS target ON target.oid = con.confrelid "
+            "JOIN pg_attribute AS source_column "
+            "ON source_column.attrelid = source.oid "
+            "AND source_column.attnum = con.conkey[1] "
+            "WHERE con.contype = 'f' "
+            "AND source.relname = ANY(:table_names)"
+        ),
+        {"table_names": list(AI_FOREIGN_KEY_MANIFEST)},
+    )
+    delete_actions = {"a": "NO ACTION", "c": "CASCADE", "n": "SET NULL"}
+    actual_foreign_keys: dict[str, set[tuple[str, str, str]]] = {
+        table_name: set() for table_name in AI_FOREIGN_KEY_MANIFEST
+    }
+    for table_name, column_name, target_table, delete_action in foreign_key_rows:
+        actual_foreign_keys[str(table_name)].add(
+            (str(column_name), str(target_table), delete_actions[str(delete_action)])
+        )
+    assert actual_foreign_keys == AI_FOREIGN_KEY_MANIFEST
+
+    check_rows = connection.execute(
+        text(
+            "SELECT table_class.relname, con.conname, "
+            "pg_get_constraintdef(con.oid) "
+            "FROM pg_constraint AS con "
+            "JOIN pg_class AS table_class ON table_class.oid = con.conrelid "
+            "WHERE con.contype = 'c' "
+            "AND table_class.relname = ANY(:table_names)"
+        ),
+        {"table_names": list(AI_CHECK_MANIFEST)},
+    )
+    actual_checks: dict[str, dict[str, str]] = {
+        table_name: {} for table_name in AI_CHECK_MANIFEST
+    }
+    for table_name, constraint_name, expression in check_rows:
+        actual_checks[str(table_name)][str(constraint_name)] = str(
+            normalize_sql(str(expression))
+        )
+    assert actual_checks == AI_CHECK_MANIFEST
+
+    unique_rows = connection.execute(
+        text(
+            "SELECT table_class.relname, con.conname, "
+            "array_agg(attribute.attname ORDER BY key.ordinality) "
+            "FROM pg_constraint AS con "
+            "JOIN pg_class AS table_class ON table_class.oid = con.conrelid "
+            "CROSS JOIN LATERAL unnest(con.conkey) "
+            "WITH ORDINALITY AS key(attribute_number, ordinality) "
+            "JOIN pg_attribute AS attribute "
+            "ON attribute.attrelid = table_class.oid "
+            "AND attribute.attnum = key.attribute_number "
+            "WHERE con.contype = 'u' "
+            "AND table_class.relname = ANY(:table_names) "
+            "GROUP BY table_class.relname, con.conname"
+        ),
+        {"table_names": list(AI_UNIQUE_MANIFEST)},
+    )
+    actual_uniques: dict[str, set[tuple[str, ...]]] = {
+        table_name: set() for table_name in AI_UNIQUE_MANIFEST
+    }
+    for table_name, _, columns in unique_rows:
+        actual_uniques[str(table_name)].add(tuple(columns))
+    assert actual_uniques == AI_UNIQUE_MANIFEST
+
+    index_rows = connection.execute(
+        text(
+            "SELECT index_class.relname, pg_get_indexdef(index_entry.indexrelid), "
+            "array_agg(opclass.opcname ORDER BY key.ordinality) "
+            "FROM pg_index AS index_entry "
+            "JOIN pg_class AS table_class ON table_class.oid = index_entry.indrelid "
+            "JOIN pg_class AS index_class ON index_class.oid = index_entry.indexrelid "
+            "JOIN pg_namespace AS namespace ON namespace.oid = table_class.relnamespace "
+            "CROSS JOIN LATERAL unnest(index_entry.indclass) "
+            "WITH ORDINALITY AS key(opclass_oid, ordinality) "
+            "JOIN pg_opclass AS opclass ON opclass.oid = key.opclass_oid "
+            "WHERE namespace.nspname = current_schema() "
+            "AND table_class.relname = ANY(:table_names) "
+            "AND NOT index_entry.indisprimary "
+            "GROUP BY index_class.relname, index_entry.indexrelid"
+        ),
+        {"table_names": ["ai_conversations", "ai_messages"]},
+    )
+    actual_indexes: dict[str, tuple[str, tuple[str, ...]]] = {}
+    for index_name, index_definition, opclasses in index_rows:
+        expression = str(index_definition).rsplit("(", maxsplit=1)[1].rstrip(")")
+        actual_indexes[str(index_name)] = (
+            str(normalize_sql(expression)),
+            tuple(opclasses),
+        )
+    assert actual_indexes == AI_INDEX_MANIFEST
 
 
 def column(
@@ -240,6 +546,7 @@ def test_migrations_upgrade_ai_core_from_0003_and_downgrade() -> None:
                 revision = connection.execute(
                     text("SELECT version_num FROM alembic_version")
                 ).scalar_one()
+                assert_ai_core_design_manifest(connection)
                 enum_values = connection.execute(
                     text(
                         "SELECT pg_type.typname, array_agg(pg_enum.enumlabel "
