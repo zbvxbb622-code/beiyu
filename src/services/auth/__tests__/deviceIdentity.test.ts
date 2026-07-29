@@ -29,4 +29,21 @@ describe('getDeviceIdentity', () => {
       first.installationId
     );
   });
+
+  it('serializes concurrent first calls into one stored installation ID', async () => {
+    jest
+      .mocked(Crypto.randomUUID)
+      .mockReturnValueOnce('7c9304c4-4430-4c96-8afd-b5df2b18e2d3')
+      .mockReturnValueOnce('a0ff3d87-f1ef-4e72-a4d2-a6c81bb4b6f3');
+
+    const [first, second] = await Promise.all([getDeviceIdentity(), getDeviceIdentity()]);
+
+    expect(first.installationId).toBe(second.installationId);
+    expect(Crypto.randomUUID).toHaveBeenCalledTimes(1);
+    expect(AsyncStorage.setItem).toHaveBeenCalledTimes(1);
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+      'beiyu.installation-id.v1',
+      first.installationId
+    );
+  });
 });

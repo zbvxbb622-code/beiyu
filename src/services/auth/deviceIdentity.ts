@@ -6,6 +6,7 @@ import * as Device from 'expo-device';
 import type { DeviceInput } from './authSchemas';
 
 const INSTALLATION_ID_KEY = 'beiyu.installation-id.v1';
+let installationIdPromise: Promise<string> | null = null;
 
 function platformForOs(osName: string | null): DeviceInput['platform'] {
   switch (osName?.toUpperCase()) {
@@ -19,7 +20,7 @@ function platformForOs(osName: string | null): DeviceInput['platform'] {
   }
 }
 
-async function getInstallationId(): Promise<string> {
+async function readOrCreateInstallationId(): Promise<string> {
   const storedInstallationId = await AsyncStorage.getItem(INSTALLATION_ID_KEY);
   if (storedInstallationId) {
     return storedInstallationId;
@@ -28,6 +29,16 @@ async function getInstallationId(): Promise<string> {
   const installationId = randomUUID();
   await AsyncStorage.setItem(INSTALLATION_ID_KEY, installationId);
   return installationId;
+}
+
+function getInstallationId(): Promise<string> {
+  if (!installationIdPromise) {
+    installationIdPromise = readOrCreateInstallationId().finally(() => {
+      installationIdPromise = null;
+    });
+  }
+
+  return installationIdPromise;
 }
 
 export async function getDeviceIdentity(): Promise<DeviceInput> {
