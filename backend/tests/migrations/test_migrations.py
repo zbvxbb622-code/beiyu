@@ -236,6 +236,8 @@ AI_INDEX_MANIFEST = {
     ),
 }
 
+ForeignKeyContract = tuple[tuple[str, ...], str, str, tuple[str, ...], str]
+
 
 @pytest.mark.parametrize(
     ("left", "right"),
@@ -248,36 +250,319 @@ def test_normalize_sql_preserves_logical_grouping(left: str, right: str) -> None
     assert normalize_sql(left) != normalize_sql(right)
 
 
+def test_normalize_sql_preserves_whitespace_inside_string_literals() -> None:
+    assert normalize_sql("'a  b'") != normalize_sql("'a b'")
+
+
+@pytest.mark.parametrize(
+    ("expression", "expected"),
+    [
+        (
+            "CHECK (message = 'it''s  spaced'   AND enabled)",
+            "message = 'it''s  spaced' AND enabled",
+        ),
+        (
+            r"CHECK (message = E'it\'s  spaced'   AND enabled)",
+            r"message = E'it\'s  spaced' AND enabled",
+        ),
+    ],
+)
+def test_normalize_sql_handles_escaped_quotes_inside_string_literals(
+    expression: str, expected: str
+) -> None:
+    assert normalize_sql(expression) == expected
+
+
+def test_normalize_sql_preserves_whitespace_inside_quoted_identifiers() -> None:
+    assert normalize_sql('"two  words"   =  1') == '"two  words" = 1'
+    assert normalize_sql('"two  words" = 1') != normalize_sql('"two words" = 1')
+
+
+def test_normalize_sql_collapses_formatting_whitespace_outside_quotes() -> None:
+    assert normalize_sql(
+        "\n CHECK (\n amount   >=  1\n AND   note = 'a  b'\n ) \n"
+    ) == "amount >= 1 AND note = 'a  b'"
+
+
+def test_normalize_sql_accepts_check_wrapper_without_whitespace() -> None:
+    assert normalize_sql("CHECK(amount   >=  1)") == "amount >= 1"
+
+
 def normalize_sql(value: str | None) -> str | None:
     if value is None:
         return None
-    normalized = re.sub(r'"([^"]+)"', r"\1", value)
-    normalized = re.sub(r"\s+", " ", normalized).strip()
-    if normalized.startswith("CHECK"):
+    normalized = collapse_unquoted_whitespace(value)
+    if normalized.startswith("CHECK") and normalized[5:6] in {"", " ", "("}:
         normalized = normalized.removeprefix("CHECK").strip()
     return strip_outer_parentheses(normalized)
+
+
+def collapse_unquoted_whitespace(value: str) -> str:
+    protected = protected_sql_characters(value)
+    result: list[str] = []
+    whitespace_pending = False
+
+    for index, character in enumerate(value):
+        if protected[index]:
+            if whitespace_pending and result:
+                result.append(" ")
+            whitespace_pending = False
+            result.append(character)
+        elif character.isspace():
+            whitespace_pending = True
+        else:
+            if whitespace_pending and result:
+                result.append(" ")
+            whitespace_pending = False
+            result.append(character)
+
+    return "".join(result).strip()
+
+
+def protected_sql_characters(value: str) -> list[bool]:
+    protected = [False] * len(value)
+    index = 0
+    while index < len(value):
+        end = quoted_or_commented_end(value, index)
+        if end is None:
+            index += 1
+            continue
+        protected[index:end] = [True] * (end - index)
+        index = end
+    return protected
+
+
+def quoted_or_commented_end(value: str, start: int) -> int | None:
+    if value.startswith("--", start):
+        newline = value.find("\n", start + 2)
+        return len(value) if newline == -1 else newline + 1
+
+    if value.startswith("/*", start):
+        depth = 1
+        index = start + 2
+        while index < len(value) and depth:
+            if value.startswith("/*", index):
+                depth += 1
+                index += 2
+            elif value.startswith("*/", index):
+                depth -= 1
+                index += 2
+            else:
+                index += 1
+        return index
+
+    character = value[start]
+    if character == "'":
+        escape_backslashes = is_escape_string_prefix(value, start)
+        index = start + 1
+        while index < len(value):
+            if escape_backslashes and value[index] == "\\":
+                index = min(index + 2, len(value))
+            elif value[index] == "'":
+                if index + 1 < len(value) and value[index + 1] == "'":
+                    index += 2
+                else:
+                    return index + 1
+            else:
+                index += 1
+        return len(value)
+
+    if character == '"':
+        index = start + 1
+        while index < len(value):
+            if value[index] == '"':
+                if index + 1 < len(value) and value[index + 1] == '"':
+                    index += 2
+                else:
+                    return index + 1
+            else:
+                index += 1
+        return len(value)
+
+    if character == "$":
+        delimiter_match = re.match(r"\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$", value[start:])
+        if delimiter_match is not None:
+            delimiter = delimiter_match.group()
+            content_start = start + len(delimiter)
+            closing_start = value.find(delimiter, content_start)
+            return (
+                len(value)
+                if closing_start == -1
+                else closing_start + len(delimiter)
+            )
+
+    return None
+
+
+def is_escape_string_prefix(value: str, quote_index: int) -> bool:
+    prefix_start = quote_index - 1
+    if prefix_start >= 0 and value[prefix_start] in {"E", "e"}:
+        return prefix_start == 0 or not is_identifier_character(
+            value[prefix_start - 1]
+        )
+    if quote_index >= 2 and value[quote_index - 2 : quote_index].lower() == "u&":
+        return quote_index == 2 or not is_identifier_character(value[quote_index - 3])
+    return False
+
+
+def is_identifier_character(character: str) -> bool:
+    return character.isalnum() or character in {"_", "$"}
 
 
 def strip_outer_parentheses(value: str) -> str:
     result = value
     while result.startswith("(") and result.endswith(")"):
+        protected = protected_sql_characters(result)
         depth = 0
-        quote_open = False
         encloses_entire_expression = True
         for index, character in enumerate(result):
-            if character == "'":
-                quote_open = not quote_open
-            elif not quote_open and character == "(":
+            if protected[index]:
+                continue
+            if character == "(":
                 depth += 1
-            elif not quote_open and character == ")":
+            elif character == ")":
                 depth -= 1
                 if depth == 0 and index != len(result) - 1:
                     encloses_entire_expression = False
                     break
-        if not encloses_entire_expression:
+        if not encloses_entire_expression or depth != 0:
             break
         result = result[1:-1].strip()
     return result
+
+
+def read_foreign_key_contracts(
+    connection: Any, table_names: list[str]
+) -> dict[str, set[ForeignKeyContract]]:
+    rows = connection.execute(
+        text(
+            "SELECT con.oid AS constraint_oid, source.relname AS table_name, "
+            "array_agg(source_column.attname ORDER BY key_pair.ordinality) AS source_columns, "
+            "target_namespace.nspname AS target_schema, target.relname AS target_table, "
+            "array_agg(target_column.attname ORDER BY key_pair.ordinality) AS target_columns, "
+            "con.confdeltype "
+            "FROM pg_constraint AS con "
+            "JOIN pg_class AS source ON source.oid = con.conrelid "
+            "JOIN pg_class AS target ON target.oid = con.confrelid "
+            "JOIN pg_namespace AS target_namespace ON target_namespace.oid = target.relnamespace "
+            "CROSS JOIN LATERAL unnest(con.conkey, con.confkey) "
+            "WITH ORDINALITY AS key_pair(source_attribute_number, target_attribute_number, ordinality) "
+            "JOIN pg_attribute AS source_column "
+            "ON source_column.attrelid = source.oid "
+            "AND source_column.attnum = key_pair.source_attribute_number "
+            "JOIN pg_attribute AS target_column "
+            "ON target_column.attrelid = target.oid "
+            "AND target_column.attnum = key_pair.target_attribute_number "
+            "WHERE con.contype = 'f' "
+            "AND source.relname = ANY(:table_names) "
+            "GROUP BY con.oid, source.relname, target_namespace.nspname, "
+            "target.relname, con.confdeltype "
+            "ORDER BY source.relname, con.oid"
+        ),
+        {"table_names": table_names},
+    )
+    delete_actions = {"a": "NO ACTION", "c": "CASCADE", "n": "SET NULL"}
+    contracts: dict[str, set[ForeignKeyContract]] = {
+        table_name: set() for table_name in table_names
+    }
+    for (
+        _,
+        table_name,
+        source_columns,
+        target_schema,
+        target_table,
+        target_columns,
+        delete_action,
+    ) in rows:
+        contracts[str(table_name)].add(
+            (
+                tuple(source_columns),
+                str(target_schema),
+                str(target_table),
+                tuple(target_columns),
+                delete_actions[str(delete_action)],
+            )
+        )
+    return contracts
+
+
+def test_foreign_key_catalog_preserves_constraint_identity_and_column_order() -> None:
+    database_url = os.environ["BEIYU_DATABASE_URL"]
+    url = make_url(database_url)
+    assert url.get_backend_name() == "postgresql", "Migration tests require PostgreSQL"
+    if url.database is None or not url.database.endswith("_test"):
+        pytest.skip("BEIYU_DATABASE_URL does not name a dedicated test database")
+
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "CREATE TEMP TABLE catalog_fk_target ("
+                    "first_id integer NOT NULL UNIQUE, "
+                    "second_id integer NOT NULL, "
+                    "PRIMARY KEY (first_id, second_id)"
+                    ") ON COMMIT DROP"
+                )
+            )
+            connection.execute(
+                text(
+                    "CREATE TEMP TABLE catalog_fk_source ("
+                    "first_ref integer, "
+                    "second_ref integer, "
+                    "composite_first integer, "
+                    "composite_second integer, "
+                    "CONSTRAINT fk_catalog_first "
+                    "FOREIGN KEY (first_ref) "
+                    "REFERENCES catalog_fk_target (first_id) ON DELETE CASCADE, "
+                    "CONSTRAINT fk_catalog_second "
+                    "FOREIGN KEY (second_ref) "
+                    "REFERENCES catalog_fk_target (first_id) ON DELETE CASCADE, "
+                    "CONSTRAINT fk_catalog_composite "
+                    "FOREIGN KEY (composite_first, composite_second) "
+                    "REFERENCES catalog_fk_target (first_id, second_id) "
+                    "ON DELETE CASCADE"
+                    ") ON COMMIT DROP"
+                )
+            )
+            temp_schema = connection.execute(
+                text(
+                    "SELECT nspname FROM pg_namespace "
+                    "WHERE oid = pg_my_temp_schema()"
+                )
+            ).scalar_one()
+
+            contracts = read_foreign_key_contracts(
+                connection, ["catalog_fk_source"]
+            )
+
+        assert contracts == {
+            "catalog_fk_source": {
+                (
+                    ("first_ref",),
+                    temp_schema,
+                    "catalog_fk_target",
+                    ("first_id",),
+                    "CASCADE",
+                ),
+                (
+                    ("second_ref",),
+                    temp_schema,
+                    "catalog_fk_target",
+                    ("first_id",),
+                    "CASCADE",
+                ),
+                (
+                    ("composite_first", "composite_second"),
+                    temp_schema,
+                    "catalog_fk_target",
+                    ("first_id", "second_id"),
+                    "CASCADE",
+                ),
+            }
+        }
+    finally:
+        engine.dispose()
 
 
 def assert_ai_core_design_manifest(connection: Any) -> None:
@@ -314,55 +599,9 @@ def assert_ai_core_design_manifest(connection: Any) -> None:
         )
     assert actual_columns == AI_COLUMN_MANIFEST
 
-    foreign_key_rows = connection.execute(
-        text(
-            "SELECT source.relname AS table_name, "
-            "array_agg(source_column.attname ORDER BY key_pair.ordinality) AS source_columns, "
-            "target_namespace.nspname AS target_schema, target.relname AS target_table, "
-            "array_agg(target_column.attname ORDER BY key_pair.ordinality) AS target_columns, "
-            "con.confdeltype "
-            "FROM pg_constraint AS con "
-            "JOIN pg_class AS source ON source.oid = con.conrelid "
-            "JOIN pg_class AS target ON target.oid = con.confrelid "
-            "JOIN pg_namespace AS target_namespace ON target_namespace.oid = target.relnamespace "
-            "CROSS JOIN LATERAL unnest(con.conkey, con.confkey) "
-            "WITH ORDINALITY AS key_pair(source_attribute_number, target_attribute_number, ordinality) "
-            "JOIN pg_attribute AS source_column "
-            "ON source_column.attrelid = source.oid "
-            "AND source_column.attnum = key_pair.source_attribute_number "
-            "JOIN pg_attribute AS target_column "
-            "ON target_column.attrelid = target.oid "
-            "AND target_column.attnum = key_pair.target_attribute_number "
-            "WHERE con.contype = 'f' "
-            "AND source.relname = ANY(:table_names) "
-            "GROUP BY source.relname, target_namespace.nspname, target.relname, con.confdeltype"
-        ),
-        {"table_names": list(AI_FOREIGN_KEY_MANIFEST)},
+    actual_foreign_keys = read_foreign_key_contracts(
+        connection, list(AI_FOREIGN_KEY_MANIFEST)
     )
-    delete_actions = {"a": "NO ACTION", "c": "CASCADE", "n": "SET NULL"}
-    actual_foreign_keys: dict[
-        str,
-        set[tuple[tuple[str, ...], str, str, tuple[str, ...], str]],
-    ] = {
-        table_name: set() for table_name in AI_FOREIGN_KEY_MANIFEST
-    }
-    for (
-        table_name,
-        source_columns,
-        target_schema,
-        target_table,
-        target_columns,
-        delete_action,
-    ) in foreign_key_rows:
-        actual_foreign_keys[str(table_name)].add(
-            (
-                tuple(source_columns),
-                str(target_schema),
-                str(target_table),
-                tuple(target_columns),
-                delete_actions[str(delete_action)],
-            )
-        )
     assert actual_foreign_keys == AI_FOREIGN_KEY_MANIFEST
 
     check_rows = connection.execute(
