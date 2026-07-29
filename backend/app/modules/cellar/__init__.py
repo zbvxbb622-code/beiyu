@@ -1,0 +1,1 @@
+"""Private cellar inventory operations."""

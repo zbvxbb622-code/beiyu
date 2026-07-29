@@ -22,11 +22,26 @@ def assert_object_schema(
     assert set(schema["required"]) == properties
 
 
-def test_openapi_has_exact_stage_zero_paths_and_explicit_success_schemas() -> None:
+def test_openapi_has_exact_stage_one_paths_and_explicit_success_schemas() -> None:
     schema = create_app().openapi()
 
     assert set(schema["paths"]) == {
         "/api/v1",
+        "/api/v1/auth/devices",
+        "/api/v1/auth/devices/{device_id}",
+        "/api/v1/auth/login",
+        "/api/v1/auth/logout",
+        "/api/v1/auth/refresh",
+        "/api/v1/auth/sms-codes",
+        "/api/v1/cellar/items",
+        "/api/v1/cellar/items/batch",
+        "/api/v1/cellar/items/{item_id}",
+        "/api/v1/me/account",
+        "/api/v1/me/age-confirmation",
+        "/api/v1/me/bootstrap",
+        "/api/v1/me/local-sync",
+        "/api/v1/me/privacy",
+        "/api/v1/me/profile",
         "/health/live",
         "/health/ready",
     }
@@ -50,6 +65,48 @@ def test_openapi_has_exact_stage_zero_paths_and_explicit_success_schemas() -> No
     assert schemas["ReadinessResponse"]["properties"]["checks"] == {
         "$ref": "#/components/schemas/ReadinessChecks"
     }
+
+
+def test_stage_one_contract_uses_bearer_auth_and_camel_case() -> None:
+    schema = create_app().openapi()
+    assert schema["components"]["securitySchemes"]["HTTPBearer"] == {
+        "type": "http",
+        "scheme": "bearer",
+    }
+
+    protected_operations = {
+        ("/api/v1/auth/devices", "get"),
+        ("/api/v1/auth/logout", "post"),
+        ("/api/v1/cellar/items", "get"),
+        ("/api/v1/cellar/items", "post"),
+        ("/api/v1/me/bootstrap", "get"),
+        ("/api/v1/me/profile", "patch"),
+        ("/api/v1/me/local-sync", "post"),
+    }
+    for path, method in protected_operations:
+        assert schema["paths"][path][method]["security"] == [{"HTTPBearer": []}]
+
+    schemas = schema["components"]["schemas"]
+    assert set(schemas["LoginResponse"]["properties"]) == {
+        "accessToken",
+        "refreshToken",
+        "tokenType",
+        "expiresIn",
+        "refreshExpiresIn",
+        "isNewUser",
+        "user",
+        "device",
+    }
+    assert set(schemas["BootstrapResponse"]["properties"]) == {
+        "user",
+        "profile",
+        "privacy",
+        "accountSecurity",
+        "cellar",
+        "ai",
+        "featureFlags",
+    }
+    assert "ingredientId" in schemas["CellarItemResponse"]["properties"]
 
 
 def test_readiness_declares_unified_503_error_schema() -> None:
@@ -88,6 +145,12 @@ def test_openapi_does_not_expose_secrets_configuration_or_stack_traces() -> None
         "stack trace",
         "stack_trace",
         "traceback",
+        "phone_hash",
+        "code_hash",
+        "refresh_token_hash",
+        "installation_id_hash",
+        "normalized_custom_name",
+        "sms_development_code",
     }
     exposed_fragments = {
         fragment for fragment in forbidden_fragments if fragment in serialized_schema

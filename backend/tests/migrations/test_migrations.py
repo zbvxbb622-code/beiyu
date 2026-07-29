@@ -21,9 +21,16 @@ def test_migrations_upgrade_to_head_and_downgrade_to_base() -> None:
         command.upgrade(config, "head")
         try:
             inspector = inspect(engine)
-            assert {"alembic_version", "system_metadata"} <= set(
-                inspector.get_table_names()
-            )
+            assert {
+                "alembic_version",
+                "auth_sessions",
+                "cellar_items",
+                "sms_codes",
+                "system_metadata",
+                "user_devices",
+                "user_profiles",
+                "users",
+            } <= set(inspector.get_table_names())
             columns = inspector.get_columns("system_metadata")
             assert {column["name"] for column in columns} == {"key", "value"}
 
@@ -31,7 +38,7 @@ def test_migrations_upgrade_to_head_and_downgrade_to_base() -> None:
                 revision = connection.execute(
                     text("SELECT version_num FROM alembic_version")
                 ).scalar_one()
-            assert revision == "20260728_0001"
+            assert revision == "20260729_0002"
         finally:
             command.downgrade(config, "base")
 
@@ -42,5 +49,22 @@ def test_migrations_upgrade_to_head_and_downgrade_to_base() -> None:
                 text("SELECT version_num FROM alembic_version")
             ).scalars()
             assert list(revisions) == []
+            remaining_enum_types = connection.execute(
+                text(
+                    "SELECT typname FROM pg_type "
+                    "WHERE typname = ANY(:enum_names) ORDER BY typname"
+                ),
+                {
+                    "enum_names": [
+                        "cellar_item_source",
+                        "device_platform",
+                        "membership_level",
+                        "sms_scene",
+                        "user_status",
+                    ]
+                },
+            ).scalars()
+            assert list(remaining_enum_types) == []
     finally:
+        command.upgrade(config, "head")
         engine.dispose()

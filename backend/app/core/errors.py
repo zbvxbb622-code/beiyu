@@ -25,11 +25,13 @@ class AppError(Exception):
         message: str,
         status_code: int,
         details: dict[str, Any] | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> None:
         self.code = code
         self.message = message
         self.status_code = status_code
         self.details = details or {}
+        self.headers = headers
 
 
 def error_response(
@@ -61,6 +63,7 @@ async def handle_app_error(_: Request, exc: Exception) -> JSONResponse:
         message=exc.message,
         status_code=exc.status_code,
         details=exc.details,
+        headers=exc.headers,
     )
 
 

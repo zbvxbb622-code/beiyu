@@ -1,6 +1,152 @@
 {
   "components": {
     "schemas": {
+      "AccountDevice": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "isCurrent": {
+            "title": "Iscurrent",
+            "type": "boolean"
+          },
+          "lastActiveAt": {
+            "format": "date-time",
+            "title": "Lastactiveat",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/DevicePlatform"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "platform",
+          "lastActiveAt",
+          "isCurrent"
+        ],
+        "title": "AccountDevice",
+        "type": "object"
+      },
+      "AccountSecurityResponse": {
+        "properties": {
+          "devices": {
+            "items": {
+              "$ref": "#/components/schemas/AccountDevice"
+            },
+            "title": "Devices",
+            "type": "array"
+          },
+          "officialType": {
+            "default": "",
+            "title": "Officialtype",
+            "type": "string"
+          },
+          "officialVerified": {
+            "default": false,
+            "title": "Officialverified",
+            "type": "boolean"
+          },
+          "passwordSet": {
+            "default": false,
+            "title": "Passwordset",
+            "type": "boolean"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "phoneVerified": {
+            "title": "Phoneverified",
+            "type": "boolean"
+          },
+          "realnameName": {
+            "default": "",
+            "title": "Realnamename",
+            "type": "string"
+          },
+          "realnameVerified": {
+            "default": false,
+            "title": "Realnameverified",
+            "type": "boolean"
+          },
+          "wechatAccount": {
+            "default": "",
+            "title": "Wechataccount",
+            "type": "string"
+          },
+          "wechatBound": {
+            "default": false,
+            "title": "Wechatbound",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "phone",
+          "phoneVerified",
+          "devices"
+        ],
+        "title": "AccountSecurityResponse",
+        "type": "object"
+      },
+      "AgeConfirmationRequest": {
+        "properties": {
+          "confirmed": {
+            "const": true,
+            "title": "Confirmed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "confirmed"
+        ],
+        "title": "AgeConfirmationRequest",
+        "type": "object"
+      },
+      "AgeConfirmationResponse": {
+        "properties": {
+          "ageConfirmed": {
+            "title": "Ageconfirmed",
+            "type": "boolean"
+          },
+          "confirmedAt": {
+            "format": "date-time",
+            "title": "Confirmedat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ageConfirmed",
+          "confirmedAt"
+        ],
+        "title": "AgeConfirmationResponse",
+        "type": "object"
+      },
+      "AiAllowance": {
+        "properties": {
+          "dailyMessageLimit": {
+            "title": "Dailymessagelimit",
+            "type": "integer"
+          },
+          "messagesUsedToday": {
+            "title": "Messagesusedtoday",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "dailyMessageLimit",
+          "messagesUsedToday"
+        ],
+        "title": "AiAllowance",
+        "type": "object"
+      },
       "ApiRootResponse": {
         "properties": {
           "name": {
@@ -18,6 +164,395 @@
         ],
         "title": "ApiRootResponse",
         "type": "object"
+      },
+      "AuthenticatedDevice": {
+        "properties": {
+          "appVersion": {
+            "title": "Appversion",
+            "type": "string"
+          },
+          "deviceName": {
+            "title": "Devicename",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "isCurrent": {
+            "title": "Iscurrent",
+            "type": "boolean"
+          },
+          "lastActiveAt": {
+            "format": "date-time",
+            "title": "Lastactiveat",
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/DevicePlatform"
+          }
+        },
+        "required": [
+          "id",
+          "platform",
+          "deviceName",
+          "appVersion",
+          "lastActiveAt",
+          "isCurrent"
+        ],
+        "title": "AuthenticatedDevice",
+        "type": "object"
+      },
+      "AuthenticatedUser": {
+        "properties": {
+          "ageConfirmed": {
+            "title": "Ageconfirmed",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "membershipLevel": {
+            "$ref": "#/components/schemas/MembershipLevel"
+          },
+          "memoryEnabled": {
+            "title": "Memoryenabled",
+            "type": "boolean"
+          },
+          "phoneMasked": {
+            "title": "Phonemasked",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/UserStatus"
+          }
+        },
+        "required": [
+          "id",
+          "phoneMasked",
+          "status",
+          "ageConfirmed",
+          "memoryEnabled",
+          "membershipLevel"
+        ],
+        "title": "AuthenticatedUser",
+        "type": "object"
+      },
+      "BootstrapResponse": {
+        "properties": {
+          "accountSecurity": {
+            "$ref": "#/components/schemas/AccountSecurityResponse"
+          },
+          "ai": {
+            "$ref": "#/components/schemas/AiAllowance"
+          },
+          "cellar": {
+            "$ref": "#/components/schemas/CellarListResponse"
+          },
+          "featureFlags": {
+            "$ref": "#/components/schemas/FeatureFlags"
+          },
+          "privacy": {
+            "$ref": "#/components/schemas/PrivacySettingsResponse"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/UserProfileResponse"
+          },
+          "user": {
+            "$ref": "#/components/schemas/AuthenticatedUser"
+          }
+        },
+        "required": [
+          "user",
+          "profile",
+          "privacy",
+          "accountSecurity",
+          "cellar",
+          "ai",
+          "featureFlags"
+        ],
+        "title": "BootstrapResponse",
+        "type": "object"
+      },
+      "CellarBatchRequest": {
+        "properties": {
+          "ingredientIds": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "title": "Ingredientids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ingredientIds"
+        ],
+        "title": "CellarBatchRequest",
+        "type": "object"
+      },
+      "CellarItemCreate": {
+        "properties": {
+          "amountLabel": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amountlabel"
+          },
+          "customName": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customname"
+          },
+          "ingredientId": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingredientid"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "title": "CellarItemCreate",
+        "type": "object"
+      },
+      "CellarItemPatch": {
+        "properties": {
+          "amountLabel": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amountlabel"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "title": "CellarItemPatch",
+        "type": "object"
+      },
+      "CellarItemResponse": {
+        "properties": {
+          "amountLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amountlabel"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "customName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customname"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "ingredientId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingredientid"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "source": {
+            "$ref": "#/components/schemas/CellarItemSource"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "title": "Updatedat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ingredientId",
+          "customName",
+          "amountLabel",
+          "note",
+          "source",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "CellarItemResponse",
+        "type": "object"
+      },
+      "CellarItemSource": {
+        "enum": [
+          "MANUAL",
+          "LOCAL_SYNC"
+        ],
+        "title": "CellarItemSource",
+        "type": "string"
+      },
+      "CellarListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CellarItemResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "CellarListResponse",
+        "type": "object"
+      },
+      "DeleteAccountRequest": {
+        "properties": {
+          "confirmation": {
+            "const": "DELETE",
+            "title": "Confirmation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirmation"
+        ],
+        "title": "DeleteAccountRequest",
+        "type": "object"
+      },
+      "DeviceInput": {
+        "properties": {
+          "appVersion": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Appversion",
+            "type": "string"
+          },
+          "deviceName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Devicename",
+            "type": "string"
+          },
+          "installationId": {
+            "maxLength": 200,
+            "minLength": 8,
+            "title": "Installationid",
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/DevicePlatform"
+          }
+        },
+        "required": [
+          "installationId",
+          "platform",
+          "deviceName",
+          "appVersion"
+        ],
+        "title": "DeviceInput",
+        "type": "object"
+      },
+      "DeviceList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AuthenticatedDevice"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "DeviceList",
+        "type": "object"
+      },
+      "DevicePlatform": {
+        "enum": [
+          "IOS",
+          "ANDROID",
+          "WEB"
+        ],
+        "title": "DevicePlatform",
+        "type": "string"
       },
       "ErrorEnvelope": {
         "properties": {
@@ -55,6 +590,50 @@
         "title": "ErrorPayload",
         "type": "object"
       },
+      "FeatureFlags": {
+        "properties": {
+          "aiChat": {
+            "default": false,
+            "title": "Aichat",
+            "type": "boolean"
+          },
+          "community": {
+            "default": false,
+            "title": "Community",
+            "type": "boolean"
+          },
+          "legalNameVerification": {
+            "default": false,
+            "title": "Legalnameverification",
+            "type": "boolean"
+          },
+          "mediaUpload": {
+            "default": false,
+            "title": "Mediaupload",
+            "type": "boolean"
+          },
+          "realSms": {
+            "default": false,
+            "title": "Realsms",
+            "type": "boolean"
+          }
+        },
+        "title": "FeatureFlags",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
       "LivenessResponse": {
         "properties": {
           "service": {
@@ -71,6 +650,186 @@
           "service"
         ],
         "title": "LivenessResponse",
+        "type": "object"
+      },
+      "LocalSyncRequest": {
+        "properties": {
+          "ageVerified": {
+            "default": false,
+            "title": "Ageverified",
+            "type": "boolean"
+          },
+          "cellarIngredientIds": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "title": "Cellaringredientids",
+            "type": "array"
+          },
+          "privacySettings": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PrivacySettingsPatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserProfilePatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "LocalSyncRequest",
+        "type": "object"
+      },
+      "LoginRequest": {
+        "properties": {
+          "code": {
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "device": {
+            "$ref": "#/components/schemas/DeviceInput"
+          },
+          "phone": {
+            "maxLength": 32,
+            "minLength": 5,
+            "title": "Phone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "phone",
+          "code",
+          "device"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
+      "LoginResponse": {
+        "properties": {
+          "accessToken": {
+            "title": "Accesstoken",
+            "type": "string"
+          },
+          "device": {
+            "$ref": "#/components/schemas/AuthenticatedDevice"
+          },
+          "expiresIn": {
+            "title": "Expiresin",
+            "type": "integer"
+          },
+          "isNewUser": {
+            "title": "Isnewuser",
+            "type": "boolean"
+          },
+          "refreshExpiresIn": {
+            "title": "Refreshexpiresin",
+            "type": "integer"
+          },
+          "refreshToken": {
+            "title": "Refreshtoken",
+            "type": "string"
+          },
+          "tokenType": {
+            "default": "bearer",
+            "title": "Tokentype",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/AuthenticatedUser"
+          }
+        },
+        "required": [
+          "accessToken",
+          "refreshToken",
+          "expiresIn",
+          "refreshExpiresIn",
+          "isNewUser",
+          "user",
+          "device"
+        ],
+        "title": "LoginResponse",
+        "type": "object"
+      },
+      "MembershipLevel": {
+        "enum": [
+          "FREE",
+          "MEMBER"
+        ],
+        "title": "MembershipLevel",
+        "type": "string"
+      },
+      "PrivacySettingsPatch": {
+        "properties": {
+          "analyticsOptIn": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analyticsoptin"
+          },
+          "localOnlyMode": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Localonlymode"
+          },
+          "syncWhenLoggedIn": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Syncwhenloggedin"
+          }
+        },
+        "title": "PrivacySettingsPatch",
+        "type": "object"
+      },
+      "PrivacySettingsResponse": {
+        "properties": {
+          "analyticsOptIn": {
+            "title": "Analyticsoptin",
+            "type": "boolean"
+          },
+          "localOnlyMode": {
+            "title": "Localonlymode",
+            "type": "boolean"
+          },
+          "syncWhenLoggedIn": {
+            "title": "Syncwhenloggedin",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "localOnlyMode",
+          "analyticsOptIn",
+          "syncWhenLoggedIn"
+        ],
+        "title": "PrivacySettingsResponse",
         "type": "object"
       },
       "ReadinessChecks": {
@@ -102,6 +861,401 @@
         ],
         "title": "ReadinessResponse",
         "type": "object"
+      },
+      "RefreshRequest": {
+        "properties": {
+          "refreshToken": {
+            "maxLength": 512,
+            "minLength": 32,
+            "title": "Refreshtoken",
+            "type": "string"
+          }
+        },
+        "required": [
+          "refreshToken"
+        ],
+        "title": "RefreshRequest",
+        "type": "object"
+      },
+      "SmsCodeAccepted": {
+        "properties": {
+          "expiresIn": {
+            "title": "Expiresin",
+            "type": "integer"
+          },
+          "retryAfter": {
+            "title": "Retryafter",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expiresIn",
+          "retryAfter"
+        ],
+        "title": "SmsCodeAccepted",
+        "type": "object"
+      },
+      "SmsCodeRequest": {
+        "properties": {
+          "installationId": {
+            "maxLength": 200,
+            "minLength": 8,
+            "title": "Installationid",
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 32,
+            "minLength": 5,
+            "title": "Phone",
+            "type": "string"
+          },
+          "scene": {
+            "$ref": "#/components/schemas/SmsScene",
+            "default": "LOGIN"
+          }
+        },
+        "required": [
+          "phone",
+          "installationId"
+        ],
+        "title": "SmsCodeRequest",
+        "type": "object"
+      },
+      "SmsScene": {
+        "enum": [
+          "LOGIN",
+          "BIND_PHONE"
+        ],
+        "title": "SmsScene",
+        "type": "string"
+      },
+      "TokenResponse": {
+        "properties": {
+          "accessToken": {
+            "title": "Accesstoken",
+            "type": "string"
+          },
+          "expiresIn": {
+            "title": "Expiresin",
+            "type": "integer"
+          },
+          "refreshExpiresIn": {
+            "title": "Refreshexpiresin",
+            "type": "integer"
+          },
+          "refreshToken": {
+            "title": "Refreshtoken",
+            "type": "string"
+          },
+          "tokenType": {
+            "default": "bearer",
+            "title": "Tokentype",
+            "type": "string"
+          }
+        },
+        "required": [
+          "accessToken",
+          "refreshToken",
+          "expiresIn",
+          "refreshExpiresIn"
+        ],
+        "title": "TokenResponse",
+        "type": "object"
+      },
+      "UserProfilePatch": {
+        "properties": {
+          "avatarKey": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatarkey"
+          },
+          "birthday": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birthday"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "maxLength": 12,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "gender": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gender"
+          },
+          "nickname": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nickname"
+          },
+          "occupation": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occupation"
+          },
+          "school": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "School"
+          },
+          "showAge": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Showage"
+          },
+          "showBirthdayTag": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Showbirthdaytag"
+          },
+          "showZodiac": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Showzodiac"
+          },
+          "signature": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signature"
+          }
+        },
+        "title": "UserProfilePatch",
+        "type": "object"
+      },
+      "UserProfileResponse": {
+        "properties": {
+          "avatarKey": {
+            "title": "Avatarkey",
+            "type": "string"
+          },
+          "avatarUri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avataruri"
+          },
+          "birthday": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birthday"
+          },
+          "city": {
+            "title": "City",
+            "type": "string"
+          },
+          "gender": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gender"
+          },
+          "nickname": {
+            "title": "Nickname",
+            "type": "string"
+          },
+          "occupation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occupation"
+          },
+          "school": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "School"
+          },
+          "showAge": {
+            "title": "Showage",
+            "type": "boolean"
+          },
+          "showBirthdayTag": {
+            "title": "Showbirthdaytag",
+            "type": "boolean"
+          },
+          "showZodiac": {
+            "title": "Showzodiac",
+            "type": "boolean"
+          },
+          "signature": {
+            "title": "Signature",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nickname",
+          "avatarKey",
+          "signature",
+          "city",
+          "gender",
+          "birthday",
+          "showBirthdayTag",
+          "showAge",
+          "showZodiac",
+          "occupation",
+          "school"
+        ],
+        "title": "UserProfileResponse",
+        "type": "object"
+      },
+      "UserStatus": {
+        "enum": [
+          "ACTIVE",
+          "BANNED",
+          "DELETED"
+        ],
+        "title": "UserStatus",
+        "type": "string"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
       }
     }
   },
@@ -129,6 +1283,829 @@
         "summary": "Api Root",
         "tags": [
           "api"
+        ]
+      }
+    },
+    "/api/v1/auth/devices": {
+      "get": {
+        "operationId": "devices_api_v1_auth_devices_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Devices",
+        "tags": [
+          "api",
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/devices/{device_id}": {
+      "delete": {
+        "operationId": "delete_device_api_v1_auth_devices__device_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Device",
+        "tags": [
+          "api",
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "api",
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "logout_api_v1_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Logout",
+        "tags": [
+          "api",
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "operationId": "refresh_api_v1_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refresh",
+        "tags": [
+          "api",
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/sms-codes": {
+      "post": {
+        "operationId": "request_sms_code_api_v1_auth_sms_codes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SmsCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmsCodeAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Request Sms Code",
+        "tags": [
+          "api",
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/cellar/items": {
+      "get": {
+        "operationId": "items_api_v1_cellar_items_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CellarListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Items",
+        "tags": [
+          "api",
+          "cellar"
+        ]
+      },
+      "post": {
+        "operationId": "create_item_api_v1_cellar_items_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CellarItemCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CellarItemResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Item",
+        "tags": [
+          "api",
+          "cellar"
+        ]
+      }
+    },
+    "/api/v1/cellar/items/batch": {
+      "post": {
+        "operationId": "batch_items_api_v1_cellar_items_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CellarBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CellarListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Batch Items",
+        "tags": [
+          "api",
+          "cellar"
+        ]
+      }
+    },
+    "/api/v1/cellar/items/{item_id}": {
+      "delete": {
+        "operationId": "remove_item_api_v1_cellar_items__item_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove Item",
+        "tags": [
+          "api",
+          "cellar"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_item_api_v1_cellar_items__item_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CellarItemPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CellarItemResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Item",
+        "tags": [
+          "api",
+          "cellar"
+        ]
+      }
+    },
+    "/api/v1/me/account": {
+      "delete": {
+        "operationId": "remove_account_api_v1_me_account_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove Account",
+        "tags": [
+          "api",
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/age-confirmation": {
+      "post": {
+        "operationId": "age_confirmation_api_v1_me_age_confirmation_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgeConfirmationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgeConfirmationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Age Confirmation",
+        "tags": [
+          "api",
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/bootstrap": {
+      "get": {
+        "operationId": "bootstrap_api_v1_me_bootstrap_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BootstrapResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Bootstrap",
+        "tags": [
+          "api",
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/local-sync": {
+      "post": {
+        "operationId": "local_sync_api_v1_me_local_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BootstrapResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Local Sync",
+        "tags": [
+          "api",
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/privacy": {
+      "patch": {
+        "operationId": "patch_privacy_api_v1_me_privacy_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrivacySettingsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivacySettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Privacy",
+        "tags": [
+          "api",
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/profile": {
+      "get": {
+        "operationId": "get_profile_api_v1_me_profile_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Profile",
+        "tags": [
+          "api",
+          "me"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_profile_api_v1_me_profile_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserProfilePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Profile",
+        "tags": [
+          "api",
+          "me"
         ]
       }
     },
