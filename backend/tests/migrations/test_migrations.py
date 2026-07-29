@@ -24,7 +24,15 @@ def test_migrations_upgrade_to_head_and_downgrade_to_base() -> None:
             assert {
                 "alembic_version",
                 "auth_sessions",
+                "bars",
                 "cellar_items",
+                "content_versions",
+                "drink_knowledge_entries",
+                "home_banners",
+                "home_shortcuts",
+                "ingredients",
+                "recipe_ingredients",
+                "recipes",
                 "sms_codes",
                 "system_metadata",
                 "user_devices",
@@ -33,12 +41,14 @@ def test_migrations_upgrade_to_head_and_downgrade_to_base() -> None:
             } <= set(inspector.get_table_names())
             columns = inspector.get_columns("system_metadata")
             assert {column["name"] for column in columns} == {"key", "value"}
+            user_columns = inspector.get_columns("users")
+            assert "role" in {column["name"] for column in user_columns}
 
             with engine.connect() as connection:
                 revision = connection.execute(
                     text("SELECT version_num FROM alembic_version")
                 ).scalar_one()
-            assert revision == "20260729_0002"
+            assert revision == "20260729_0003"
         finally:
             command.downgrade(config, "base")
 
@@ -57,9 +67,14 @@ def test_migrations_upgrade_to_head_and_downgrade_to_base() -> None:
                 {
                     "enum_names": [
                         "cellar_item_source",
+                        "content_action",
+                        "content_status",
+                        "content_type",
                         "device_platform",
+                        "ingredient_category",
                         "membership_level",
                         "sms_scene",
+                        "user_role",
                         "user_status",
                     ]
                 },

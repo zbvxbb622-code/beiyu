@@ -37,6 +37,12 @@ class MembershipLevel(StrEnum):
     MEMBER = "MEMBER"
 
 
+class UserRole(StrEnum):
+    USER = "USER"
+    EDITOR = "EDITOR"
+    SUPER_ADMIN = "SUPER_ADMIN"
+
+
 class DevicePlatform(StrEnum):
     IOS = "IOS"
     ANDROID = "ANDROID"
@@ -59,6 +65,14 @@ class User(SQLModel, table=True):
         default=UserStatus.ACTIVE,
         sa_column=Column(
             Enum(UserStatus, name="user_status"),
+            nullable=False,
+            index=True,
+        ),
+    )
+    role: UserRole = Field(
+        default=UserRole.USER,
+        sa_column=Column(
+            Enum(UserRole, name="user_role"),
             nullable=False,
             index=True,
         ),
