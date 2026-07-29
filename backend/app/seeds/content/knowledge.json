@@ -1,0 +1,152 @@
+[
+  {
+    "id": "k-margarita",
+    "recipeId": "classic-margarita",
+    "name": "玛格丽特",
+    "englishName": "Margarita",
+    "imageKey": "margarita",
+    "era": "1948 · 墨西哥阿卡普尔科",
+    "meaning": "以爱为名的一杯——思念如盐，回味是甜。",
+    "story": "流传最广的说法是，1948 年美国社交名媛玛格丽特·萨姆斯在阿卡普尔科的派对上调出这杯酒，丈夫以她的昵称\"Margarita\"（西班牙语\"雏菊\"）为酒杯命名。另一个更动人的版本是：调酒师为纪念逝去的恋人玛格丽特而创——青柠的酸是思念，杯口的盐边是眼泪。",
+    "symbols": [
+      "纪念",
+      "雏菊",
+      "爱与思念"
+    ]
+  },
+  {
+    "id": "k-gin-tonic",
+    "recipeId": "gin-tonic",
+    "name": "金汤力",
+    "englishName": "Gin & Tonic",
+    "imageKey": "ginTonic",
+    "era": "19 世纪初 · 英属印度",
+    "meaning": "苦口良药，也能喝成日常的清欢。",
+    "story": "汤力水中的奎宁本是英军对抗疟疾的药，苦得难以下咽。驻扎印度的士兵们往里面兑金酒、挤青柠，只为了\"把药喝下去\"——一杯因治病而生的酒，阴差阳错成了全世界最经典的清爽长饮。",
+    "symbols": [
+      "治愈",
+      "清爽",
+      "苦尽甘来"
+    ]
+  },
+  {
+    "id": "k-mojito",
+    "recipeId": "mojito",
+    "name": "莫吉托",
+    "englishName": "Mojito",
+    "imageKey": "mojito",
+    "era": "16 世纪 · 古巴哈瓦那",
+    "meaning": "名字里就藏着魔法——\"mojo\"意为咒语。",
+    "story": "它的词根来自非洲语\"mojo\"，意为魔法与咒语。早年古巴人把私酿酒混上薄荷、青柠和糖当\"药酒\"喝；几百年后，它成了海明威在哈瓦那中街小酒馆的心头好，也成了古巴献给世界的夏日符号。",
+    "symbols": [
+      "魔法",
+      "自由",
+      "夏日"
+    ]
+  },
+  {
+    "id": "k-negroni",
+    "recipeId": "negroni",
+    "name": "尼格罗尼",
+    "englishName": "Negroni",
+    "imageKey": "negroni",
+    "era": "1919 · 意大利佛罗伦萨",
+    "meaning": "成年人的世界，先苦后甜。",
+    "story": "内格罗尼伯爵嫌常点的\"美国佬\"不够烈，让调酒师把苏打水换成金酒——这一换，成就了百年经典。金巴利的苦、味美思的甜、金酒的烈势均力敌，谁也不压过谁，像极了一个有故事的成年人。",
+    "symbols": [
+      "平衡",
+      "苦甜",
+      "绅士"
+    ]
+  },
+  {
+    "id": "k-moscow-mule",
+    "recipeId": "moscow-mule",
+    "name": "莫斯科骡子",
+    "englishName": "Moscow Mule",
+    "imageKey": "blueLagoon",
+    "era": "1941 · 美国洛杉矶",
+    "meaning": "两个滞销品的绝地反击。",
+    "story": "伏特加商人约翰·马丁和姜汁啤酒老板杰克·摩根在酒吧对着各自卖不动的库存发愁，索性把两样混在一起装进铜杯——\"莫斯科骡子\"一炮而红，还顺手打开了伏特加的美国市场。所谓绝处逢生，不过如此。",
+    "symbols": [
+      "逆袭",
+      "机遇",
+      "灵机一动"
+    ]
+  },
+  {
+    "id": "k-manhattan",
+    "recipeId": "manhattan",
+    "name": "曼哈顿",
+    "englishName": "Manhattan",
+    "imageKey": "barShelf",
+    "era": "1870 年代 · 纽约曼哈顿",
+    "meaning": "鸡尾酒皇后，颜色像曼哈顿的落日。",
+    "story": "传说是丘吉尔的母亲珍妮·杰罗姆在曼哈顿俱乐部的竞选晚宴上首创此酒待客，从此以区为名。日本调酒大师上田和男形容它\"颜色犹如曼哈顿区的落日\"——味美思的柔与威士忌的刚，正是这座城市的样子。",
+    "symbols": [
+      "优雅",
+      "野心",
+      "都会"
+    ]
+  },
+  {
+    "id": "k-old-fashioned",
+    "recipeId": "old-fashioned",
+    "name": "古典",
+    "englishName": "Old Fashioned",
+    "imageKey": "oldFashioned",
+    "era": "19 世纪初 · 美国",
+    "meaning": "越简单，越见真章。",
+    "story": "它就是\"鸡尾酒\"一词最早的定义：烈酒、糖、水、苦精。后来花式调酒层出不穷，保守的饮家坚持要\"老式做法\"，于是得名。它是《广告狂人》里 Don Draper 的标配——老派，从不过时。",
+    "symbols": [
+      "经典",
+      "克制",
+      "老派绅士"
+    ]
+  },
+  {
+    "id": "k-whiskey-sour",
+    "recipeId": "whiskey-sour",
+    "name": "威士忌酸",
+    "englishName": "Whiskey Sour",
+    "imageKey": "homeHero",
+    "era": "1862 · 美国",
+    "meaning": "酸与甜的平衡术。",
+    "story": "最早记载于\"调酒师之父\"杰瑞·托马斯的《调酒师指南》。大航海时代，水手往粗糙的烈酒里加柑橘防治坏血病，意外开创了酸酒家族——烈酒、柑橘、糖的黄金三角，一百多年后依然是吧台常客。",
+    "symbols": [
+      "平衡",
+      "活力",
+      "传承"
+    ]
+  },
+  {
+    "id": "k-long-island",
+    "recipeId": "long-island",
+    "name": "长岛冰茶",
+    "englishName": "Long Island Iced Tea",
+    "imageKey": "heroBar",
+    "era": "1970 年代 · 纽约长岛",
+    "meaning": "最温柔的伪装：名字叫茶，其实是酒。",
+    "story": "它看着、喝着都像一杯冰红茶，却悄悄混了四种烈酒。一说禁酒令年代为掩人耳目而伪装成\"冰茶\"；另一说是 1972 年调酒师罗伯特·巴特在长岛的调酒比赛之作。\"别被外表骗了\"，是它给每位饮家的提醒。",
+    "symbols": [
+      "伪装",
+      "反差",
+      "提醒"
+    ]
+  },
+  {
+    "id": "k-dry-martini",
+    "recipeId": "dry-martini",
+    "name": "干马天尼",
+    "englishName": "Dry Martini",
+    "imageKey": "heroNeon",
+    "era": "19 世纪末 · 美国",
+    "meaning": "鸡尾酒之王，越\"干\"越纯粹。",
+    "story": "装在标志性 V 形杯里的传奇，007 一句\"摇匀，不要搅拌\"让它家喻户晓。干味美思越少越\"干\"，极简配方对金酒品质毫不掩饰——喝马天尼，喝的是一份坦荡。",
+    "symbols": [
+      "纯粹",
+      "仪式感",
+      "自信"
+    ]
+  }
+]

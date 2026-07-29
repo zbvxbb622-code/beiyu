@@ -69,7 +69,11 @@ class Ingredient(ContentRecord, table=True):
     name: str = Field(max_length=80)
     category: IngredientCategory = Field(
         sa_column=Column(
-            Enum(IngredientCategory, name="ingredient_category"),
+            Enum(
+                IngredientCategory,
+                name="ingredient_category",
+                values_callable=lambda enum: [item.value for item in enum],
+            ),
             nullable=False,
             index=True,
         ),

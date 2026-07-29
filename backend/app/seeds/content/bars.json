@@ -1,0 +1,208 @@
+[
+  {
+    "id": "amor-fati",
+    "name": "AmorFati爱你的命运",
+    "imageKey": "heroNeon",
+    "rating": 3.4,
+    "reviewCount": 20,
+    "averageSpend": 50,
+    "distanceLabel": "步行150m",
+    "metroHint": "距离地铁10号线江湾体育场出入口步行150m",
+    "address": "政通路180号万达广场C座4层4206号",
+    "openHours": "营业中 11:00-14:00，16:30-22:00",
+    "description": "美酒、音乐、狂欢，尽在此刻，等你来嗨！",
+    "tags": [
+      "有包厢",
+      "有大桌",
+      "免费停车"
+    ],
+    "tasteScore": 3.6,
+    "environmentScore": 4.2,
+    "serviceScore": 3.2,
+    "phone": "021-00000000",
+    "menu": [
+      {
+        "id": "lemon-bubble",
+        "name": "柠檬气泡",
+        "imageKey": "ginTonic",
+        "likes": 118,
+        "badge": "Top.1"
+      },
+      {
+        "id": "sunset-orange",
+        "name": "落日红橙",
+        "imageKey": "oldFashioned",
+        "likes": 118
+      },
+      {
+        "id": "snow-top",
+        "name": "雪顶",
+        "imageKey": "margarita",
+        "likes": 118
+      }
+    ],
+    "featuredReviews": [
+      {
+        "id": "review-1",
+        "authorName": "Alice",
+        "authorAvatarKey": "avatarOne",
+        "text": "位置很方便，酒也很好喝，店主小姐姐很漂亮人也很温柔。很有特色，有机会还会来。",
+        "date": "2024/01/20 20:16:18",
+        "likes": 66,
+        "imageKeys": [
+          "barInterior",
+          "heroNeon",
+          "oldFashioned"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "baby-monster",
+    "name": "BabyMonster",
+    "imageKey": "barShelf",
+    "rating": 4.3,
+    "reviewCount": 20,
+    "averageSpend": 50,
+    "distanceLabel": "步行600m",
+    "metroHint": "距离南京路地铁口步行600m",
+    "address": "南京路地下酒吧街 B1-08",
+    "openHours": "营业中 18:00-02:00",
+    "description": "为您调制一杯独一无二的鸡尾酒，让夜晚更加难忘。",
+    "tags": [
+      "音乐",
+      "狂欢",
+      "适合朋友"
+    ],
+    "tasteScore": 4.1,
+    "environmentScore": 4.5,
+    "serviceScore": 4,
+    "phone": "021-11111111",
+    "menu": [
+      {
+        "id": "blue-love",
+        "name": "蓝色之恋",
+        "imageKey": "blueLagoon",
+        "likes": 99
+      },
+      {
+        "id": "white-lover",
+        "name": "白色恋人",
+        "imageKey": "margarita",
+        "likes": 88
+      }
+    ],
+    "featuredReviews": []
+  },
+  {
+    "id": "vibes",
+    "name": "Vibes",
+    "imageKey": "heroBar",
+    "rating": 4.3,
+    "reviewCount": 20,
+    "averageSpend": 50,
+    "distanceLabel": "步行600m",
+    "metroHint": "距离南京路地铁口步行600m",
+    "address": "南京路 88 号",
+    "openHours": "营业中 17:30-01:00",
+    "description": "为您调制一杯独一无二的鸡尾酒，让您的夜晚更加难忘。",
+    "tags": [
+      "霓虹",
+      "拍照",
+      "长饮"
+    ],
+    "tasteScore": 4,
+    "environmentScore": 4.6,
+    "serviceScore": 4.1,
+    "phone": "021-22222222",
+    "menu": [
+      {
+        "id": "green-light",
+        "name": "绿光",
+        "imageKey": "ginTonic",
+        "likes": 77
+      },
+      {
+        "id": "late-night",
+        "name": "深夜气泡",
+        "imageKey": "mojito",
+        "likes": 52
+      }
+    ],
+    "featuredReviews": []
+  },
+  {
+    "id": "speak-low",
+    "name": "Speak Low彼楼",
+    "imageKey": "barInterior",
+    "rating": 4.3,
+    "reviewCount": 20,
+    "averageSpend": 123,
+    "distanceLabel": "步行600m",
+    "metroHint": "距离南京路地铁口步行600m",
+    "address": "复兴中路 579 号",
+    "openHours": "营业中 18:00-02:00",
+    "description": "为您调制一杯独一无二的鸡尾酒，让您的夜晚更加难忘。",
+    "tags": [
+      "经典",
+      "安静",
+      "吧台"
+    ],
+    "tasteScore": 4.5,
+    "environmentScore": 4.4,
+    "serviceScore": 4.2,
+    "phone": "021-33333333",
+    "menu": [
+      {
+        "id": "old-fashioned",
+        "name": "落日古典",
+        "imageKey": "oldFashioned",
+        "likes": 101
+      },
+      {
+        "id": "gin-sour",
+        "name": "金酸酒",
+        "imageKey": "ginTonic",
+        "likes": 95
+      }
+    ],
+    "featuredReviews": []
+  },
+  {
+    "id": "homebar-family",
+    "name": "叭月·Homebar·家庭酒馆",
+    "imageKey": "heroBar",
+    "rating": 4.3,
+    "reviewCount": 20,
+    "averageSpend": 123,
+    "distanceLabel": "步行600m",
+    "metroHint": "距离南京路地铁口步行600m",
+    "address": "滨江路 19 号 2 楼",
+    "openHours": "营业中 16:30-01:00",
+    "description": "像朋友家一样放松，适合慢慢聊天。",
+    "tags": [
+      "家庭酒馆",
+      "夕阳",
+      "低酒精"
+    ],
+    "tasteScore": 4.2,
+    "environmentScore": 4.7,
+    "serviceScore": 4.3,
+    "phone": "021-44444444",
+    "menu": [
+      {
+        "id": "sunset",
+        "name": "夕阳橘子",
+        "imageKey": "negroni",
+        "likes": 68
+      },
+      {
+        "id": "sea-salt",
+        "name": "海盐气泡",
+        "imageKey": "blueLagoon",
+        "likes": 61
+      }
+    ],
+    "featuredReviews": []
+  }
+]
