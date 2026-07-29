@@ -22,6 +22,7 @@ export const heroSlides: HeroSlide[] = [
     ctaLabel: '去AI调酒',
     // 设计稿首页 Banner 原图（含标题/按钮/轮播点，整幅烘焙保证 1:1）
     imageKey: 'homeBanner',
+    targetRoute: '/ai',
   },
   {
     id: 'spark-night',
@@ -31,6 +32,7 @@ export const heroSlides: HeroSlide[] = [
     scriptLabel: 'Bartender',
     ctaLabel: '去AI调酒',
     imageKey: 'heroNeon',
+    targetRoute: '/ai',
   },
   {
     id: 'classic-counter',
@@ -40,6 +42,7 @@ export const heroSlides: HeroSlide[] = [
     scriptLabel: 'Bartender',
     ctaLabel: '去AI调酒',
     imageKey: 'barInterior',
+    targetRoute: '/ai',
   },
   {
     id: 'neon-party',
@@ -49,6 +52,7 @@ export const heroSlides: HeroSlide[] = [
     scriptLabel: 'Bartender',
     ctaLabel: '去AI调酒',
     imageKey: 'heroBar',
+    targetRoute: '/ai',
   },
 ];
 
