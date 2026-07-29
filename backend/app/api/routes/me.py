@@ -11,6 +11,7 @@ from app.modules.users.schemas import (
     AgeConfirmationResponse,
     BootstrapResponse,
     DeleteAccountRequest,
+    LocalSyncRequest,
     PrivacySettingsPatch,
     PrivacySettingsResponse,
     UserProfilePatch,
@@ -23,6 +24,7 @@ from app.modules.users.service import (
     get_user_profile,
     privacy_response,
     profile_response,
+    sync_local_state,
     update_privacy,
     update_profile,
 )
@@ -103,3 +105,17 @@ def remove_account(
 ) -> Response:
     delete_account(session=session, user=auth.user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/local-sync", response_model=BootstrapResponse)
+def local_sync(
+    payload: LocalSyncRequest,
+    session: SessionDep,
+    auth: CurrentAuth,
+) -> BootstrapResponse:
+    return sync_local_state(
+        session=session,
+        user=auth.user,
+        current_device=auth.device,
+        payload=payload,
+    )

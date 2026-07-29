@@ -6,6 +6,7 @@ from pydantic import Field, field_validator
 
 from app.db.models import DevicePlatform
 from app.modules.auth.schemas import AuthenticatedUser
+from app.modules.cellar.schemas import CellarListResponse
 from app.schemas.base import ApiModel
 
 
@@ -105,9 +106,17 @@ class BootstrapResponse(ApiModel):
     profile: UserProfileResponse
     privacy: PrivacySettingsResponse
     account_security: AccountSecurityResponse
+    cellar: CellarListResponse
     ai: AiAllowance
     feature_flags: FeatureFlags
 
 
 class DeleteAccountRequest(ApiModel):
     confirmation: Literal["DELETE"]
+
+
+class LocalSyncRequest(ApiModel):
+    age_verified: bool = False
+    profile: UserProfilePatch | None = None
+    privacy_settings: PrivacySettingsPatch | None = None
+    cellar_ingredient_ids: list[str] = Field(default_factory=list, max_length=200)

@@ -15,12 +15,18 @@ from app.db.models import (
 from app.db.models.accounts import default_visibility, utc_now
 from app.modules.auth.schemas import AuthenticatedUser
 from app.modules.auth.service import list_user_devices
+from app.modules.cellar.service import (
+    cellar_list_response,
+    import_ingredients,
+    list_cellar_items,
+)
 from app.modules.users.schemas import (
     AccountDevice,
     AccountSecurityResponse,
     AiAllowance,
     BootstrapResponse,
     FeatureFlags,
+    LocalSyncRequest,
     PrivacySettingsPatch,
     PrivacySettingsResponse,
     UserProfilePatch,
@@ -168,8 +174,77 @@ def bootstrap_response(
                 for device in devices
             ],
         ),
+        cellar=cellar_list_response(list_cellar_items(session=session, user=user)),
         ai=AiAllowance(daily_message_limit=50, messages_used_today=0),
         feature_flags=FeatureFlags(),
+    )
+
+
+def sync_local_state(
+    *,
+    session: Session,
+    user: User,
+    current_device: UserDevice,
+    payload: LocalSyncRequest,
+) -> BootstrapResponse:
+    profile = get_user_profile(session, user)
+    now = utc_now()
+
+    if payload.profile is not None:
+        local_values = payload.profile.model_dump(
+            exclude_unset=True,
+            by_alias=False,
+        )
+        local_values.pop("show_birthday_tag", None)
+        local_values.pop("show_age", None)
+        local_values.pop("show_zodiac", None)
+        for field_name, local_value in local_values.items():
+            cloud_value = getattr(profile, field_name)
+            cloud_is_empty = cloud_value in (None, "")
+            if field_name == "nickname":
+                cloud_is_empty = cloud_value == "游客调酒师"
+            if cloud_is_empty and local_value not in (None, ""):
+                setattr(profile, field_name, local_value)
+
+    if (
+        payload.privacy_settings is not None
+        and payload.privacy_settings.sync_when_logged_in is True
+    ):
+        visibility = default_visibility() | profile.visibility
+        privacy_values = payload.privacy_settings.model_dump(
+            exclude_unset=True,
+            by_alias=False,
+        )
+        privacy_fields = {
+            "local_only_mode": "localOnlyMode",
+            "analytics_opt_in": "analyticsOptIn",
+            "sync_when_logged_in": "syncWhenLoggedIn",
+        }
+        for field_name, value in privacy_values.items():
+            if value is not None:
+                visibility[privacy_fields[field_name]] = value
+        profile.visibility = visibility
+
+    profile.updated_at = now
+    session.add(profile)
+    if payload.age_verified and user.age_confirmed_at is None:
+        user.age_confirmed_at = now
+        user.updated_at = now
+        session.add(user)
+
+    import_ingredients(
+        session=session,
+        user=user,
+        ingredient_ids=payload.cellar_ingredient_ids,
+        commit=False,
+    )
+    session.commit()
+    session.refresh(user)
+    session.refresh(profile)
+    return bootstrap_response(
+        session=session,
+        user=user,
+        current_device=current_device,
     )
 
 
