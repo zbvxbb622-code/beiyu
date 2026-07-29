@@ -27,6 +27,7 @@ export type CocktailRecipe = {
   ingredients: CocktailIngredient[];
   steps: string[];
   imageKey: string;
+  imageUrl?: string | null;
   difficulty: '入门' | '进阶' | '专业';
   prepMinutes: number;
 };
@@ -49,15 +50,25 @@ export type HeroSlide = {
   scriptLabel: string;
   ctaLabel: string;
   imageKey: string;
+  imageUrl?: string | null;
+  targetRoute: AppContentRoute;
 };
 
 export type HomeShortcut = {
-  id: 'blind-box' | 'drink-knowledge' | 'classic-series' | 'shared-cellar';
+  id: string;
   title: string;
   description: string;
   icon: 'box' | 'book' | 'cards' | 'cellar';
-  route: string;
+  route: AppContentRoute;
 };
+
+export type AppContentRoute =
+  | '/ai'
+  | '/recipes'
+  | '/bars'
+  | '/drink-knowledge'
+  | '/blind-box'
+  | '/cellar';
 
 export type FeedCategory = 'recommended' | 'following' | 'nearby';
 
@@ -117,7 +128,7 @@ export type BarMenuItem = {
   name: string;
   imageKey: string;
   likes: number;
-  badge?: string;
+  badge?: string | null;
 };
 
 export type BarReview = {
@@ -134,6 +145,7 @@ export type BarVenue = {
   id: string;
   name: string;
   imageKey: string;
+  imageUrl?: string | null;
   rating: number;
   reviewCount: number;
   averageSpend: number;
@@ -265,10 +277,11 @@ export type UserProfile = {
 // 酒品知识（寓意与故事，区别于酒单的风味描述）
 export type DrinkKnowledgeEntry = {
   id: string;
-  recipeId?: string;
+  recipeId?: string | null;
   name: string;
   englishName: string;
   imageKey: string;
+  imageUrl?: string | null;
   // 年代与发源地，如 '1948 · 墨西哥阿卡普尔科'
   era: string;
   // 寓意（一句话点题）
@@ -288,5 +301,5 @@ export type SearchResult = {
   title: string;
   subtitle: string;
   imageKey: string;
+  imageUrl?: string | null;
 };
-

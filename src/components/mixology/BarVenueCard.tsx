@@ -1,8 +1,8 @@
 import { type Href, useRouter } from 'expo-router';
 import { Star } from 'lucide-react-native';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { getImageAsset } from '@/data/imageAssets';
+import { ContentImage } from '@/components/content/ContentImage';
 import { colors } from '@/styles/mixologyTheme';
 import type { BarVenue } from '@/types/mixology';
 
@@ -21,7 +21,13 @@ export function BarVenueCard({
       onPress={() => router.push({ pathname: '/bar/[id]', params: { id: venue.id } } as unknown as Href)}
       style={({ pressed }) => [styles.pressable, pressed ? styles.pressed : null]}>
       <View testID="bar-venue-card-content" style={styles.card}>
-        <Image testID="bar-venue-cover" source={getImageAsset(venue.imageKey)} resizeMode="cover" style={styles.image} />
+        <ContentImage
+          testID="bar-venue-cover"
+          imageKey={venue.imageKey}
+          imageUrl={venue.imageUrl}
+          resizeMode="cover"
+          style={styles.image}
+        />
         <View style={styles.copy}>
           <Text style={styles.title} numberOfLines={2}>{venue.name}</Text>
           <View style={styles.ratingRow}>

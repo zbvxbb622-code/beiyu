@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { StyleSheet } from 'react-native';
 
 import PublishPostScreen from '@/app/publish-post';
+import { ContentTestProvider } from '@/test-utils/ContentTestProvider';
 import { loadPostDraft } from '@/services/postDraftService';
 import { colors } from '@/styles/mixologyTheme';
 
@@ -31,7 +32,11 @@ describe('PublishPostScreen 存草稿', () => {
   });
 
   it('存草稿保存标题/正文/话题并返回社区', async () => {
-    const screen = await render(<PublishPostScreen />);
+    const screen = await render(
+      <ContentTestProvider>
+        <PublishPostScreen />
+      </ContentTestProvider>
+    );
 
     // 先选话题（changeText 之后再 press 在此测试环境下状态易丢失）
     await fireEvent.press(screen.getByTestId('topic-chip-调酒心得'));

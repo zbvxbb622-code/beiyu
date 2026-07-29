@@ -3,6 +3,7 @@ import { act, render, waitFor } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import PublishPostScreen from '@/app/publish-post';
+import { ContentTestProvider } from '@/test-utils/ContentTestProvider';
 import { defaultPostDraft, savePostDraft } from '@/services/postDraftService';
 
 const mockRouterReplace = jest.fn();
@@ -36,7 +37,11 @@ describe('PublishPostScreen 盲盒预填', () => {
   it('预填参数直接恢复为表单内容，不加载本地草稿', async () => {
     await savePostDraft({ ...defaultPostDraft, title: '旧草稿标题', body: '旧草稿正文', savedAt: '2026-07-21T00:00:00.000Z' });
 
-    const screen = await render(<PublishPostScreen />);
+    const screen = await render(
+      <ContentTestProvider>
+        <PublishPostScreen />
+      </ContentTestProvider>
+    );
     await act(async () => {});
 
     await waitFor(() => {

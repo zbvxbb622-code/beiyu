@@ -45,6 +45,9 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ty check
       - run: uv run pytest --ignore=tests/migrations
-      # Keep the upgrade/downgrade smoke test last so it cannot reset schema
-      # state needed by later tests.
+      # Run twice after the test suite so seed tests start from a clean database.
+      - run: uv run python -m app.cli seed-content
+      - run: uv run python -m app.cli seed-content
+      # Keep this last because the migration smoke test intentionally resets
+      # the dedicated database schema.
       - run: uv run pytest tests/migrations/test_migrations.py

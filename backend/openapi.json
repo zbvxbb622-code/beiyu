@@ -96,6 +96,741 @@
         "title": "AccountSecurityResponse",
         "type": "object"
       },
+      "AdminBannerListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminBannerResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "AdminBannerListResponse",
+        "type": "object"
+      },
+      "AdminBannerResponse": {
+        "properties": {
+          "brand": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Brand",
+            "type": "string"
+          },
+          "ctaLabel": {
+            "maxLength": 80,
+            "title": "Ctalabel",
+            "type": "string"
+          },
+          "endsAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endsat"
+          },
+          "id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagekey"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "scriptLabel": {
+            "maxLength": 80,
+            "title": "Scriptlabel",
+            "type": "string"
+          },
+          "sortOrder": {
+            "minimum": 0.0,
+            "title": "Sortorder",
+            "type": "integer"
+          },
+          "startsAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startsat"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "subtitle": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Subtitle",
+            "type": "string"
+          },
+          "targetRoute": {
+            "enum": [
+              "/ai",
+              "/recipes",
+              "/bars",
+              "/drink-knowledge",
+              "/blind-box",
+              "/cellar"
+            ],
+            "title": "Targetroute",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "brand",
+          "title",
+          "subtitle",
+          "scriptLabel",
+          "ctaLabel",
+          "targetRoute",
+          "sortOrder",
+          "status",
+          "revision"
+        ],
+        "title": "AdminBannerResponse",
+        "type": "object"
+      },
+      "AdminBarListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminBarResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "AdminBarListResponse",
+        "type": "object"
+      },
+      "AdminBarResponse": {
+        "properties": {
+          "address": {
+            "maxLength": 240,
+            "title": "Address",
+            "type": "string"
+          },
+          "averageSpend": {
+            "minimum": 0.0,
+            "title": "Averagespend",
+            "type": "integer"
+          },
+          "description": {
+            "maxLength": 4000,
+            "title": "Description",
+            "type": "string"
+          },
+          "distanceLabel": {
+            "maxLength": 80,
+            "title": "Distancelabel",
+            "type": "string"
+          },
+          "environmentScore": {
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Environmentscore",
+            "type": "number"
+          },
+          "id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagekey"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": -90.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "maximum": 180.0,
+                "minimum": -180.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "menu": {
+            "items": {
+              "$ref": "#/components/schemas/BarMenuItemResponse"
+            },
+            "maxItems": 100,
+            "title": "Menu",
+            "type": "array"
+          },
+          "metroHint": {
+            "maxLength": 160,
+            "title": "Metrohint",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "openHours": {
+            "maxLength": 160,
+            "title": "Openhours",
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 40,
+            "title": "Phone",
+            "type": "string"
+          },
+          "rating": {
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Rating",
+            "type": "number"
+          },
+          "reviewCount": {
+            "minimum": 0.0,
+            "title": "Reviewcount",
+            "type": "integer"
+          },
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/BarReviewResponse"
+            },
+            "maxItems": 100,
+            "title": "Reviews",
+            "type": "array"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "serviceScore": {
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Servicescore",
+            "type": "number"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 30,
+            "title": "Tags",
+            "type": "array"
+          },
+          "tasteScore": {
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Tastescore",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "rating",
+          "reviewCount",
+          "averageSpend",
+          "distanceLabel",
+          "metroHint",
+          "address",
+          "openHours",
+          "description",
+          "tags",
+          "tasteScore",
+          "environmentScore",
+          "serviceScore",
+          "phone",
+          "menu",
+          "reviews",
+          "status",
+          "revision"
+        ],
+        "title": "AdminBarResponse",
+        "type": "object"
+      },
+      "AdminIngredientListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminIngredientResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "AdminIngredientListResponse",
+        "type": "object"
+      },
+      "AdminIngredientResponse": {
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/IngredientCategory"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagekey"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category",
+          "description",
+          "imageKey",
+          "imageUrl",
+          "status",
+          "revision"
+        ],
+        "title": "AdminIngredientResponse",
+        "type": "object"
+      },
+      "AdminKnowledgeListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminKnowledgeResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "AdminKnowledgeListResponse",
+        "type": "object"
+      },
+      "AdminKnowledgeResponse": {
+        "properties": {
+          "englishName": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Englishname",
+            "type": "string"
+          },
+          "era": {
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Era",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagekey"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "meaning": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Meaning",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "recipeId": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipeid"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "story": {
+            "maxLength": 6000,
+            "minLength": 1,
+            "title": "Story",
+            "type": "string"
+          },
+          "symbols": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 30,
+            "title": "Symbols",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "englishName",
+          "era",
+          "meaning",
+          "story",
+          "symbols",
+          "status",
+          "revision"
+        ],
+        "title": "AdminKnowledgeResponse",
+        "type": "object"
+      },
+      "AdminRecipeListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminRecipeResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "AdminRecipeListResponse",
+        "type": "object"
+      },
+      "AdminRecipeResponse": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "difficulty": {
+            "title": "Difficulty",
+            "type": "string"
+          },
+          "englishName": {
+            "title": "Englishname",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "title": "Imagekey",
+            "type": "string"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "ingredients": {
+            "items": {
+              "$ref": "#/components/schemas/CocktailIngredientResponse"
+            },
+            "title": "Ingredients",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "prepMinutes": {
+            "title": "Prepminutes",
+            "type": "integer"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "englishName",
+          "description",
+          "tags",
+          "ingredients",
+          "steps",
+          "imageKey",
+          "difficulty",
+          "prepMinutes",
+          "status",
+          "revision"
+        ],
+        "title": "AdminRecipeResponse",
+        "type": "object"
+      },
+      "AdminShortcutListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminShortcutResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "AdminShortcutListResponse",
+        "type": "object"
+      },
+      "AdminShortcutResponse": {
+        "properties": {
+          "description": {
+            "maxLength": 240,
+            "title": "Description",
+            "type": "string"
+          },
+          "icon": {
+            "enum": [
+              "box",
+              "book",
+              "cards",
+              "cellar"
+            ],
+            "title": "Icon",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "route": {
+            "enum": [
+              "/ai",
+              "/recipes",
+              "/bars",
+              "/drink-knowledge",
+              "/blind-box",
+              "/cellar"
+            ],
+            "title": "Route",
+            "type": "string"
+          },
+          "sortOrder": {
+            "minimum": 0.0,
+            "title": "Sortorder",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "icon",
+          "route",
+          "sortOrder",
+          "status",
+          "revision"
+        ],
+        "title": "AdminShortcutResponse",
+        "type": "object"
+      },
       "AgeConfirmationRequest": {
         "properties": {
           "confirmed": {
@@ -239,6 +974,946 @@
           "membershipLevel"
         ],
         "title": "AuthenticatedUser",
+        "type": "object"
+      },
+      "BannerCreate": {
+        "properties": {
+          "brand": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Brand",
+            "type": "string"
+          },
+          "ctaLabel": {
+            "maxLength": 80,
+            "title": "Ctalabel",
+            "type": "string"
+          },
+          "endsAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endsat"
+          },
+          "id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagekey"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "scriptLabel": {
+            "maxLength": 80,
+            "title": "Scriptlabel",
+            "type": "string"
+          },
+          "sortOrder": {
+            "minimum": 0.0,
+            "title": "Sortorder",
+            "type": "integer"
+          },
+          "startsAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startsat"
+          },
+          "subtitle": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Subtitle",
+            "type": "string"
+          },
+          "targetRoute": {
+            "enum": [
+              "/ai",
+              "/recipes",
+              "/bars",
+              "/drink-knowledge",
+              "/blind-box",
+              "/cellar"
+            ],
+            "title": "Targetroute",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "brand",
+          "title",
+          "subtitle",
+          "scriptLabel",
+          "ctaLabel",
+          "targetRoute",
+          "sortOrder"
+        ],
+        "title": "BannerCreate",
+        "type": "object"
+      },
+      "BannerPatch": {
+        "properties": {
+          "brand": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand"
+          },
+          "ctaLabel": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ctalabel"
+          },
+          "endsAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endsat"
+          },
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          },
+          "imageKey": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagekey"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "scriptLabel": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scriptlabel"
+          },
+          "sortOrder": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortorder"
+          },
+          "startsAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startsat"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle"
+          },
+          "targetRoute": {
+            "anyOf": [
+              {
+                "enum": [
+                  "/ai",
+                  "/recipes",
+                  "/bars",
+                  "/drink-knowledge",
+                  "/blind-box",
+                  "/cellar"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetroute"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ],
+        "title": "BannerPatch",
+        "type": "object"
+      },
+      "BarCreate": {
+        "properties": {
+          "address": {
+            "maxLength": 240,
+            "title": "Address",
+            "type": "string"
+          },
+          "averageSpend": {
+            "minimum": 0.0,
+            "title": "Averagespend",
+            "type": "integer"
+          },
+          "description": {
+            "maxLength": 4000,
+            "title": "Description",
+            "type": "string"
+          },
+          "distanceLabel": {
+            "maxLength": 80,
+            "title": "Distancelabel",
+            "type": "string"
+          },
+          "environmentScore": {
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Environmentscore",
+            "type": "number"
+          },
+          "id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagekey"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": -90.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "maximum": 180.0,
+                "minimum": -180.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "menu": {
+            "items": {
+              "$ref": "#/components/schemas/BarMenuItemResponse"
+            },
+            "maxItems": 100,
+            "title": "Menu",
+            "type": "array"
+          },
+          "metroHint": {
+            "maxLength": 160,
+            "title": "Metrohint",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "openHours": {
+            "maxLength": 160,
+            "title": "Openhours",
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 40,
+            "title": "Phone",
+            "type": "string"
+          },
+          "rating": {
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Rating",
+            "type": "number"
+          },
+          "reviewCount": {
+            "minimum": 0.0,
+            "title": "Reviewcount",
+            "type": "integer"
+          },
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/BarReviewResponse"
+            },
+            "maxItems": 100,
+            "title": "Reviews",
+            "type": "array"
+          },
+          "serviceScore": {
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Servicescore",
+            "type": "number"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 30,
+            "title": "Tags",
+            "type": "array"
+          },
+          "tasteScore": {
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Tastescore",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "rating",
+          "reviewCount",
+          "averageSpend",
+          "distanceLabel",
+          "metroHint",
+          "address",
+          "openHours",
+          "description",
+          "tags",
+          "tasteScore",
+          "environmentScore",
+          "serviceScore",
+          "phone",
+          "menu",
+          "reviews"
+        ],
+        "title": "BarCreate",
+        "type": "object"
+      },
+      "BarListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BarResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationResponse"
+          }
+        },
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "title": "BarListResponse",
+        "type": "object"
+      },
+      "BarMenuItemResponse": {
+        "properties": {
+          "badge": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Badge"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "title": "Imagekey",
+            "type": "string"
+          },
+          "likes": {
+            "minimum": 0.0,
+            "title": "Likes",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "imageKey",
+          "likes"
+        ],
+        "title": "BarMenuItemResponse",
+        "type": "object"
+      },
+      "BarPatch": {
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 240,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "averageSpend": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Averagespend"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "distanceLabel": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distancelabel"
+          },
+          "environmentScore": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Environmentscore"
+          },
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          },
+          "imageKey": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagekey"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": -90.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "maximum": 180.0,
+                "minimum": -180.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "menu": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/BarMenuItemResponse"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Menu"
+          },
+          "metroHint": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metrohint"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "openHours": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Openhours"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "reviewCount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewcount"
+          },
+          "reviews": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/BarReviewResponse"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviews"
+          },
+          "serviceScore": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Servicescore"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 30,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          },
+          "tasteScore": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tastescore"
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ],
+        "title": "BarPatch",
+        "type": "object"
+      },
+      "BarResponse": {
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "averageSpend": {
+            "title": "Averagespend",
+            "type": "integer"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "distanceLabel": {
+            "title": "Distancelabel",
+            "type": "string"
+          },
+          "environmentScore": {
+            "title": "Environmentscore",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "title": "Imagekey",
+            "type": "string"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "menu": {
+            "items": {
+              "$ref": "#/components/schemas/BarMenuItemResponse"
+            },
+            "title": "Menu",
+            "type": "array"
+          },
+          "metroHint": {
+            "title": "Metrohint",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "openHours": {
+            "title": "Openhours",
+            "type": "string"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "rating": {
+            "title": "Rating",
+            "type": "number"
+          },
+          "reviewCount": {
+            "title": "Reviewcount",
+            "type": "integer"
+          },
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/BarReviewResponse"
+            },
+            "title": "Reviews",
+            "type": "array"
+          },
+          "serviceScore": {
+            "title": "Servicescore",
+            "type": "number"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "tasteScore": {
+            "title": "Tastescore",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "imageKey",
+          "rating",
+          "reviewCount",
+          "averageSpend",
+          "distanceLabel",
+          "metroHint",
+          "address",
+          "openHours",
+          "description",
+          "tags",
+          "tasteScore",
+          "environmentScore",
+          "serviceScore",
+          "phone",
+          "menu",
+          "reviews"
+        ],
+        "title": "BarResponse",
+        "type": "object"
+      },
+      "BarReviewResponse": {
+        "properties": {
+          "authorAvatarKey": {
+            "title": "Authoravatarkey",
+            "type": "string"
+          },
+          "authorName": {
+            "title": "Authorname",
+            "type": "string"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKeys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Imagekeys",
+            "type": "array"
+          },
+          "likes": {
+            "minimum": 0.0,
+            "title": "Likes",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "authorName",
+          "authorAvatarKey",
+          "text",
+          "date",
+          "likes"
+        ],
+        "title": "BarReviewResponse",
         "type": "object"
       },
       "BootstrapResponse": {
@@ -482,6 +2157,80 @@
         "title": "CellarListResponse",
         "type": "object"
       },
+      "CocktailIngredientResponse": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category",
+          "amount"
+        ],
+        "title": "CocktailIngredientResponse",
+        "type": "object"
+      },
+      "ContentVersionListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ContentVersionResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ContentVersionListResponse",
+        "type": "object"
+      },
+      "ContentVersionResponse": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "snapshot": {
+            "additionalProperties": true,
+            "title": "Snapshot",
+            "type": "object"
+          },
+          "versionNo": {
+            "title": "Versionno",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "versionNo",
+          "action",
+          "snapshot",
+          "createdAt"
+        ],
+        "title": "ContentVersionResponse",
+        "type": "object"
+      },
       "DeleteAccountRequest": {
         "properties": {
           "confirmation": {
@@ -634,6 +2383,647 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HeroSlideResponse": {
+        "properties": {
+          "brand": {
+            "title": "Brand",
+            "type": "string"
+          },
+          "ctaLabel": {
+            "title": "Ctalabel",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "title": "Imagekey",
+            "type": "string"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "scriptLabel": {
+            "title": "Scriptlabel",
+            "type": "string"
+          },
+          "subtitle": {
+            "title": "Subtitle",
+            "type": "string"
+          },
+          "targetRoute": {
+            "title": "Targetroute",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "brand",
+          "title",
+          "subtitle",
+          "scriptLabel",
+          "ctaLabel",
+          "imageKey",
+          "targetRoute"
+        ],
+        "title": "HeroSlideResponse",
+        "type": "object"
+      },
+      "HomeResponse": {
+        "properties": {
+          "banners": {
+            "items": {
+              "$ref": "#/components/schemas/HeroSlideResponse"
+            },
+            "title": "Banners",
+            "type": "array"
+          },
+          "featuredBars": {
+            "items": {
+              "$ref": "#/components/schemas/BarResponse"
+            },
+            "title": "Featuredbars",
+            "type": "array"
+          },
+          "featuredRecipes": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeResponse"
+            },
+            "title": "Featuredrecipes",
+            "type": "array"
+          },
+          "shortcuts": {
+            "items": {
+              "$ref": "#/components/schemas/HomeShortcutResponse"
+            },
+            "title": "Shortcuts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "banners",
+          "shortcuts",
+          "featuredRecipes",
+          "featuredBars"
+        ],
+        "title": "HomeResponse",
+        "type": "object"
+      },
+      "HomeShortcutResponse": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "icon": {
+            "title": "Icon",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "route": {
+            "title": "Route",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "icon",
+          "route"
+        ],
+        "title": "HomeShortcutResponse",
+        "type": "object"
+      },
+      "IngredientCategory": {
+        "enum": [
+          "base",
+          "liqueur",
+          "citrus",
+          "mixer",
+          "sweetener",
+          "garnish",
+          "tool"
+        ],
+        "title": "IngredientCategory",
+        "type": "string"
+      },
+      "IngredientCreate": {
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/IngredientCategory"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagekey"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category"
+        ],
+        "title": "IngredientCreate",
+        "type": "object"
+      },
+      "IngredientListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IngredientResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationResponse"
+          }
+        },
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "title": "IngredientListResponse",
+        "type": "object"
+      },
+      "IngredientPatch": {
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IngredientCategory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          },
+          "imageKey": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagekey"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ],
+        "title": "IngredientPatch",
+        "type": "object"
+      },
+      "IngredientResponse": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category"
+        ],
+        "title": "IngredientResponse",
+        "type": "object"
+      },
+      "KnowledgeCreate": {
+        "properties": {
+          "englishName": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Englishname",
+            "type": "string"
+          },
+          "era": {
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Era",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagekey"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "meaning": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Meaning",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "recipeId": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipeid"
+          },
+          "story": {
+            "maxLength": 6000,
+            "minLength": 1,
+            "title": "Story",
+            "type": "string"
+          },
+          "symbols": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 30,
+            "title": "Symbols",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "englishName",
+          "era",
+          "meaning",
+          "story",
+          "symbols"
+        ],
+        "title": "KnowledgeCreate",
+        "type": "object"
+      },
+      "KnowledgeListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationResponse"
+          }
+        },
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "title": "KnowledgeListResponse",
+        "type": "object"
+      },
+      "KnowledgePatch": {
+        "properties": {
+          "englishName": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Englishname"
+          },
+          "era": {
+            "anyOf": [
+              {
+                "maxLength": 240,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Era"
+          },
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          },
+          "imageKey": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagekey"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "meaning": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meaning"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "recipeId": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipeid"
+          },
+          "story": {
+            "anyOf": [
+              {
+                "maxLength": 6000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Story"
+          },
+          "symbols": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 30,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbols"
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ],
+        "title": "KnowledgePatch",
+        "type": "object"
+      },
+      "KnowledgeResponse": {
+        "properties": {
+          "englishName": {
+            "title": "Englishname",
+            "type": "string"
+          },
+          "era": {
+            "title": "Era",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "title": "Imagekey",
+            "type": "string"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "meaning": {
+            "title": "Meaning",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "recipeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipeid"
+          },
+          "story": {
+            "title": "Story",
+            "type": "string"
+          },
+          "symbols": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Symbols",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "englishName",
+          "imageKey",
+          "era",
+          "meaning",
+          "story",
+          "symbols"
+        ],
+        "title": "KnowledgeResponse",
+        "type": "object"
+      },
       "LivenessResponse": {
         "properties": {
           "service": {
@@ -770,6 +3160,34 @@
         "title": "MembershipLevel",
         "type": "string"
       },
+      "PaginationResponse": {
+        "properties": {
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "pageSize": {
+            "title": "Pagesize",
+            "type": "integer"
+          },
+          "totalItems": {
+            "title": "Totalitems",
+            "type": "integer"
+          },
+          "totalPages": {
+            "title": "Totalpages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page",
+          "pageSize",
+          "totalItems",
+          "totalPages"
+        ],
+        "title": "PaginationResponse",
+        "type": "object"
+      },
       "PrivacySettingsPatch": {
         "properties": {
           "analyticsOptIn": {
@@ -862,6 +3280,377 @@
         "title": "ReadinessResponse",
         "type": "object"
       },
+      "RecipeCreate": {
+        "properties": {
+          "description": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "difficulty": {
+            "pattern": "^(\u5165\u95e8|\u8fdb\u9636|\u4e13\u4e1a)$",
+            "title": "Difficulty",
+            "type": "string"
+          },
+          "englishName": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Englishname",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagekey"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "ingredients": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeIngredientWrite"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Ingredients",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "prepMinutes": {
+            "maximum": 1440.0,
+            "minimum": 0.0,
+            "title": "Prepminutes",
+            "type": "integer"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Steps",
+            "type": "array"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 30,
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "englishName",
+          "description",
+          "tags",
+          "ingredients",
+          "steps",
+          "difficulty",
+          "prepMinutes"
+        ],
+        "title": "RecipeCreate",
+        "type": "object"
+      },
+      "RecipeIngredientWrite": {
+        "properties": {
+          "amount": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Amount",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "amount"
+        ],
+        "title": "RecipeIngredientWrite",
+        "type": "object"
+      },
+      "RecipeListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationResponse"
+          }
+        },
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "title": "RecipeListResponse",
+        "type": "object"
+      },
+      "RecipePatch": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "difficulty": {
+            "anyOf": [
+              {
+                "pattern": "^(\u5165\u95e8|\u8fdb\u9636|\u4e13\u4e1a)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Difficulty"
+          },
+          "englishName": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Englishname"
+          },
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          },
+          "imageKey": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagekey"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "ingredients": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RecipeIngredientWrite"
+                },
+                "maxItems": 50,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingredients"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "prepMinutes": {
+            "anyOf": [
+              {
+                "maximum": 1440.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prepminutes"
+          },
+          "steps": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 30,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steps"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 30,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ],
+        "title": "RecipePatch",
+        "type": "object"
+      },
+      "RecipeResponse": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "difficulty": {
+            "title": "Difficulty",
+            "type": "string"
+          },
+          "englishName": {
+            "title": "Englishname",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "title": "Imagekey",
+            "type": "string"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "ingredients": {
+            "items": {
+              "$ref": "#/components/schemas/CocktailIngredientResponse"
+            },
+            "title": "Ingredients",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "prepMinutes": {
+            "title": "Prepminutes",
+            "type": "integer"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "englishName",
+          "description",
+          "tags",
+          "ingredients",
+          "steps",
+          "imageKey",
+          "difficulty",
+          "prepMinutes"
+        ],
+        "title": "RecipeResponse",
+        "type": "object"
+      },
       "RefreshRequest": {
         "properties": {
           "refreshToken": {
@@ -875,6 +3664,249 @@
           "refreshToken"
         ],
         "title": "RefreshRequest",
+        "type": "object"
+      },
+      "RevisionRequest": {
+        "properties": {
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ],
+        "title": "RevisionRequest",
+        "type": "object"
+      },
+      "RollbackRequest": {
+        "properties": {
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          },
+          "versionNo": {
+            "minimum": 1.0,
+            "title": "Versionno",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "versionNo"
+        ],
+        "title": "RollbackRequest",
+        "type": "object"
+      },
+      "SearchListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SearchResultResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationResponse"
+          }
+        },
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "title": "SearchListResponse",
+        "type": "object"
+      },
+      "SearchResultResponse": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "title": "Imagekey",
+            "type": "string"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "subtitle": {
+            "title": "Subtitle",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "title",
+          "subtitle",
+          "imageKey"
+        ],
+        "title": "SearchResultResponse",
+        "type": "object"
+      },
+      "ShortcutCreate": {
+        "properties": {
+          "description": {
+            "maxLength": 240,
+            "title": "Description",
+            "type": "string"
+          },
+          "icon": {
+            "enum": [
+              "box",
+              "book",
+              "cards",
+              "cellar"
+            ],
+            "title": "Icon",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "route": {
+            "enum": [
+              "/ai",
+              "/recipes",
+              "/bars",
+              "/drink-knowledge",
+              "/blind-box",
+              "/cellar"
+            ],
+            "title": "Route",
+            "type": "string"
+          },
+          "sortOrder": {
+            "minimum": 0.0,
+            "title": "Sortorder",
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "icon",
+          "route",
+          "sortOrder"
+        ],
+        "title": "ShortcutCreate",
+        "type": "object"
+      },
+      "ShortcutPatch": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 240,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "enum": [
+                  "box",
+                  "book",
+                  "cards",
+                  "cellar"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "route": {
+            "anyOf": [
+              {
+                "enum": [
+                  "/ai",
+                  "/recipes",
+                  "/bars",
+                  "/drink-knowledge",
+                  "/blind-box",
+                  "/cellar"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Route"
+          },
+          "sortOrder": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortorder"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ],
+        "title": "ShortcutPatch",
         "type": "object"
       },
       "SmsCodeAccepted": {
@@ -1286,6 +4318,2118 @@
         ]
       }
     },
+    "/api/v1/admin/banners": {
+      "get": {
+        "operationId": "admin_banners_api_v1_admin_banners_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminBannerListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Banners",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      },
+      "post": {
+        "operationId": "create_admin_banner_api_v1_admin_banners_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BannerCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminBannerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Admin Banner",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/banners/{public_id}": {
+      "patch": {
+        "operationId": "patch_admin_banner_api_v1_admin_banners__public_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BannerPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminBannerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Admin Banner",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/banners/{public_id}/archive": {
+      "post": {
+        "operationId": "archive_admin_banner_api_v1_admin_banners__public_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminBannerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Archive Admin Banner",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/banners/{public_id}/publish": {
+      "post": {
+        "operationId": "publish_admin_banner_api_v1_admin_banners__public_id__publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminBannerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Publish Admin Banner",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/banners/{public_id}/rollback": {
+      "post": {
+        "operationId": "rollback_admin_banner_api_v1_admin_banners__public_id__rollback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminBannerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rollback Admin Banner",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/banners/{public_id}/versions": {
+      "get": {
+        "operationId": "admin_banner_versions_api_v1_admin_banners__public_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentVersionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Banner Versions",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/bars": {
+      "get": {
+        "operationId": "admin_bars_api_v1_admin_bars_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminBarListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Bars",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      },
+      "post": {
+        "operationId": "create_admin_bar_api_v1_admin_bars_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BarCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminBarResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Admin Bar",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/bars/{public_id}": {
+      "patch": {
+        "operationId": "patch_admin_bar_api_v1_admin_bars__public_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BarPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminBarResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Admin Bar",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/bars/{public_id}/archive": {
+      "post": {
+        "operationId": "archive_admin_bar_api_v1_admin_bars__public_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminBarResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Archive Admin Bar",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/bars/{public_id}/publish": {
+      "post": {
+        "operationId": "publish_admin_bar_api_v1_admin_bars__public_id__publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminBarResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Publish Admin Bar",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/bars/{public_id}/rollback": {
+      "post": {
+        "operationId": "rollback_admin_bar_api_v1_admin_bars__public_id__rollback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminBarResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rollback Admin Bar",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/bars/{public_id}/versions": {
+      "get": {
+        "operationId": "admin_bar_versions_api_v1_admin_bars__public_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentVersionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Bar Versions",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/ingredients": {
+      "get": {
+        "operationId": "admin_ingredients_api_v1_admin_ingredients_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminIngredientListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Ingredients",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      },
+      "post": {
+        "operationId": "create_admin_ingredient_api_v1_admin_ingredients_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngredientCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminIngredientResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Admin Ingredient",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/ingredients/{public_id}": {
+      "patch": {
+        "operationId": "patch_admin_ingredient_api_v1_admin_ingredients__public_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngredientPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminIngredientResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Admin Ingredient",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/ingredients/{public_id}/archive": {
+      "post": {
+        "operationId": "archive_admin_ingredient_api_v1_admin_ingredients__public_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminIngredientResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Archive Admin Ingredient",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/ingredients/{public_id}/publish": {
+      "post": {
+        "operationId": "publish_admin_ingredient_api_v1_admin_ingredients__public_id__publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminIngredientResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Publish Admin Ingredient",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/ingredients/{public_id}/rollback": {
+      "post": {
+        "operationId": "rollback_admin_ingredient_api_v1_admin_ingredients__public_id__rollback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminIngredientResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rollback Admin Ingredient",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/ingredients/{public_id}/versions": {
+      "get": {
+        "operationId": "admin_ingredient_versions_api_v1_admin_ingredients__public_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentVersionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Ingredient Versions",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/knowledge": {
+      "get": {
+        "operationId": "admin_knowledge_api_v1_admin_knowledge_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminKnowledgeListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Knowledge",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      },
+      "post": {
+        "operationId": "create_admin_knowledge_api_v1_admin_knowledge_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminKnowledgeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Admin Knowledge",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/knowledge/{public_id}": {
+      "patch": {
+        "operationId": "patch_admin_knowledge_api_v1_admin_knowledge__public_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminKnowledgeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Admin Knowledge",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/knowledge/{public_id}/archive": {
+      "post": {
+        "operationId": "archive_admin_knowledge_api_v1_admin_knowledge__public_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminKnowledgeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Archive Admin Knowledge",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/knowledge/{public_id}/publish": {
+      "post": {
+        "operationId": "publish_admin_knowledge_api_v1_admin_knowledge__public_id__publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminKnowledgeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Publish Admin Knowledge",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/knowledge/{public_id}/rollback": {
+      "post": {
+        "operationId": "rollback_admin_knowledge_api_v1_admin_knowledge__public_id__rollback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminKnowledgeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rollback Admin Knowledge",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/knowledge/{public_id}/versions": {
+      "get": {
+        "operationId": "admin_knowledge_versions_api_v1_admin_knowledge__public_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentVersionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Knowledge Versions",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/recipes": {
+      "get": {
+        "operationId": "admin_recipes_api_v1_admin_recipes_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRecipeListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Recipes",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      },
+      "post": {
+        "operationId": "create_admin_recipe_api_v1_admin_recipes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipeCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRecipeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Admin Recipe",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/recipes/{public_id}": {
+      "patch": {
+        "operationId": "patch_admin_recipe_api_v1_admin_recipes__public_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRecipeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Admin Recipe",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/recipes/{public_id}/archive": {
+      "post": {
+        "operationId": "archive_admin_recipe_api_v1_admin_recipes__public_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRecipeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Archive Admin Recipe",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/recipes/{public_id}/publish": {
+      "post": {
+        "operationId": "publish_admin_recipe_api_v1_admin_recipes__public_id__publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRecipeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Publish Admin Recipe",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/recipes/{public_id}/rollback": {
+      "post": {
+        "operationId": "rollback_admin_recipe_api_v1_admin_recipes__public_id__rollback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRecipeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rollback Admin Recipe",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/recipes/{public_id}/versions": {
+      "get": {
+        "operationId": "admin_recipe_versions_api_v1_admin_recipes__public_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentVersionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Recipe Versions",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/shortcuts": {
+      "get": {
+        "operationId": "admin_shortcuts_api_v1_admin_shortcuts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminShortcutListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Shortcuts",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      },
+      "post": {
+        "operationId": "create_admin_shortcut_api_v1_admin_shortcuts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShortcutCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminShortcutResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Admin Shortcut",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/shortcuts/{public_id}": {
+      "patch": {
+        "operationId": "patch_admin_shortcut_api_v1_admin_shortcuts__public_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShortcutPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminShortcutResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Admin Shortcut",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/shortcuts/{public_id}/archive": {
+      "post": {
+        "operationId": "archive_admin_shortcut_api_v1_admin_shortcuts__public_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminShortcutResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Archive Admin Shortcut",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/shortcuts/{public_id}/publish": {
+      "post": {
+        "operationId": "publish_admin_shortcut_api_v1_admin_shortcuts__public_id__publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminShortcutResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Publish Admin Shortcut",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/shortcuts/{public_id}/rollback": {
+      "post": {
+        "operationId": "rollback_admin_shortcut_api_v1_admin_shortcuts__public_id__rollback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminShortcutResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rollback Admin Shortcut",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/shortcuts/{public_id}/versions": {
+      "get": {
+        "operationId": "admin_shortcut_versions_api_v1_admin_shortcuts__public_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentVersionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Shortcut Versions",
+        "tags": [
+          "api",
+          "admin-content"
+        ]
+      }
+    },
     "/api/v1/auth/devices": {
       "get": {
         "operationId": "devices_api_v1_auth_devices_get",
@@ -1571,6 +6715,106 @@
         ]
       }
     },
+    "/api/v1/bars": {
+      "get": {
+        "operationId": "bars_api_v1_bars_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Pagesize",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BarListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bars",
+        "tags": [
+          "api",
+          "content"
+        ]
+      }
+    },
+    "/api/v1/bars/{public_id}": {
+      "get": {
+        "operationId": "bar_detail_api_v1_bars__public_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BarResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bar Detail",
+        "tags": [
+          "api",
+          "content"
+        ]
+      }
+    },
     "/api/v1/cellar/items": {
       "get": {
         "operationId": "items_api_v1_cellar_items_get",
@@ -1816,6 +7060,185 @@
         "tags": [
           "api",
           "cellar"
+        ]
+      }
+    },
+    "/api/v1/home": {
+      "get": {
+        "operationId": "home_api_v1_home_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Home",
+        "tags": [
+          "api",
+          "content"
+        ]
+      }
+    },
+    "/api/v1/ingredients": {
+      "get": {
+        "operationId": "ingredients_api_v1_ingredients_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Pagesize",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngredientListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingredients",
+        "tags": [
+          "api",
+          "content"
+        ]
+      }
+    },
+    "/api/v1/knowledge": {
+      "get": {
+        "operationId": "knowledge_api_v1_knowledge_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Pagesize",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Knowledge",
+        "tags": [
+          "api",
+          "content"
+        ]
+      }
+    },
+    "/api/v1/knowledge/{public_id}": {
+      "get": {
+        "operationId": "knowledge_detail_api_v1_knowledge__public_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Knowledge Detail",
+        "tags": [
+          "api",
+          "content"
         ]
       }
     },
@@ -2106,6 +7529,174 @@
         "tags": [
           "api",
           "me"
+        ]
+      }
+    },
+    "/api/v1/recipes": {
+      "get": {
+        "operationId": "recipes_api_v1_recipes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Pagesize",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecipeListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recipes",
+        "tags": [
+          "api",
+          "content"
+        ]
+      }
+    },
+    "/api/v1/recipes/{public_id}": {
+      "get": {
+        "operationId": "recipe_detail_api_v1_recipes__public_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecipeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recipe Detail",
+        "tags": [
+          "api",
+          "content"
+        ]
+      }
+    },
+    "/api/v1/search": {
+      "get": {
+        "operationId": "search_api_v1_search_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Pagesize",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search",
+        "tags": [
+          "api",
+          "content"
         ]
       }
     },

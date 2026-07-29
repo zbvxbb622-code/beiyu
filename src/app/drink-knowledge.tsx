@@ -1,22 +1,42 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { type Href, useRouter } from 'expo-router';
 import { BookOpen, ChevronRight, Quote } from 'lucide-react-native';
-import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
+import { ContentImageBackground } from '@/components/content/ContentImage';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
 import { TopBar } from '@/components/mixology/TopBar';
-import { getImageAsset } from '@/data/imageAssets';
-import { getDrinkKnowledgeEntries } from '@/services/knowledgeService';
+import { useContent } from '@/state/ContentState';
 import { colors, gradients, radii, spacing } from '@/styles/mixologyTheme';
 
 export default function DrinkKnowledgeScreen() {
   const router = useRouter();
-  const entries = getDrinkKnowledgeEntries();
+  const { snapshot, isRefreshing, lastRefreshError, refresh } = useContent();
+  const entries = snapshot.knowledge;
 
   return (
     <ScreenShell>
       <TopBar title="酒品知识" backHref={'/' as Href} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => void refresh()}
+            tintColor={colors.pink}
+          />
+        }>
+        {lastRefreshError ? (
+          <Text style={styles.refreshNotice}>{lastRefreshError}</Text>
+        ) : null}
         <View style={styles.intro}>
           <BookOpen color={colors.pink} size={20} />
           <Text style={styles.introText}>每杯酒都有自己的寓意和故事{'\n'}读懂它，再举杯</Text>
@@ -24,8 +44,9 @@ export default function DrinkKnowledgeScreen() {
 
         {entries.map((entry) => (
           <View key={entry.id} style={styles.card} testID="knowledge-card">
-            <ImageBackground
-              source={getImageAsset(entry.imageKey)}
+            <ContentImageBackground
+              imageKey={entry.imageKey}
+              imageUrl={entry.imageUrl}
               resizeMode="cover"
               style={styles.cover}
               imageStyle={styles.coverRadius}
@@ -39,7 +60,7 @@ export default function DrinkKnowledgeScreen() {
                   <Text style={styles.englishName}>{entry.englishName}</Text>
                 </View>
               </LinearGradient>
-            </ImageBackground>
+            </ContentImageBackground>
 
             <View style={styles.body}>
               <View style={styles.meaningRow}>
@@ -74,6 +95,12 @@ export default function DrinkKnowledgeScreen() {
 const styles = StyleSheet.create({
   content: {
     paddingBottom: spacing.bottomNavPadding,
+  },
+  refreshNotice: {
+    color: colors.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
   },
   intro: {
     flexDirection: 'row',

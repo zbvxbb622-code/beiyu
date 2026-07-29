@@ -1,17 +1,24 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
 import { Clock, Martini } from 'lucide-react-native';
-import { ImageBackground, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
+import { ContentImageBackground } from '@/components/content/ContentImage';
 import { TopBar } from '@/components/mixology/TopBar';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
-import { getImageAsset } from '@/data/imageAssets';
-import { getRecipeById } from '@/services/recipeService';
+import { useContent } from '@/state/ContentState';
 import { colors, gradients, radii } from '@/styles/mixologyTheme';
 
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const recipe = getRecipeById(String(id));
+  const { snapshot, isRefreshing, lastRefreshError, refresh } = useContent();
+  const recipe = snapshot.recipes.find((item) => item.id === String(id));
 
   if (!recipe) {
     return (
@@ -27,13 +34,30 @@ export default function RecipeDetailScreen() {
       <View style={styles.topWrap}>
         <TopBar title="配方详情" />
       </View>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <ImageBackground source={getImageAsset(recipe.imageKey)} resizeMode="cover" style={styles.hero} imageStyle={styles.heroImage}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => void refresh()}
+            tintColor={colors.pink}
+          />
+        }>
+        {lastRefreshError ? (
+          <Text style={styles.refreshNotice}>{lastRefreshError}</Text>
+        ) : null}
+        <ContentImageBackground
+          imageKey={recipe.imageKey}
+          imageUrl={recipe.imageUrl}
+          resizeMode="cover"
+          style={styles.hero}
+          imageStyle={styles.heroImage}>
           <LinearGradient colors={gradients.overlayTop} style={styles.heroOverlay}>
             <Text style={styles.title}>{recipe.name}</Text>
             <Text style={styles.script}>{recipe.englishName}</Text>
           </LinearGradient>
-        </ImageBackground>
+        </ContentImageBackground>
         <View style={styles.copy}>
           <Text style={styles.description}>{recipe.description}</Text>
           <View style={styles.metaRow}>
@@ -70,6 +94,12 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingBottom: 40,
+  },
+  refreshNotice: {
+    color: colors.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
   },
   empty: {
     color: colors.text,

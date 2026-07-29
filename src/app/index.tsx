@@ -4,10 +4,10 @@ import { ChevronRight, Search } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
   Image,
-  ImageBackground,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,11 +16,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ContentImageBackground } from '@/components/content/ContentImage';
 import { HomeShortcutIcon } from '@/components/mixology/HomeShortcutIcon';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
 import { getImageAsset } from '@/data/imageAssets';
-import { getHeroSlides, getHomeShortcuts } from '@/services/contentService';
-import { getRecipeById } from '@/services/recipeService';
+import { bundledContent } from '@/services/content/bundledContent';
+import { useContent } from '@/state/ContentState';
 import { colors, spacing } from '@/styles/mixologyTheme';
 import type { CocktailRecipe } from '@/types/mixology';
 
@@ -48,11 +49,16 @@ const MOSAIC_IMAGE_KEYS = {
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const heroSlides = getHeroSlides();
+  const { snapshot, isRefreshing, lastRefreshError, refresh } = useContent();
+  const heroSlides = snapshot.banners;
   const heroScrollRef = useRef<ScrollView>(null);
   const { width } = useWindowDimensions();
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
-  const shortcuts = getHomeShortcuts();
+  const displayedHeroIndex = Math.min(
+    activeHeroIndex,
+    Math.max(0, heroSlides.length - 1)
+  );
+  const shortcuts = snapshot.shortcuts;
 
   // 设计稿等比缩放因子
   const s = width / DESIGN_WIDTH;
@@ -60,11 +66,14 @@ export default function HomeScreen() {
   const bannerHeight = Math.min(Math.max(width * (460 / 750), 220), 250);
   const bannerFrame = { width, height: bannerHeight };
 
+  const findMosaicRecipe = (id: string) =>
+    snapshot.recipes.find((recipe) => recipe.id === id) ??
+    bundledContent.recipes.find((recipe) => recipe.id === id);
   const recipes = {
-    wide: getRecipeById(MOSAIC_IDS.wide),
-    bottomLeft: getRecipeById(MOSAIC_IDS.bottomLeft),
-    bottomMiddle: getRecipeById(MOSAIC_IDS.bottomMiddle),
-    tall: getRecipeById(MOSAIC_IDS.tall),
+    wide: findMosaicRecipe(MOSAIC_IDS.wide),
+    bottomLeft: findMosaicRecipe(MOSAIC_IDS.bottomLeft),
+    bottomMiddle: findMosaicRecipe(MOSAIC_IDS.bottomMiddle),
+    tall: findMosaicRecipe(MOSAIC_IDS.tall),
   };
 
   // 最新酒单：不用 aspectRatio/flex 推算，直接按设计稿像素算死宽高，避免 Expo 原生端高度塌成 0
@@ -83,6 +92,10 @@ export default function HomeScreen() {
 
   // Banner 保留自动轮播；首张仍是设计稿整幅烘焙图
   useEffect(() => {
+    if (heroSlides.length <= 1) {
+      return;
+    }
+
     const timer = setInterval(() => {
       setActiveHeroIndex((currentIndex) => {
         const nextIndex = (currentIndex + 1) % heroSlides.length;
@@ -105,91 +118,109 @@ export default function HomeScreen() {
 
   return (
     <ScreenShell padded={false}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => void refresh()}
+            tintColor={colors.pink}
+          />
+        }>
         {/* ===== Banner 轮播（设计稿 y 0-460px）===== */}
-        <View style={[styles.hero, { height: bannerHeight, marginTop: -insets.top }]}>
-          <ScrollView
-            ref={heroScrollRef}
-            style={bannerFrame}
-            contentContainerStyle={bannerFrame}
-            horizontal
-            pagingEnabled
-            bounces={false}
-            decelerationRate="fast"
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={handleHeroScrollEnd}>
-            {heroSlides.map((hero, slideIndex) =>
-              slideIndex === 0 ? (
-                // 首屏：设计稿整幅烘焙图（含标题/CTA/装饰，保证 1:1）
-                <View key={hero.id} style={[styles.heroSlide, bannerFrame]}>
-                  <ImageBackground
-                    source={getImageAsset(hero.imageKey)}
+        {heroSlides.length > 0 ? (
+          <View style={[styles.hero, { height: bannerHeight, marginTop: -insets.top }]}>
+            <ScrollView
+              ref={heroScrollRef}
+              style={bannerFrame}
+              contentContainerStyle={bannerFrame}
+              horizontal
+              pagingEnabled
+              bounces={false}
+              decelerationRate="fast"
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={handleHeroScrollEnd}>
+              {heroSlides.map((hero, slideIndex) =>
+                slideIndex === 0 && hero.imageKey === 'homeBanner' && !hero.imageUrl ? (
+                  // 首屏：设计稿整幅烘焙图（含标题/CTA/装饰，保证 1:1）
+                  <View key={hero.id} style={[styles.heroSlide, bannerFrame]}>
+                    <ContentImageBackground
+                      testID="home-banner"
+                      imageKey={hero.imageKey}
+                      imageUrl={hero.imageUrl}
+                      resizeMode="cover"
+                      style={bannerFrame}
+                    />
+                    {/* 隐形 CTA 热区：覆盖设计稿「去AI调酒」按钮位置（x 95-280px / y 305-395px） */}
+                    <Pressable
+                      accessibilityLabel="去AI调酒"
+                      onPress={() => router.push(hero.targetRoute as Href)}
+                      style={[styles.heroCtaHotspot, { left: 44 * s, top: 150 * s, width: 104 * s, height: 48 * s }]}
+                    />
+                  </View>
+                ) : (
+                  // 其余轮播页：照片 + 文字浮层，版式与首屏设计稿对齐
+                  <ContentImageBackground
+                    testID="home-banner"
+                    key={hero.id}
+                    imageKey={hero.imageKey}
+                    imageUrl={hero.imageUrl}
                     resizeMode="cover"
-                    style={bannerFrame}
+                    style={[styles.heroSlide, bannerFrame]}>
+                    <LinearGradient colors={['rgba(7,0,4,0.45)', 'rgba(7,0,4,0.15)', 'rgba(7,0,4,0.6)']} style={styles.heroOverlay}>
+                      <View style={[styles.heroCopy, { marginTop: 60 * s, marginLeft: 28 * s }]}>
+                        <Text style={[styles.heroTitle, { fontSize: 20 * s, lineHeight: 27 * s }]}>
+                          {hero.title}
+                          {'\n'}
+                          {hero.subtitle}
+                        </Text>
+                        <Text style={[styles.script, { fontSize: 26 * s, marginTop: 6 * s, marginLeft: 8 * s }]}>{hero.scriptLabel}</Text>
+                        <Pressable onPress={() => router.push(hero.targetRoute as Href)} style={{ marginTop: 14 * s }}>
+                          <LinearGradient
+                            colors={['#b41d2c', '#8e0f18']}
+                            start={{ x: 0, y: 0.5 }}
+                            end={{ x: 1, y: 0.5 }}
+                            style={[styles.heroButton, { height: 42 * s, borderRadius: 21 * s, paddingHorizontal: 18 * s }]}>
+                            <Text style={[styles.heroButtonText, { fontSize: 15 * s }]}>{hero.ctaLabel}</Text>
+                            <ChevronRight color={colors.text} size={18 * s} strokeWidth={2.6} style={{ marginLeft: 2 * s }} />
+                          </LinearGradient>
+                        </Pressable>
+                      </View>
+                    </LinearGradient>
+                  </ContentImageBackground>
+                )
+              )}
+            </ScrollView>
+            {/* 轮播点：首屏使用烘焙图自带圆点（像素级对齐）；滑到照片页时显示浮层圆点，圆心 y=425px、水平居中 */}
+            {displayedHeroIndex > 0 ? (
+              <View
+                style={[
+                  styles.dots,
+                  {
+                    bottom: bannerHeight - 215 * s,
+                    left: width / 2 - 24 * s,
+                  },
+                ]}>
+                {heroSlides.map((hero, index) => (
+                  <View
+                    key={hero.id}
+                    style={[
+                      styles.dot,
+                      { width: 6 * s, height: 6 * s, borderRadius: 3 * s, marginHorizontal: 3 * s },
+                      index === displayedHeroIndex ? styles.dotActive : null,
+                    ]}
                   />
-                  {/* 隐形 CTA 热区：覆盖设计稿「去AI调酒」按钮位置（x 95-280px / y 305-395px） */}
-                  <Pressable
-                    accessibilityLabel="去AI调酒"
-                    onPress={() => router.push('/ai' as Href)}
-                    style={[styles.heroCtaHotspot, { left: 44 * s, top: 150 * s, width: 104 * s, height: 48 * s }]}
-                  />
-                </View>
-              ) : (
-                // 其余轮播页：照片 + 文字浮层，版式与首屏设计稿对齐
-                <ImageBackground
-                  key={hero.id}
-                  source={getImageAsset(hero.imageKey)}
-                  resizeMode="cover"
-                  style={[styles.heroSlide, bannerFrame]}>
-                  <LinearGradient colors={['rgba(7,0,4,0.45)', 'rgba(7,0,4,0.15)', 'rgba(7,0,4,0.6)']} style={styles.heroOverlay}>
-                    <View style={[styles.heroCopy, { marginTop: 60 * s, marginLeft: 28 * s }]}>
-                      <Text style={[styles.heroTitle, { fontSize: 20 * s, lineHeight: 27 * s }]}>
-                        {hero.title}
-                        {'\n'}
-                        {hero.subtitle}
-                      </Text>
-                      <Text style={[styles.script, { fontSize: 26 * s, marginTop: 6 * s, marginLeft: 8 * s }]}>{hero.scriptLabel}</Text>
-                      <Pressable onPress={() => router.push('/ai' as Href)} style={{ marginTop: 14 * s }}>
-                        <LinearGradient
-                          colors={['#b41d2c', '#8e0f18']}
-                          start={{ x: 0, y: 0.5 }}
-                          end={{ x: 1, y: 0.5 }}
-                          style={[styles.heroButton, { height: 42 * s, borderRadius: 21 * s, paddingHorizontal: 18 * s }]}>
-                          <Text style={[styles.heroButtonText, { fontSize: 15 * s }]}>{hero.ctaLabel}</Text>
-                          <ChevronRight color={colors.text} size={18 * s} strokeWidth={2.6} style={{ marginLeft: 2 * s }} />
-                        </LinearGradient>
-                      </Pressable>
-                    </View>
-                  </LinearGradient>
-                </ImageBackground>
-              )
-            )}
-          </ScrollView>
-          {/* 轮播点：首屏使用烘焙图自带圆点（像素级对齐）；滑到照片页时显示浮层圆点，圆心 y=425px、水平居中 */}
-          {activeHeroIndex > 0 ? (
-            <View
-              style={[
-                styles.dots,
-                {
-                  bottom: bannerHeight - 215 * s,
-                  left: width / 2 - 24 * s,
-                },
-              ]}>
-              {heroSlides.map((hero, index) => (
-                <View
-                  key={hero.id}
-                  style={[
-                    styles.dot,
-                    { width: 6 * s, height: 6 * s, borderRadius: 3 * s, marginHorizontal: 3 * s },
-                    index === activeHeroIndex ? styles.dotActive : null,
-                  ]}
-                />
-              ))}
-            </View>
-          ) : null}
-        </View>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         <View style={styles.pageContent}>
+          {lastRefreshError ? (
+            <Text style={styles.refreshNotice}>{lastRefreshError}</Text>
+          ) : null}
           {/* ===== 搜索栏（设计稿 y 500-600px：pill 高 100px + 右侧粉色渐变圆钮 80px）===== */}
           <Pressable
             onPress={() => router.push('/ai' as Href)}
@@ -362,6 +393,12 @@ const styles = StyleSheet.create({
   // —— 内容区 ——
   pageContent: {
     paddingHorizontal: PAGE_PADDING,
+  },
+  refreshNotice: {
+    color: colors.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
   },
   pressed: {
     opacity: 0.82,

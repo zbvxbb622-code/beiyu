@@ -1,0 +1,82 @@
+{
+  "banners": [
+    {
+      "id": "welcome-bar",
+      "brand": "Beiyu",
+      "title": "（欢迎来到",
+      "subtitle": "杯语）",
+      "scriptLabel": "AI Bartender",
+      "ctaLabel": "去AI调酒",
+      "imageKey": "homeBanner",
+      "targetRoute": "/ai",
+      "sortOrder": 0
+    },
+    {
+      "id": "spark-night",
+      "brand": "Beiyu",
+      "title": "（只属于你的",
+      "subtitle": "专业调酒师）",
+      "scriptLabel": "Bartender",
+      "ctaLabel": "去AI调酒",
+      "imageKey": "heroNeon",
+      "targetRoute": "/ai",
+      "sortOrder": 1
+    },
+    {
+      "id": "classic-counter",
+      "brand": "Beiyu",
+      "title": "（今晚喝点",
+      "subtitle": "不一样的）",
+      "scriptLabel": "Bartender",
+      "ctaLabel": "去AI调酒",
+      "imageKey": "barInterior",
+      "targetRoute": "/ai",
+      "sortOrder": 2
+    },
+    {
+      "id": "neon-party",
+      "brand": "Beiyu",
+      "title": "（把夜晚调成",
+      "subtitle": "喜欢的味道）",
+      "scriptLabel": "Bartender",
+      "ctaLabel": "去AI调酒",
+      "imageKey": "heroBar",
+      "targetRoute": "/ai",
+      "sortOrder": 3
+    }
+  ],
+  "shortcuts": [
+    {
+      "id": "blind-box",
+      "title": "经典盲盒",
+      "description": "随机开一杯",
+      "icon": "box",
+      "route": "/blind-box",
+      "sortOrder": 0
+    },
+    {
+      "id": "drink-knowledge",
+      "title": "酒品知识",
+      "description": "每杯酒的寓意与故事",
+      "icon": "book",
+      "route": "/drink-knowledge",
+      "sortOrder": 1
+    },
+    {
+      "id": "classic-series",
+      "title": "经典系列",
+      "description": "新手不踩雷",
+      "icon": "cards",
+      "route": "/recipes",
+      "sortOrder": 2
+    },
+    {
+      "id": "shared-cellar",
+      "title": "共享酒柜",
+      "description": "看看大家在喝什么",
+      "icon": "cellar",
+      "route": "/cellar",
+      "sortOrder": 3
+    }
+  ]
+}

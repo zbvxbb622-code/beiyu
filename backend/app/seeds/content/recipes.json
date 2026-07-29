@@ -1,0 +1,913 @@
+[
+  {
+    "id": "classic-margarita",
+    "name": "玛格丽特",
+    "englishName": "Margarita",
+    "description": "龙舌兰、青柠和橙味利口酒带来清爽酸甜，是最适合作为第一杯练习的经典配方。",
+    "tags": [
+      "经典",
+      "酸甜",
+      "派对"
+    ],
+    "ingredients": [
+      {
+        "id": "tequila",
+        "amount": "45 ml"
+      },
+      {
+        "id": "orange-liqueur",
+        "amount": "20 ml"
+      },
+      {
+        "id": "lime",
+        "amount": "25 ml"
+      },
+      {
+        "id": "simple-syrup",
+        "amount": "10 ml"
+      },
+      {
+        "id": "salt",
+        "amount": "少许"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "杯口抹青柠并沾盐。",
+      "将龙舌兰、橙味利口酒、青柠汁和糖浆加入摇壶。",
+      "加冰充分摇合后过滤入杯。"
+    ],
+    "imageKey": "margarita",
+    "difficulty": "入门",
+    "prepMinutes": 6
+  },
+  {
+    "id": "gin-tonic",
+    "name": "金汤力",
+    "englishName": "Gin Tonic",
+    "description": "金酒和汤力水的高容错组合，适合快速完成一杯清爽长饮。",
+    "tags": [
+      "清爽",
+      "低负担",
+      "入门"
+    ],
+    "ingredients": [
+      {
+        "id": "gin",
+        "amount": "45 ml"
+      },
+      {
+        "id": "tonic-water",
+        "amount": "120 ml"
+      },
+      {
+        "id": "lime",
+        "amount": "1片"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "杯中加满冰块。",
+      "倒入金酒和汤力水。",
+      "轻轻搅拌后用青柠装饰。"
+    ],
+    "imageKey": "ginTonic",
+    "difficulty": "入门",
+    "prepMinutes": 3
+  },
+  {
+    "id": "mojito",
+    "name": "莫吉托",
+    "englishName": "Mojito",
+    "description": "薄荷、青柠和白朗姆带来的明亮气泡感，适合夏夜和朋友聚会。",
+    "tags": [
+      "清爽",
+      "派对",
+      "薄荷"
+    ],
+    "ingredients": [
+      {
+        "id": "rum",
+        "amount": "45 ml"
+      },
+      {
+        "id": "lime",
+        "amount": "30 ml"
+      },
+      {
+        "id": "simple-syrup",
+        "amount": "15 ml"
+      },
+      {
+        "id": "mint",
+        "amount": "8片"
+      },
+      {
+        "id": "soda-water",
+        "amount": "90 ml"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "杯中轻压薄荷、青柠和糖浆。",
+      "加入白朗姆和冰块。",
+      "补苏打水并轻搅。"
+    ],
+    "imageKey": "mojito",
+    "difficulty": "进阶",
+    "prepMinutes": 8
+  },
+  {
+    "id": "negroni",
+    "name": "尼格罗尼",
+    "englishName": "Negroni",
+    "description": "金酒、金巴利和橙香的苦甜结构，适合喜欢浓郁口感的人。",
+    "tags": [
+      "经典",
+      "苦甜",
+      "浓郁"
+    ],
+    "ingredients": [
+      {
+        "id": "gin",
+        "amount": "30 ml"
+      },
+      {
+        "id": "campari",
+        "amount": "30 ml"
+      },
+      {
+        "id": "orange-liqueur",
+        "amount": "15 ml"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "杯中加入所有酒液。",
+      "加冰搅拌至充分冷却。",
+      "过滤入杯，可用柑橘皮装饰。"
+    ],
+    "imageKey": "negroni",
+    "difficulty": "进阶",
+    "prepMinutes": 5
+  },
+  {
+    "id": "moscow-mule",
+    "name": "莫斯科骡子",
+    "englishName": "Moscow Mule",
+    "description": "伏特加、青柠和姜汁汽水组合出辛香清爽的长饮。",
+    "tags": [
+      "清爽",
+      "辛香",
+      "长饮"
+    ],
+    "ingredients": [
+      {
+        "id": "vodka",
+        "amount": "45 ml"
+      },
+      {
+        "id": "lime",
+        "amount": "20 ml"
+      },
+      {
+        "id": "ginger-beer",
+        "amount": "120 ml"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "杯中加满冰块。",
+      "倒入伏特加和青柠汁。",
+      "补姜汁汽水并轻搅。"
+    ],
+    "imageKey": "cocktailMoscowMule",
+    "difficulty": "入门",
+    "prepMinutes": 4
+  },
+  {
+    "id": "manhattan",
+    "name": "曼哈顿",
+    "englishName": "Manhattan",
+    "description": "威士忌与甜味美思的经典搅拌，口感圆润深沉，是永不过时的\"鸡尾酒皇后\"。",
+    "tags": [
+      "经典",
+      "浓郁",
+      "都会"
+    ],
+    "ingredients": [
+      {
+        "id": "whiskey",
+        "amount": "50 ml"
+      },
+      {
+        "id": "sweet-vermouth",
+        "amount": "20 ml"
+      },
+      {
+        "id": "bitters",
+        "amount": "2注"
+      },
+      {
+        "id": "cherry",
+        "amount": "1颗"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "所有酒液加冰搅拌至充分冰镇。",
+      "滤入冰镇的鸡尾酒杯。",
+      "以马拉斯奇诺樱桃装饰。"
+    ],
+    "imageKey": "cocktailManhattan",
+    "difficulty": "进阶",
+    "prepMinutes": 5
+  },
+  {
+    "id": "old-fashioned",
+    "name": "落日古典",
+    "englishName": "Old Fashioned",
+    "description": "威士忌、糖与苦精的极简组合，慢饮细品，是最能体现基酒本味的老派做法。",
+    "tags": [
+      "经典",
+      "老派",
+      "慢饮"
+    ],
+    "ingredients": [
+      {
+        "id": "whiskey",
+        "amount": "60 ml"
+      },
+      {
+        "id": "simple-syrup",
+        "amount": "10 ml"
+      },
+      {
+        "id": "bitters",
+        "amount": "2注"
+      },
+      {
+        "id": "orange-peel",
+        "amount": "1片"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "杯中放入糖浆与苦精，加少许水搅化。",
+      "加入大冰块并倒入威士忌，轻搅 10 秒。",
+      "橙皮扭转增香后放入杯中。"
+    ],
+    "imageKey": "oldFashioned",
+    "difficulty": "进阶",
+    "prepMinutes": 6
+  },
+  {
+    "id": "italian-lady",
+    "name": "意大利女士",
+    "englishName": "Italian Lady",
+    "description": "伏特加与金巴利的意式组合，橙香微苦，是颜值与口感并存的红色佳人。",
+    "tags": [
+      "颜值",
+      "微苦",
+      "果香"
+    ],
+    "ingredients": [
+      {
+        "id": "vodka",
+        "amount": "45 ml"
+      },
+      {
+        "id": "campari",
+        "amount": "15 ml"
+      },
+      {
+        "id": "orange-liqueur",
+        "amount": "15 ml"
+      },
+      {
+        "id": "lemon",
+        "amount": "15 ml"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "所有酒液加入摇壶。",
+      "加冰充分摇合后过滤入杯。",
+      "可用橙片或小花装饰。"
+    ],
+    "imageKey": "cocktailItalianLady",
+    "difficulty": "进阶",
+    "prepMinutes": 5
+  },
+  {
+    "id": "gin-sour",
+    "name": "金酸酒",
+    "englishName": "Gin Sour",
+    "description": "金酒、柠檬与糖浆的经典酸酒结构，橙片点缀，酸甜清爽易入口。",
+    "tags": [
+      "酸甜",
+      "经典",
+      "清爽"
+    ],
+    "ingredients": [
+      {
+        "id": "gin",
+        "amount": "50 ml"
+      },
+      {
+        "id": "lemon",
+        "amount": "25 ml"
+      },
+      {
+        "id": "simple-syrup",
+        "amount": "15 ml"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "所有原料加入摇壶。",
+      "加冰充分摇合后过滤入杯。",
+      "以橙片与迷迭香装饰。"
+    ],
+    "imageKey": "cocktailGinSour",
+    "difficulty": "入门",
+    "prepMinutes": 5
+  },
+  {
+    "id": "blue-love",
+    "name": "蓝色之恋",
+    "englishName": "Blue love",
+    "description": "伏特加与蓝橙利口酒调出海洋般的湛蓝，柠檬提香，是一杯高颜值的清爽长饮。",
+    "tags": [
+      "颜值",
+      "清爽",
+      "微甜"
+    ],
+    "ingredients": [
+      {
+        "id": "vodka",
+        "amount": "40 ml"
+      },
+      {
+        "id": "orange-liqueur",
+        "amount": "20 ml"
+      },
+      {
+        "id": "lemon",
+        "amount": "15 ml"
+      },
+      {
+        "id": "soda-water",
+        "amount": "90 ml"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "杯中加满冰块。",
+      "倒入伏特加、蓝橙利口酒和柠檬汁。",
+      "补苏打水轻搅，以柠檬片装饰。"
+    ],
+    "imageKey": "blueLagoon",
+    "difficulty": "入门",
+    "prepMinutes": 4
+  },
+  {
+    "id": "whiskey-sour",
+    "name": "威士忌酸",
+    "englishName": "Whiskey Sour",
+    "description": "威士忌、柠檬与糖浆的黄金三角，酸甜平衡，是最易入口的威士忌鸡尾酒。",
+    "tags": [
+      "酸甜",
+      "经典",
+      "易饮"
+    ],
+    "ingredients": [
+      {
+        "id": "whiskey",
+        "amount": "45 ml"
+      },
+      {
+        "id": "lemon",
+        "amount": "25 ml"
+      },
+      {
+        "id": "simple-syrup",
+        "amount": "15 ml"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "所有原料加入摇壶。",
+      "加冰充分摇合后过滤入杯。",
+      "可用柠檬片或樱桃装饰。"
+    ],
+    "imageKey": "cocktailWhiskeySour",
+    "difficulty": "入门",
+    "prepMinutes": 5
+  },
+  {
+    "id": "long-island",
+    "name": "长岛冰茶",
+    "englishName": "Long Island Iced Tea",
+    "description": "四种烈酒与可乐的完美伪装，入口像冰茶，后劲十足，点它请量力而行。",
+    "tags": [
+      "烈",
+      "派对",
+      "反差"
+    ],
+    "ingredients": [
+      {
+        "id": "gin",
+        "amount": "15 ml"
+      },
+      {
+        "id": "rum",
+        "amount": "15 ml"
+      },
+      {
+        "id": "vodka",
+        "amount": "15 ml"
+      },
+      {
+        "id": "tequila",
+        "amount": "15 ml"
+      },
+      {
+        "id": "orange-liqueur",
+        "amount": "15 ml"
+      },
+      {
+        "id": "lemon",
+        "amount": "25 ml"
+      },
+      {
+        "id": "cola",
+        "amount": "适量"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "所有烈酒与柠檬汁加冰摇合。",
+      "倒入装满冰块的长饮杯。",
+      "补可乐至杯口，轻搅即可。"
+    ],
+    "imageKey": "cocktailLongIsland",
+    "difficulty": "专业",
+    "prepMinutes": 7
+  },
+  {
+    "id": "dry-martini",
+    "name": "干马天尼",
+    "englishName": "Dry Martini",
+    "description": "金酒与干味美思的极简之作，越\"干\"越纯粹，是仪式感十足的开场酒。",
+    "tags": [
+      "经典",
+      "干冽",
+      "仪式感"
+    ],
+    "ingredients": [
+      {
+        "id": "gin",
+        "amount": "60 ml"
+      },
+      {
+        "id": "dry-vermouth",
+        "amount": "10 ml"
+      },
+      {
+        "id": "olive",
+        "amount": "1颗"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "金酒与干味美思加冰搅拌至冰镇。",
+      "滤入冰镇的 V 形马天尼杯。",
+      "以橄榄装饰。"
+    ],
+    "imageKey": "cocktailDryMartini",
+    "difficulty": "专业",
+    "prepMinutes": 4
+  },
+  {
+    "id": "classic-daiquiri",
+    "name": "代基里",
+    "englishName": "Daiquiri",
+    "description": "白朗姆、青柠与糖浆的极简三角，酸甜平衡，是检验调酒功力的试金石。",
+    "tags": [
+      "经典",
+      "酸甜",
+      "清爽"
+    ],
+    "ingredients": [
+      {
+        "id": "rum",
+        "amount": "45 ml"
+      },
+      {
+        "id": "lime",
+        "amount": "25 ml"
+      },
+      {
+        "id": "simple-syrup",
+        "amount": "10 ml"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "所有原料加入摇壶。",
+      "加冰充分摇合后过滤入冰镇的鸡尾酒杯。",
+      "以青柠片装饰。"
+    ],
+    "imageKey": "cocktailDaiquiri",
+    "difficulty": "入门",
+    "prepMinutes": 5
+  },
+  {
+    "id": "classic-sidecar",
+    "name": "边车",
+    "englishName": "Sidecar",
+    "description": "干邑、橙味利口酒与柠檬的优雅组合，源自巴黎的战间经典，酒体圆润而明亮。",
+    "tags": [
+      "经典",
+      "干冽",
+      "果香"
+    ],
+    "ingredients": [
+      {
+        "id": "cognac",
+        "amount": "45 ml"
+      },
+      {
+        "id": "orange-liqueur",
+        "amount": "20 ml"
+      },
+      {
+        "id": "lemon",
+        "amount": "15 ml"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "所有酒液加入摇壶。",
+      "加冰充分摇合后过滤入冰镇的马天尼杯。",
+      "以柠檬皮或糖边装饰。"
+    ],
+    "imageKey": "cocktailSidecar",
+    "difficulty": "进阶",
+    "prepMinutes": 5
+  },
+  {
+    "id": "classic-boulevardier",
+    "name": "波路内",
+    "englishName": "Boulevardier",
+    "description": "威士忌、金巴利与甜味美思的尼格罗尼近亲，苦甜中多一分谷物的圆润。",
+    "tags": [
+      "经典",
+      "苦甜",
+      "浓郁"
+    ],
+    "ingredients": [
+      {
+        "id": "whiskey",
+        "amount": "45 ml"
+      },
+      {
+        "id": "campari",
+        "amount": "30 ml"
+      },
+      {
+        "id": "sweet-vermouth",
+        "amount": "30 ml"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "所有酒液加冰搅拌至充分冰镇。",
+      "滤入冰镇的鸡尾酒杯。",
+      "以橙皮增香装饰。"
+    ],
+    "imageKey": "cocktailBoulevardier",
+    "difficulty": "进阶",
+    "prepMinutes": 5
+  },
+  {
+    "id": "classic-cosmopolitan",
+    "name": "大都会",
+    "englishName": "Cosmopolitan",
+    "description": "伏特加、蔓越莓与青柠的都市粉色佳人，酸甜轻盈，是 90 年代夜场的标志。",
+    "tags": [
+      "经典",
+      "颜值",
+      "酸甜"
+    ],
+    "ingredients": [
+      {
+        "id": "vodka",
+        "amount": "40 ml"
+      },
+      {
+        "id": "orange-liqueur",
+        "amount": "15 ml"
+      },
+      {
+        "id": "lime",
+        "amount": "15 ml"
+      },
+      {
+        "id": "cranberry-juice",
+        "amount": "30 ml"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "所有原料加入摇壶。",
+      "加冰充分摇合后过滤入冰镇的马天尼杯。",
+      "以青柠片装饰。"
+    ],
+    "imageKey": "cocktailCosmopolitan",
+    "difficulty": "入门",
+    "prepMinutes": 5
+  },
+  {
+    "id": "classic-espresso-martini",
+    "name": "咖啡马天尼",
+    "englishName": "Espresso Martini",
+    "description": "伏特加、咖啡利口酒与现萃浓缩的醇香碰撞，顶部绵密泡沫，微醺又提神。",
+    "tags": [
+      "经典",
+      "咖啡",
+      "微甜"
+    ],
+    "ingredients": [
+      {
+        "id": "vodka",
+        "amount": "50 ml"
+      },
+      {
+        "id": "coffee-liqueur",
+        "amount": "30 ml"
+      },
+      {
+        "id": "simple-syrup",
+        "amount": "10 ml"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "所有原料与一份浓缩咖啡加入摇壶。",
+      "加冰用力摇出泡沫后过滤入冰镇杯。",
+      "以三颗咖啡豆装饰。"
+    ],
+    "imageKey": "cocktailEspressoMartini",
+    "difficulty": "进阶",
+    "prepMinutes": 6
+  },
+  {
+    "id": "classic-bloody-mary",
+    "name": "血腥玛丽",
+    "englishName": "Bloody Mary",
+    "description": "伏特加与番茄汁的咸鲜长饮，随辣椒仔与柠檬自由调味，是经典的早午餐救星。",
+    "tags": [
+      "经典",
+      "咸鲜",
+      "长饮"
+    ],
+    "ingredients": [
+      {
+        "id": "vodka",
+        "amount": "45 ml"
+      },
+      {
+        "id": "tomato-juice",
+        "amount": "90 ml"
+      },
+      {
+        "id": "lemon",
+        "amount": "15 ml"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "杯中加满冰块。",
+      "倒入伏特加、番茄汁与柠檬汁轻搅。",
+      "以芹菜杆或柠檬角装饰，按需加辣椒仔。"
+    ],
+    "imageKey": "cocktailBloodyMary",
+    "difficulty": "进阶",
+    "prepMinutes": 6
+  },
+  {
+    "id": "classic-singapore-sling",
+    "name": "新加坡司令",
+    "englishName": "Singapore Sling",
+    "description": "金酒、菠萝与石榴糖浆的缤纷长饮，源自莱佛士酒店，果香馥郁、颜值出众。",
+    "tags": [
+      "经典",
+      "果香",
+      "颜值"
+    ],
+    "ingredients": [
+      {
+        "id": "gin",
+        "amount": "45 ml"
+      },
+      {
+        "id": "pineapple-juice",
+        "amount": "60 ml"
+      },
+      {
+        "id": "lemon",
+        "amount": "15 ml"
+      },
+      {
+        "id": "grenadine",
+        "amount": "10 ml"
+      },
+      {
+        "id": "soda-water",
+        "amount": "30 ml"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "摇壶加冰摇合金酒、菠萝汁、柠檬汁与石榴糖浆。",
+      "过滤入长饮杯补满冰块。",
+      "补苏打水轻搅，以菠萝片装饰。"
+    ],
+    "imageKey": "cocktailSingaporeSling",
+    "difficulty": "专业",
+    "prepMinutes": 7
+  },
+  {
+    "id": "classic-bellini",
+    "name": "贝里尼",
+    "englishName": "Bellini",
+    "description": "白桃果泥与普罗塞克气泡酒的意式晨光，源自威尼斯哈里酒吧，粉嫩清甜。",
+    "tags": [
+      "经典",
+      "果香",
+      "微甜"
+    ],
+    "ingredients": [
+      {
+        "id": "peach-puree",
+        "amount": "60 ml"
+      },
+      {
+        "id": "prosecco",
+        "amount": "90 ml"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "杯中倒入白桃果泥。",
+      "缓缓注入冰镇的普罗塞克气泡酒。",
+      "轻轻搅拌，以薄荷点缀。"
+    ],
+    "imageKey": "cocktailBellini",
+    "difficulty": "入门",
+    "prepMinutes": 4
+  },
+  {
+    "id": "classic-aperol-spritz",
+    "name": "阿佩罗气泡",
+    "englishName": "Aperol Spritz",
+    "description": "阿佩罗、普罗塞克与苏打的橙红开胃酒，低酒精、清爽微苦，是意式午后的标配。",
+    "tags": [
+      "经典",
+      "清爽",
+      "微苦"
+    ],
+    "ingredients": [
+      {
+        "id": "aperol",
+        "amount": "60 ml"
+      },
+      {
+        "id": "prosecco",
+        "amount": "90 ml"
+      },
+      {
+        "id": "soda-water",
+        "amount": "30 ml"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "大杯加满冰块。",
+      "依次倒入阿佩罗与普罗塞克。",
+      "补苏打水轻搅，以橙片装饰。"
+    ],
+    "imageKey": "cocktailAperolSpritz",
+    "difficulty": "入门",
+    "prepMinutes": 3
+  },
+  {
+    "id": "classic-french-75",
+    "name": "法兰西75",
+    "englishName": "French 75",
+    "description": "金酒、柠檬与香槟的优雅气泡，绵密气泡裹挟着柑橘清亮，庆祝时刻的杯中礼炮。",
+    "tags": [
+      "经典",
+      "气泡",
+      "清爽"
+    ],
+    "ingredients": [
+      {
+        "id": "gin",
+        "amount": "30 ml"
+      },
+      {
+        "id": "lemon",
+        "amount": "15 ml"
+      },
+      {
+        "id": "simple-syrup",
+        "amount": "10 ml"
+      },
+      {
+        "id": "champagne",
+        "amount": "60 ml"
+      },
+      {
+        "id": "ice",
+        "amount": "一杯"
+      }
+    ],
+    "steps": [
+      "金酒、柠檬汁与糖浆加冰摇合后过滤入 flute。",
+      "缓缓注满冰镇香槟。",
+      "以柠檬皮增香。"
+    ],
+    "imageKey": "cocktailFrench75",
+    "difficulty": "进阶",
+    "prepMinutes": 5
+  }
+]

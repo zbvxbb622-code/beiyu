@@ -1,12 +1,21 @@
 import { type Href, useRouter } from 'expo-router';
 import { Clock, Search as SearchIcon, X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
+import { ContentImage } from '@/components/content/ContentImage';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
 import { TopBar } from '@/components/mixology/TopBar';
-import { getImageAsset } from '@/data/imageAssets';
 import { searchAll } from '@/services/searchService';
+import { useContent } from '@/state/ContentState';
 import { useMixology } from '@/state/MixologyState';
 import { colors, radii } from '@/styles/mixologyTheme';
 import type { SearchResult } from '@/types/mixology';
@@ -26,11 +35,12 @@ const typeRoutes: Record<SearchResult['type'], (id: string) => Href> = {
 export default function SearchScreen() {
   const router = useRouter();
   const { interactionState, addSearchHistory, clearSearchHistory } = useMixology();
+  const { snapshot, isRefreshing, lastRefreshError, refresh } = useContent();
   const [query, setQuery] = useState('');
 
   const results = useMemo(
-    () => searchAll(query, interactionState.localCommunityPosts),
-    [query, interactionState.localCommunityPosts]
+    () => searchAll(query, interactionState.localCommunityPosts, snapshot),
+    [query, interactionState.localCommunityPosts, snapshot]
   );
 
   const handleSubmit = () => {
@@ -66,7 +76,19 @@ export default function SearchScreen() {
         ) : null}
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => void refresh()}
+            tintColor={colors.pink}
+          />
+        }>
+        {lastRefreshError ? (
+          <Text style={styles.refreshNotice}>{lastRefreshError}</Text>
+        ) : null}
         {!query ? (
           <View>
             {interactionState.searchHistory.length > 0 ? (
@@ -95,7 +117,11 @@ export default function SearchScreen() {
         ) : (
           results.map((result) => (
             <Pressable key={`${result.type}-${result.id}`} onPress={() => handleResultPress(result)} style={styles.resultRow}>
-              <Image source={getImageAsset(result.imageKey)} style={styles.resultImage} />
+              <ContentImage
+                imageKey={result.imageKey}
+                imageUrl={result.imageUrl}
+                style={styles.resultImage}
+              />
               <View style={styles.resultCopy}>
                 <View style={styles.resultTitleRow}>
                   <Text style={styles.resultTitle} numberOfLines={1}>{result.title}</Text>
@@ -132,6 +158,12 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: 16,
     paddingBottom: 120,
+  },
+  refreshNotice: {
+    color: colors.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 8,
   },
   historyHeader: {
     flexDirection: 'row',

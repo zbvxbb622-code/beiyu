@@ -23,8 +23,18 @@ function formatDateKey(date: Date): string {
 
 // 每日推荐：从全部经典酒款中按日期确定性随机选取 1 款，
 // 当天稳定、隔天自动轮换。
-export function getDailyClassicFeature(date: Date = new Date()): CocktailRecipe {
-  const pool = cocktailRecipes;
+export function getDailyClassicFeature(date?: Date): CocktailRecipe;
+export function getDailyClassicFeature(
+  date: Date,
+  pool: CocktailRecipe[]
+): CocktailRecipe | undefined;
+export function getDailyClassicFeature(
+  date: Date = new Date(),
+  pool: CocktailRecipe[] = cocktailRecipes
+): CocktailRecipe | undefined {
+  if (pool.length === 0) {
+    return undefined;
+  }
   const index = hashString(formatDateKey(date)) % pool.length;
 
   return pool[index];

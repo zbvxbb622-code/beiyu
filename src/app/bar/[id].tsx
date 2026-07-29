@@ -1,18 +1,28 @@
 import { useLocalSearchParams } from 'expo-router';
 import { Heart, Navigation, Phone, Star, ThumbsUp } from 'lucide-react-native';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Image,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
+import { ContentImage } from '@/components/content/ContentImage';
 import { TopBar } from '@/components/mixology/TopBar';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
 import { getImageAsset } from '@/data/imageAssets';
-import { getBarVenueById } from '@/services/contentService';
+import { useContent } from '@/state/ContentState';
 import { useMixology } from '@/state/MixologyState';
 import { colors, radii } from '@/styles/mixologyTheme';
 
 export default function BarDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { interactionState, toggleVenueFavorite } = useMixology();
-  const venue = getBarVenueById(String(id));
+  const { snapshot, isRefreshing, lastRefreshError, refresh } = useContent();
+  const venue = snapshot.bars.find((item) => item.id === String(id));
 
   if (!venue) {
     return (
@@ -28,10 +38,23 @@ export default function BarDetailScreen() {
   return (
     <ScreenShell>
       <TopBar title="详情" right={<Pressable onPress={() => toggleVenueFavorite(venue.id)} hitSlop={10}><Heart color={favorite ? colors.pink : colors.text} fill={favorite ? colors.pink : 'transparent'} size={24} /></Pressable>} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <Image
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => void refresh()}
+            tintColor={colors.pink}
+          />
+        }>
+        {lastRefreshError ? (
+          <Text style={styles.refreshNotice}>{lastRefreshError}</Text>
+        ) : null}
+        <ContentImage
           testID="bar-detail-hero"
-          source={getImageAsset(venue.imageKey)}
+          imageKey={venue.imageKey}
+          imageUrl={venue.imageUrl}
           resizeMode="cover"
           style={styles.hero}
         />
@@ -128,6 +151,12 @@ export default function BarDetailScreen() {
 const styles = StyleSheet.create({
   content: {
     paddingBottom: 32,
+  },
+  refreshNotice: {
+    color: colors.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
   },
   empty: {
     color: colors.text,

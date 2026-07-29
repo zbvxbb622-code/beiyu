@@ -22,10 +22,10 @@ def assert_object_schema(
     assert set(schema["required"]) == properties
 
 
-def test_openapi_has_exact_stage_one_paths_and_explicit_success_schemas() -> None:
+def test_openapi_has_exact_stage_two_paths_and_explicit_success_schemas() -> None:
     schema = create_app().openapi()
 
-    assert set(schema["paths"]) == {
+    public_paths = {
         "/api/v1",
         "/api/v1/auth/devices",
         "/api/v1/auth/devices/{device_id}",
@@ -33,18 +33,49 @@ def test_openapi_has_exact_stage_one_paths_and_explicit_success_schemas() -> Non
         "/api/v1/auth/logout",
         "/api/v1/auth/refresh",
         "/api/v1/auth/sms-codes",
+        "/api/v1/bars",
+        "/api/v1/bars/{public_id}",
         "/api/v1/cellar/items",
         "/api/v1/cellar/items/batch",
         "/api/v1/cellar/items/{item_id}",
+        "/api/v1/home",
+        "/api/v1/ingredients",
+        "/api/v1/knowledge",
+        "/api/v1/knowledge/{public_id}",
         "/api/v1/me/account",
         "/api/v1/me/age-confirmation",
         "/api/v1/me/bootstrap",
         "/api/v1/me/local-sync",
         "/api/v1/me/privacy",
         "/api/v1/me/profile",
+        "/api/v1/recipes",
+        "/api/v1/recipes/{public_id}",
+        "/api/v1/search",
         "/health/live",
         "/health/ready",
     }
+    admin_paths = set()
+    for resource in {
+        "ingredients",
+        "recipes",
+        "bars",
+        "knowledge",
+        "banners",
+        "shortcuts",
+    }:
+        prefix = f"/api/v1/admin/{resource}"
+        admin_paths.update(
+            {
+                prefix,
+                f"{prefix}/{{public_id}}",
+                f"{prefix}/{{public_id}}/archive",
+                f"{prefix}/{{public_id}}/publish",
+                f"{prefix}/{{public_id}}/rollback",
+                f"{prefix}/{{public_id}}/versions",
+            }
+        )
+
+    assert set(schema["paths"]) == public_paths | admin_paths
 
     response_schema_refs = {
         "/api/v1": "#/components/schemas/ApiRootResponse",
@@ -67,7 +98,7 @@ def test_openapi_has_exact_stage_one_paths_and_explicit_success_schemas() -> Non
     }
 
 
-def test_stage_one_contract_uses_bearer_auth_and_camel_case() -> None:
+def test_stage_two_contract_uses_bearer_auth_and_camel_case() -> None:
     schema = create_app().openapi()
     assert schema["components"]["securitySchemes"]["HTTPBearer"] == {
         "type": "http",
@@ -82,6 +113,10 @@ def test_stage_one_contract_uses_bearer_auth_and_camel_case() -> None:
         ("/api/v1/me/bootstrap", "get"),
         ("/api/v1/me/profile", "patch"),
         ("/api/v1/me/local-sync", "post"),
+        ("/api/v1/admin/recipes", "get"),
+        ("/api/v1/admin/recipes", "post"),
+        ("/api/v1/admin/bars", "post"),
+        ("/api/v1/admin/banners/{public_id}/publish", "post"),
     }
     for path, method in protected_operations:
         assert schema["paths"][path][method]["security"] == [{"HTTPBearer": []}]

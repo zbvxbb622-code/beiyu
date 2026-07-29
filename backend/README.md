@@ -1,16 +1,15 @@
 # Beiyu API
 
-Stage 1 is the locally runnable private-data backend for Beiyu. It includes
+Stage 2 is the locally runnable account and content backend for Beiyu. It includes
 phone OTP login, rotating access and refresh sessions, device management,
 profile and privacy settings, age confirmation, startup bootstrap, local-data
-sync, and private cellar CRUD. PostgreSQL persistence, Alembic migrations,
-structured request logs, health checks, and repeatable quality commands are
-included.
+sync, private cellar CRUD, published recipes, ingredients, bars, drink
+knowledge, home configuration, search, and versioned editorial administration.
+PostgreSQL persistence, Alembic migrations, structured request logs, health
+checks, and repeatable quality commands are included.
 
-Real SMS, media upload, legal-name verification, AI chat, community features,
-and cloud infrastructure are intentionally not active yet. Their boundaries
-remain explicit so later providers can be added without changing the mobile
-contracts delivered in this stage.
+Real SMS, media upload, legal-name verification, AI chat persistence, community
+persistence, and cloud infrastructure are intentionally not active yet.
 
 ## Prerequisites
 
@@ -86,6 +85,14 @@ make test       # run tests against the dedicated localhost:5433/beiyu_test DB
 make lint       # run Ruff
 make typecheck  # run ty
 make check      # migrate, lint, type-check, and test
+
+# Import canonical app content; repeating this is safe.
+uv run python -m app.cli seed-content
+
+# Promote a user who has logged in at least once.
+uv run python -m app.cli promote-admin \
+  --phone +8613800138000 \
+  --role EDITOR
 ```
 
 Override the test database URL only with another dedicated database whose name
@@ -109,7 +116,7 @@ make migrate
 - Readiness: `http://localhost:8000/health/ready`
 - Versioned API root: `http://localhost:8000/api/v1`
 
-## Local Stage 1 Flow
+## Local Login Flow
 
 With the API running, request a local login code:
 
@@ -135,9 +142,33 @@ Phone numbers and OTP values are never stored in plaintext.
 The API namespace is `/api/v1`; liveness and readiness remain unversioned for
 operational tooling.
 
+## Content Flow
+
+Apply migrations and import the bundled editorial content:
+
+```bash
+cd backend
+set -a && . ./.env && set +a
+uv run alembic upgrade head
+uv run python -m app.cli seed-content
+```
+
+Public content is available from `/home`, `/ingredients`, `/recipes`, `/bars`,
+`/knowledge`, and `/search` under `/api/v1`. Public routes return only
+`PUBLISHED` rows.
+
+All `/api/v1/admin/*` content routes require a bearer token belonging to an
+`EDITOR` or `SUPER_ADMIN`. New content starts as `DRAFT`; updates, publishing,
+archiving, and rollback require `expectedRevision`. Every successful action
+creates an immutable version snapshot. Rollback creates a new draft and never
+publishes automatically.
+
+The complete phone-to-Swagger-to-Expo walkthrough is in
+[`docs/backend-stage2-local-demo.md`](../docs/backend-stage2-local-demo.md).
+
 ## OpenAPI Contract Snapshot
 
-`openapi.json` is the committed Stage 1 contract snapshot for frontend review.
+`openapi.json` is the committed Stage 2 contract snapshot for frontend review.
 Regenerate it from the running application schema after an intentional public
 API change, then review its diff before committing:
 
@@ -149,7 +180,6 @@ BEIYU_SECRET_KEY=change-me \
 uv run python scripts/generate_openapi.py
 ```
 
-The snapshot contains health, authentication, device, profile, privacy,
-bootstrap, local-sync, and private-cellar endpoints. Review every change for
-unexpected paths and accidental exposure of configuration, hashes, secrets,
-tokens, or internal error details.
+The snapshot also contains public and administrative content routes. Review
+every change for unexpected paths and accidental exposure of configuration,
+hashes, secrets, tokens, database UUIDs, or internal error details.

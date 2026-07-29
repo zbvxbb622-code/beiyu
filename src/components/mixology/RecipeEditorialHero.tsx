@@ -1,9 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { ChevronRight, Clock, Martini } from 'lucide-react-native';
-import { ImageBackground, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
-import { getImageAsset } from '@/data/imageAssets';
+import { ContentImageBackground } from '@/components/content/ContentImage';
 import { colors, gradients, radii } from '@/styles/mixologyTheme';
 import type { CocktailRecipe } from '@/types/mixology';
 
@@ -27,9 +27,10 @@ export function RecipeEditorialHero({
       onPress={() => router.push({ pathname: '/recipe/[id]', params: { id: recipe.id } })}
       style={({ pressed }) => [styles.root, pressed ? styles.pressed : null]}>
       <View style={styles.hero}>
-        <ImageBackground
+        <ContentImageBackground
           testID="recipe-hero-image"
-          source={getImageAsset(recipe.imageKey)}
+          imageKey={recipe.imageKey}
+          imageUrl={recipe.imageUrl}
           resizeMode="cover"
           style={[styles.heroImage, compact ? styles.heroImageCompact : null]}
           imageStyle={styles.heroImageRadius}>
@@ -76,7 +77,7 @@ export function RecipeEditorialHero({
               </View>
             </View>
           </LinearGradient>
-        </ImageBackground>
+        </ContentImageBackground>
       </View>
     </Pressable>
   );

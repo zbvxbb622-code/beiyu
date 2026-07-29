@@ -1,11 +1,18 @@
 import { type Href, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { BarVenueCard } from '@/components/mixology/BarVenueCard';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
-import { getBarVenues } from '@/services/contentService';
+import { useContent } from '@/state/ContentState';
 import { useMixology } from '@/state/MixologyState';
 import { colors, spacing } from '@/styles/mixologyTheme';
 
@@ -23,8 +30,9 @@ const tabs: BarsTab[] = [
 export default function BarsScreen() {
   const router = useRouter();
   const { interactionState, toggleVenueFavorite } = useMixology();
+  const { snapshot, isRefreshing, lastRefreshError, refresh } = useContent();
   const [activeTab, setActiveTab] = useState<BarsTab['id']>('discover');
-  const venues = getBarVenues();
+  const venues = snapshot.bars;
   // 「关注」展示已收藏酒吧；推荐/附近沿用 Mock 全量列表
   const visibleVenues = activeTab === 'following' ? venues.filter((venue) => interactionState.favoriteVenueIds.includes(venue.id)) : venues;
 
@@ -45,7 +53,19 @@ export default function BarsScreen() {
         <View style={styles.back} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => void refresh()}
+            tintColor={colors.pink}
+          />
+        }>
+        {lastRefreshError ? (
+          <Text style={styles.refreshNotice}>{lastRefreshError}</Text>
+        ) : null}
         {visibleVenues.map((venue) => (
           <BarVenueCard
             key={venue.id}
@@ -102,6 +122,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: spacing.bottomNavPadding,
+  },
+  refreshNotice: {
+    color: colors.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 8,
   },
   empty: {
     color: colors.textMuted,

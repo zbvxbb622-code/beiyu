@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { StyleSheet } from 'react-native';
 
 import PublishPostScreen from '@/app/publish-post';
+import { ContentTestProvider } from '@/test-utils/ContentTestProvider';
 import { colors } from '@/styles/mixologyTheme';
 
 const mockPublishPost = jest.fn();
@@ -39,7 +40,11 @@ describe('PublishPostScreen 发布流程', () => {
   });
 
   it('发布携带图片/话题/可见性/评论开关，成功后回社区', async () => {
-    const screen = await render(<PublishPostScreen />);
+    const screen = await render(
+      <ContentTestProvider>
+        <PublishPostScreen />
+      </ContentTestProvider>
+    );
 
     // 预填内容就位
     await waitFor(() => {

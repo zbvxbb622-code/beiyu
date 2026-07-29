@@ -12,6 +12,7 @@ from app.db.models.accounts import (
     User,
     UserDevice,
     UserProfile,
+    UserRole,
     UserStatus,
 )
 from app.db.models.cellar import CellarItem, CellarItemSource
@@ -38,6 +39,7 @@ def test_account_models_use_expected_tables_and_defaults() -> None:
     assert AuthSession.__tablename__ == "auth_sessions"
     assert SmsCode.__tablename__ == "sms_codes"
     assert user.status is UserStatus.ACTIVE
+    assert user.role is UserRole.USER
     assert user.membership_level is MembershipLevel.FREE
     assert user.memory_enabled is True
     assert profile.nickname == "游客调酒师"
