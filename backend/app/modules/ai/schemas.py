@@ -186,7 +186,7 @@ class AiGenerationRequest(ApiModel):
     cellar_ingredient_ids: list[str] = Field(default_factory=list)
     candidate_recipes: list[AiRecipeCandidate] = Field(default_factory=list)
     max_output_chars: int = Field(default=MAX_PROVIDER_REPLY_CHARS, ge=1, le=MAX_PROVIDER_REPLY_CHARS)
-    context_text: str = Field(min_length=1)
+    context_text: str = Field(min_length=1, exclude=True)
 
 
 class AiGenerationResult(ApiModel):

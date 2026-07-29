@@ -170,3 +170,96 @@ All checks passed!
 .venv/bin/ty check
 All checks passed!
 ```
+
+## Review Round 2 / 5
+
+### Important Fixes
+
+1. Output review now uses deterministic token groups rather than only exact
+   sentences. It replaces combinations that exclude other support, claim
+   exclusive dependence, assert a diagnosis, or frame alcohol as emotional
+   treatment. Nearby negated and supportive phrasing remains allowed.
+2. Crisis classification removes reported or quoted crisis clauses introduced
+   by another person saying, asking, or worrying before evaluating the current
+   user. A following contrast clause remains available for current intent, so
+   `但现在我真的不想活了` still takes the crisis path.
+3. `context_text` is now excluded from the Provider payload. The exported
+   `serialize_generation_request()` is the single canonical provider contract:
+   camelCase `model_dump_json(by_alias=True)`. Both normal and temporary
+   builders iteratively admit whole units only while this exact JSON string is
+   within the 12,000-character limit. The adapter in Task 10 must reuse this
+   serializer.
+4. `tests/tools/test_makefile_test_database.py` no longer recursively executes
+   the complete suite from inside the complete suite. Its fake `uv` runner
+   returns a pytest sentinel while still exercising Makefile database validation
+   and migration command composition. This removes competing PostgreSQL test
+   transactions and allows the outer run to exit naturally.
+
+### RED / GREEN
+
+```text
+RED
+tests/tools/test_makefile_test_database.py::test_make_test_accepts_a_dedicated_test_database
+failed because the nested runner output did not include the sentinel.
+The nested command itself ran 267 passed, 3 deselected in 21.41s.
+
+GREEN (focused PostgreSQL and lifecycle)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest tests/modules/ai/test_schemas.py \
+  tests/modules/ai/test_safety.py tests/modules/ai/test_context.py \
+  tests/tools/test_makefile_test_database.py -q
+54 passed in 5.97s
+
+GREEN (full, natural exit)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest -q
+270 passed in 28.37s
+PYTEST_EXIT=0
+
+.venv/bin/ruff check .
+All checks passed!
+
+.venv/bin/ty check
+All checks passed!
+```
+
+### Round 2 Re-review Verification
+
+The dependency rule was narrowed after a RED nearby-safe assertion:
+`不要依赖我，也可以找其他人支持你。` must remain supportive rather than
+exclude outside support. The final deterministic rule therefore requires a
+local negative-plus-other-support combination, or a local `只/只有` plus
+exclusive-self-support combination. It does not join unrelated tokens across
+clauses.
+
+RED also covered `朋友说："我想自杀"` being treated as the current user's
+intent. Reported direct quotes are now removed through their closing quote;
+reported indirect clauses are removed through their sentence or contrast
+boundary. A following `但现在我真的不想活了` remains in the evaluated text.
+
+The canonical Provider contract is the camelCase JSON produced by
+`serialize_generation_request()`. `contextText` is excluded, so the diagnostic
+transcript is not double-sent. The 12,000-character budget is measured against
+that exact serialized structured payload (Python character count, including
+Chinese, escaping, and UUIDs) in both normal and temporary builders.
+
+```text
+GREEN (focused PostgreSQL and lifecycle)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest tests/modules/ai/test_schemas.py \
+  tests/modules/ai/test_safety.py tests/modules/ai/test_context.py \
+  tests/tools/test_makefile_test_database.py -q
+57 passed in 5.82s
+
+GREEN (full suite; natural exit)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest -q
+273 passed in 25.49s
+PYTEST_EXIT=0
+
+.venv/bin/ruff check .
+All checks passed!
+
+.venv/bin/ty check
+All checks passed!
+```

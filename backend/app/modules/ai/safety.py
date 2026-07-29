@@ -24,16 +24,11 @@ NEGATED_CRISIS_PATTERN = re.compile(
     r"(?:我|自己)?(?:不是|没有)(?:想)?(?:自杀|自杀想法|自杀念头)",
     re.IGNORECASE,
 )
-THIRD_PARTY_CRISIS_PATTERN = re.compile(
-    r"(?:朋友|同学|家人|他|她)(?:说|提到|表示|觉得)?.{0,12}"
-    r"(?:想自杀|不想活了|结束生命|伤害自己|割腕|去死|想离开这个世界)",
+REPORTING_CRISIS_PATTERN = re.compile(
+    r"(?:朋友|同学|家人|别人|他|她)(?:说|问|提到|表示|觉得|担心)",
     re.IGNORECASE,
 )
-FIRST_PERSON_CRISIS_PATTERN = re.compile(
-    r"(?:我|自己).{0,8}"
-    r"(?:想自杀|不想活了|结束生命|伤害自己|割腕|去死|想离开这个世界)",
-    re.IGNORECASE,
-)
+REPORTING_BOUNDARY_PATTERN = re.compile(r"[”\"。！？；;]|，(?:但|不过|可是|然而)")
 MINOR_PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE)
     for pattern in ("未成年", "未满18", "未满十八", "我是1[0-7]岁", "我才1[0-7]岁", "初中生")
@@ -68,28 +63,38 @@ MEDICAL_INPUT_PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE)
     for pattern in ("帮我诊断", "诊断我", "我是不是.*(?:抑郁|焦虑|酒精依赖)")
 )
-OUTPUT_DIAGNOSIS_PATTERNS = tuple(
-    re.compile(pattern, re.IGNORECASE)
-    for pattern in (
-        "你(?:就是|已经|肯定).{0,12}(?:抑郁症|焦虑症|酒精依赖|精神疾病)",
-        "你患有.{0,12}(?:抑郁症|焦虑症|酒精依赖|精神疾病)",
-        "可以确诊.{0,12}(?:抑郁症|焦虑症|酒精依赖|精神疾病)",
-        "诊断(?:为|是).{0,12}(?:抑郁症|焦虑症|酒精依赖|精神疾病)",
-    )
+EXCLUDES_OTHER_SUPPORT_PATTERN = re.compile(
+    r"(?:"
+    r"(?:别|不要|无需).{0,6}(?:找|相信).{0,6}(?:其他人|别人)"
+    r"|(?:别|不要|无需).{0,6}依赖(?:其他人|别人)"
+    r")",
+    re.IGNORECASE,
 )
-OUTPUT_OVERUSE_PATTERNS = tuple(
-    re.compile(pattern, re.IGNORECASE)
-    for pattern in (
-        "继续喝.*(?:舒服|没事|可以)",
-        "再喝.*(?:舒服|没事|可以)",
-        "多喝一点",
-        "(?:喝酒|喝一杯|酒精).{0,12}(?:缓解|减轻|解决).{0,12}(?:难过|焦虑|失眠|痛苦)",
-        "(?:难过|焦虑|失眠|痛苦).{0,12}(?:喝酒|喝一杯|酒精)",
-    )
+EXCLUSIVE_SELF_SUPPORT_PATTERN = re.compile(
+    r"(?:只|只有).{0,6}(?:依赖我|需要我|我.{0,3}懂你)", re.IGNORECASE
 )
-OUTPUT_DEPENDENCY_PATTERNS = tuple(
-    re.compile(pattern, re.IGNORECASE)
-    for pattern in ("只需要依赖我", "只有我懂你", "不要找别人", "只要有我")
+DIAGNOSIS_ASSERTION_TOKENS = (
+    "根据你的表现",
+    "我判断",
+    "你患有",
+    "你就是",
+    "你已经",
+    "确诊",
+    "可以确定",
+    "可以确诊",
+)
+DIAGNOSIS_TOKENS = ("抑郁", "焦虑", "精神疾病", "酒精依赖")
+ALCOHOL_TOKENS = ("酒精", "喝酒", "灌醉", "麻痹")
+ALCOHOL_RELIEF_TOKENS = ("缓解", "忘掉", "好受", "解决")
+EMOTIONAL_DISTRESS_TOKENS = ("难过", "痛苦", "焦虑", "失眠")
+ALCOHOL_NEGATION_PATTERN = re.compile(
+    r"(?:酒精|喝酒|灌醉|麻痹).{0,8}(?:不能|无法|不会|不该).{0,8}"
+    r"(?:缓解|忘掉|好受|解决)",
+    re.IGNORECASE,
+)
+CONTINUED_DRINKING_ENCOURAGEMENT_PATTERN = re.compile(
+    r"(?:继续喝|再喝|多喝).{0,12}(?:舒服|没事|可以)",
+    re.IGNORECASE,
 )
 INTERNAL_PROMPT_PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE)
@@ -135,15 +140,71 @@ def _risk_decision(label: AiSafetyLabel, reply: str) -> SafetyDecision:
     return SafetyDecision(label=label, fixed_reply=reply, allow_recipes=False, allow_memory=False)
 
 
+def _without_reported_crisis_content(content: str) -> str:
+    remaining: list[str] = []
+    cursor = 0
+    for match in REPORTING_CRISIS_PATTERN.finditer(content):
+        direct_quote = re.match(r"[：:\s]*[\"“]", content[match.end() :])
+        if direct_quote is not None:
+            quote_start = match.end() + direct_quote.end()
+            quote_end = re.search(r"[\"”]", content[quote_start:])
+            if quote_end is not None:
+                reported_end = quote_start + quote_end.end()
+                reported = content[match.start() : reported_end]
+                if _matches(reported, SELF_HARM_PATTERNS):
+                    remaining.append(content[cursor : match.start()])
+                    cursor = reported_end
+                    continue
+        boundary = REPORTING_BOUNDARY_PATTERN.search(content, match.end())
+        if boundary is None:
+            continue
+        reported = content[match.start() : boundary.start()]
+        if not _matches(reported, SELF_HARM_PATTERNS):
+            continue
+        remaining.append(content[cursor : match.start()])
+        cursor = boundary.end()
+    remaining.append(content[cursor:])
+    return "".join(remaining)
+
+
 def _is_current_user_crisis(content: str) -> bool:
-    if not _matches(content, SELF_HARM_PATTERNS):
+    current_content = _without_reported_crisis_content(content)
+    if not _matches(current_content, SELF_HARM_PATTERNS):
         return False
-    if THIRD_PARTY_CRISIS_PATTERN.search(content) and not FIRST_PERSON_CRISIS_PATTERN.search(content):
-        return False
-    negated = NEGATED_CRISIS_PATTERN.search(content)
+    negated = NEGATED_CRISIS_PATTERN.search(current_content)
     if negated is None:
         return True
-    return _matches(content[negated.end() :], SELF_HARM_PATTERNS)
+    return _matches(current_content[negated.end() :], SELF_HARM_PATTERNS)
+
+
+def _contains_any(content: str, tokens: tuple[str, ...]) -> bool:
+    return any(token in content for token in tokens)
+
+
+def _is_unsafe_dependency(reply: str) -> bool:
+    return bool(
+        EXCLUDES_OTHER_SUPPORT_PATTERN.search(reply)
+        or EXCLUSIVE_SELF_SUPPORT_PATTERN.search(reply)
+    )
+
+
+def _is_unsafe_diagnosis(reply: str) -> bool:
+    return _contains_any(reply, DIAGNOSIS_ASSERTION_TOKENS) and _contains_any(
+        reply,
+        DIAGNOSIS_TOKENS,
+    )
+
+
+def _is_unsafe_alcohol_relief(reply: str) -> bool:
+    if CONTINUED_DRINKING_ENCOURAGEMENT_PATTERN.search(reply):
+        return True
+    if ALCOHOL_NEGATION_PATTERN.search(reply):
+        return False
+    return (
+        _contains_any(reply, ALCOHOL_TOKENS)
+        and _contains_any(reply, ALCOHOL_RELIEF_TOKENS)
+        and _contains_any(reply, EMOTIONAL_DISTRESS_TOKENS)
+    )
 
 
 def classify_input(content: str, user: User) -> SafetyDecision:
@@ -194,9 +255,9 @@ def review_output(
     unsafe_reply = (
         not reply
         or len(reply) > 8_000
-        or _matches(reply, OUTPUT_DIAGNOSIS_PATTERNS)
-        or _matches(reply, OUTPUT_OVERUSE_PATTERNS)
-        or _matches(reply, OUTPUT_DEPENDENCY_PATTERNS)
+        or _is_unsafe_diagnosis(reply)
+        or _is_unsafe_alcohol_relief(reply)
+        or _is_unsafe_dependency(reply)
         or _matches(reply, INTERNAL_PROMPT_PATTERNS)
     )
     if unsafe_reply:

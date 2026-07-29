@@ -25,7 +25,10 @@ import sys
 
 arguments = sys.argv[1:]
 assert arguments.pop(0) == "run"
-if arguments[0] in {"alembic", "pytest"}:
+if arguments[0] == "pytest":
+    print("make-target-pytest-runner passed")
+    raise SystemExit(0)
+if arguments[0] == "alembic":
     arguments = [sys.executable, "-m", *arguments]
 elif arguments[0] == "python":
     arguments = [sys.executable, *arguments[1:]]
@@ -61,7 +64,7 @@ def test_make_test_accepts_a_dedicated_test_database(tmp_path: Path) -> None:
     result = run_make_target(tmp_path, "test", VALID_TEST_DATABASE_URL)
 
     assert result.returncode == 0, result.stderr
-    assert "passed" in result.stdout
+    assert "make-target-pytest-runner passed" in result.stdout
 
 
 def test_make_test_rejects_a_non_test_database(tmp_path: Path) -> None:

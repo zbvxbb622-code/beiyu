@@ -22,6 +22,7 @@ from app.modules.ai.context import (
     build_normal_generation_request,
     build_temporary_generation_request,
     derive_conversation_title,
+    serialize_generation_request,
 )
 from app.modules.ai.safety import classify_input
 from app.modules.ai.schemas import TemporaryContextMessage
@@ -242,7 +243,9 @@ def test_context_budget_preserves_persona_current_and_recent_assistant_without_v
         settings(),
     )
 
-    assert len(request.context_text) <= MAX_PROVIDER_CONTEXT_CHARS
+    assert serialize_generation_request(request) == request.model_dump_json(by_alias=True)
+    assert len(request.model_dump_json(by_alias=True)) <= MAX_PROVIDER_CONTEXT_CHARS
+    assert "contextText" not in request.model_dump_json(by_alias=True)
     assert request.system_prompt in request.context_text
     assert request.messages[-1].content == "当前消息" * 400
     assert request.messages[-2].role == "assistant"
@@ -308,7 +311,9 @@ def test_temporary_context_uses_shared_budget_and_keeps_newest_messages(
         settings(),
     )
 
-    assert len(request.context_text) <= MAX_PROVIDER_CONTEXT_CHARS
+    assert serialize_generation_request(request) == request.model_dump_json(by_alias=True)
+    assert len(request.model_dump_json(by_alias=True)) <= MAX_PROVIDER_CONTEXT_CHARS
+    assert "contextText" not in request.model_dump_json(by_alias=True)
     assert request.messages[-1].content == "当前消息" * 400
     assert request.messages[-2].content == temporary_context[-1].content
     assert temporary_context[0].content not in [message.content for message in request.messages]
@@ -347,7 +352,9 @@ def test_context_budget_never_includes_partial_cellar_ids_or_recipe_candidates(
         settings(),
     )
 
-    assert len(request.context_text) <= MAX_PROVIDER_CONTEXT_CHARS
+    assert serialize_generation_request(request) == request.model_dump_json(by_alias=True)
+    assert len(request.model_dump_json(by_alias=True)) <= MAX_PROVIDER_CONTEXT_CHARS
+    assert "contextText" not in request.model_dump_json(by_alias=True)
     assert all(ingredient_id in cellar_ids for ingredient_id in request.cellar_ingredient_ids)
     assert all(str(recipe.id) in request.context_text for recipe in request.candidate_recipes)
 

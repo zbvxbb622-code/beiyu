@@ -139,6 +139,11 @@ def _request(
     )
 
 
+def serialize_generation_request(request: AiGenerationRequest) -> str:
+    """Canonical text payload consumed by every AI provider adapter."""
+    return request.model_dump_json(by_alias=True)
+
+
 def _fits_provider_budget(
     *,
     memories: list[str],
@@ -146,17 +151,16 @@ def _fits_provider_budget(
     cellar_ingredient_ids: list[str],
     candidate_recipes: list[AiRecipeCandidate],
 ) -> bool:
-    return (
-        len(
-            _context_text(
-                memories=memories,
+    return len(
+        serialize_generation_request(
+            _request(
                 messages=messages,
+                memories=memories,
                 cellar_ingredient_ids=cellar_ingredient_ids,
                 candidate_recipes=candidate_recipes,
             )
         )
-        <= MAX_PROVIDER_CONTEXT_CHARS
-    )
+    ) <= MAX_PROVIDER_CONTEXT_CHARS
 
 
 def _fit_context(
