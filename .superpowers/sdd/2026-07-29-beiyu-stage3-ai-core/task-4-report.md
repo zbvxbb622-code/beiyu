@@ -56,3 +56,38 @@ passed
 ## 遗留风险
 
 - 未执行连接真实后端和实体设备 SecureStore 的端到端验证；自动化测试覆盖 repository 合同、Provider 生命周期和页面交互。
+
+## Fix Round 1/5
+
+### 审查修复
+
+- 为 Provider 增加统一会话清理路径：内存 access token 立即失效，SecureStore refresh token 尽力清理且不遮蔽原始认证错误，随后仅在组件仍挂载时落为 `signedOut`。
+- 将 SecureStore 初始读取纳入恢复错误处理，读取异常不再留下未处理 rejection 或永久 `restoring`。
+- 为 Task 3 认证客户端的二次 401 回调注册 Provider 会话失效处理；它会更新 Provider 状态而不引入对 client 的循环依赖。
+- 为登录页短信、登录/bootstrap 完成回调和倒计时增加 mounted guard；真实卸载后 resolve/reject 不会再更新组件状态或继续导航。
+
+### RED 证据
+
+先新增 Provider 回归用例，覆盖 SecureStore 读取拒绝、登录后本地同步初始化失败的双令牌回滚，以及认证客户端会话失效回调；并扩展登录页测试，在同一次真实卸载后 resolve 短信请求、reject 登录初始化。
+
+运行：
+
+```text
+npm test -- --runInBand src/state/__tests__/AuthState.test.tsx src/components/mixology/__tests__/LoginScreen.test.tsx src/components/mixology/__tests__/WelcomeScreen.test.tsx src/components/mixology/__tests__/SettingsScreen.test.tsx
+```
+
+RED 结果：SecureStore 读取异常停在 `restoring` 并抛出；登录初始化失败未调用 `setAccessToken(null)` 或清理 SecureStore；认证失效回调未切换 `signedOut`。登录页测试以真实卸载后的完成路径验证所有异步状态更新均受保护。
+
+### GREEN 与验证
+
+```text
+Focused tests: 4 suites passed, 26 tests passed
+npm test -- --runInBand: 64 suites passed, 217 tests passed
+npm run lint: passed
+npm run typecheck: passed
+git diff --check: passed
+```
+
+### 修复提交
+
+`0cdfa3c148196977f6e93bd50f5bbae5ea3ecd83` (`fix: harden mobile auth session recovery`)
