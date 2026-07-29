@@ -138,6 +138,25 @@ def test_crisis_attribution_keeps_later_current_intent_clauses(
     assert classify_input(content, user).label is label
 
 
+@pytest.mark.parametrize(
+    ("content", "label"),
+    [
+        ("朋友说我很好，但他想自杀。", AiSafetyLabel.SAFE),
+        ("朋友说我很好，而她想结束生命。", AiSafetyLabel.SAFE),
+        ("朋友说我想自杀，但我现在真的不想活了。", AiSafetyLabel.SELF_HARM_CRISIS),
+        ("他担心我想自杀。", AiSafetyLabel.SAFE),
+        ("他说他想自杀，我也不想活了。", AiSafetyLabel.SELF_HARM_CRISIS),
+        ("我和其他人聊完后不想活了。", AiSafetyLabel.SELF_HARM_CRISIS),
+    ],
+)
+def test_crisis_attribution_uses_each_clauses_explicit_subject(
+    user: User,
+    content: str,
+    label: AiSafetyLabel,
+) -> None:
+    assert classify_input(content, user).label is label
+
+
 def test_email_and_exact_address_are_classified_and_redacted_everywhere(user: User) -> None:
     private_value = "alice@example.com，浙江省杭州市西湖区文三路138号1201室"
     decision = classify_input(f"请记住我的邮箱和地址：{private_value}", user)
@@ -384,3 +403,97 @@ def test_review_output_keeps_grouped_safety_nearby_negations(
 
     assert reviewed.reply_text == reply_text
     assert reviewed.safety_label is AiSafetyLabel.SAFE
+
+
+@pytest.mark.parametrize(
+    ("reply_text", "is_unsafe"),
+    [
+        ("我不能判断你是否得了抑郁症但你这是焦虑症。", True),
+        ("我不能判断你是否得了抑郁症，但你这是焦虑症。", True),
+        ("我不能判断你是否得了抑郁症同时你这是焦虑症。", True),
+        ("我不能判断你是否得了抑郁症，也不能确定是焦虑症。", False),
+    ],
+)
+def test_diagnosis_negation_only_covers_its_adjacent_diagnosis_span(
+    user: User,
+    reply_text: str,
+    is_unsafe: bool,
+) -> None:
+    recipe_id = uuid4()
+    memory = AiMemoryCandidate(
+        category=AiMemoryCategory.EMOTIONAL_PREFERENCE,
+        memory_key="support-style",
+        summary="偏好温和支持",
+        confidence=0.9,
+        sensitive=False,
+    )
+    reviewed = review_output(
+        AiGenerationResult(
+            reply_text=reply_text,
+            recipe_ids=[recipe_id],
+            memory_candidates=[memory],
+            provider="test",
+            model="test",
+        ),
+        classify_input("今天有点焦虑", user),
+        [recipe_id],
+    )
+
+    if is_unsafe:
+        assert reviewed.reply_text == OUTPUT_REPLACED_REPLY
+        assert reviewed.safety_label is AiSafetyLabel.OUTPUT_REPLACED
+        assert reviewed.recipe_ids == []
+        assert reviewed.memory_candidates == []
+    else:
+        assert reviewed.reply_text == reply_text
+        assert reviewed.safety_label is AiSafetyLabel.SAFE
+        assert reviewed.recipe_ids == [recipe_id]
+        assert reviewed.memory_candidates == [memory]
+
+
+@pytest.mark.parametrize(
+    ("reply_text", "is_unsafe"),
+    [
+        ("喝一杯，能缓解焦虑。", True),
+        ("用酒精的话，可能让你忘掉痛苦。", True),
+        ("不要难过，喝一杯能让你好受。", True),
+        ("不要喝酒，这不能缓解焦虑。", False),
+        ("不建议用酒精来缓解焦虑。", False),
+        ("喝一杯，并不能解决难过。", False),
+    ],
+)
+def test_alcohol_relief_detection_combines_only_adjacent_unnegated_subclauses(
+    user: User,
+    reply_text: str,
+    is_unsafe: bool,
+) -> None:
+    recipe_id = uuid4()
+    memory = AiMemoryCandidate(
+        category=AiMemoryCategory.DRINK_PREFERENCE,
+        memory_key="dry",
+        summary="偏好干型",
+        confidence=0.9,
+        sensitive=False,
+    )
+    reviewed = review_output(
+        AiGenerationResult(
+            reply_text=reply_text,
+            recipe_ids=[recipe_id],
+            memory_candidates=[memory],
+            provider="test",
+            model="test",
+        ),
+        classify_input("今天有点焦虑", user),
+        [recipe_id],
+    )
+
+    if is_unsafe:
+        assert reviewed.reply_text == OUTPUT_REPLACED_REPLY
+        assert reviewed.safety_label is AiSafetyLabel.OUTPUT_REPLACED
+        assert reviewed.recipe_ids == []
+        assert reviewed.memory_candidates == []
+    else:
+        assert reviewed.reply_text == reply_text
+        assert reviewed.safety_label is AiSafetyLabel.SAFE
+        assert reviewed.recipe_ids == [recipe_id]
+        assert reviewed.memory_candidates == [memory]

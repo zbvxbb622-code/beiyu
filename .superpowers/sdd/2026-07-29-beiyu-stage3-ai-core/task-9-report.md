@@ -320,3 +320,70 @@ All checks passed!
 .venv/bin/ty check
 All checks passed!
 ```
+
+## Review Round 4 / 5
+
+### Important Fixes
+
+1. Crisis attribution now evaluates each crisis span inside sentence and
+   subclause boundaries. The nearest explicit subject distinguishes the current
+   user (`我` or `本人`) from a third party (`他`, `她`, `朋友`, `别人`, and
+   related subjects), while bounded third-party reporting scope handles forms
+   such as `他担心我想自杀`. A later first-person clause remains independently
+   eligible for the crisis path. Subject matching also avoids treating the `他`
+   inside `其他人` as a third-party subject.
+2. Output diagnosis review splits punctuation and contrast subclauses, then
+   binds each negative diagnosis cue only to its next adjacent diagnosis span.
+   A later positive assertion is therefore replaced even when an earlier
+   diagnosis was explicitly uncertain. Multiple diagnoses in one subclause do
+   not share one blanket negation.
+3. Alcohol-as-treatment review computes alcohol mention, positive relief claim,
+   and emotional distress features per subclause. It combines only the current
+   and next subclause, so comma-separated treatment claims are replaced without
+   joining distant sentences. Explicit alcohol discouragement and negated
+   relief spans remain safe.
+
+Every newly unsafe output fixture asserts the fixed `OUTPUT_REPLACED_REPLY`,
+the `OUTPUT_REPLACED` label, and empty recipe and memory results.
+
+### RED / GREEN
+
+```text
+RED (requested fixtures)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest tests/modules/ai/test_safety.py -q
+6 failed, 62 passed
+
+RED (scoped-negation mutation cases)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest tests/modules/ai/test_safety.py -q
+2 failed, 68 passed
+
+RED (subject token boundary)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest tests/modules/ai/test_safety.py -q
+1 failed, 70 passed
+
+GREEN (safety)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest tests/modules/ai/test_safety.py -q
+71 passed in 0.09s
+
+GREEN (Task 9 focused)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest tests/modules/ai/test_schemas.py \
+  tests/modules/ai/test_safety.py tests/modules/ai/test_context.py \
+  tests/tools/test_makefile_test_database.py -q
+89 passed in 3.07s
+
+GREEN (full suite; natural exit)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest -q
+305 passed in 18.48s
+
+.venv/bin/ruff check .
+All checks passed!
+
+.venv/bin/ty check
+All checks passed!
+```

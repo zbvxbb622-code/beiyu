@@ -24,13 +24,18 @@ NEGATED_CRISIS_PATTERN = re.compile(
     r"(?:我|自己)?(?:不是|没有)(?:想)?(?:自杀|自杀想法|自杀念头)",
     re.IGNORECASE,
 )
-REPORTING_CRISIS_PATTERN = re.compile(
-    r"(?:朋友|同学|家人|别人|他|她)(?:说|问|提到|表示|觉得|担心)",
+THIRD_PARTY_SUBJECT_TEXT = r"(?:朋友|同学|家人|别人|(?<!其)他|她)"
+THIRD_PARTY_SUBJECT_PATTERN = re.compile(THIRD_PARTY_SUBJECT_TEXT)
+CURRENT_USER_SUBJECT_PATTERN = re.compile(r"(?:我|本人)")
+EXPLICIT_SUBJECT_PATTERN = re.compile(rf"(?:{THIRD_PARTY_SUBJECT_TEXT}|我|本人)")
+THIRD_PARTY_REPORT_PATTERN = re.compile(
+    rf"{THIRD_PARTY_SUBJECT_TEXT}.{{0,8}}(?:说|问|提到|表示|觉得|担心)",
     re.IGNORECASE,
 )
-CLAUSE_SPLIT_PATTERN = re.compile(r"([，,；;。！？!?])")
-CURRENT_INTENT_BOUNDARY_PATTERN = re.compile(
-    r"(?:但|而|不过|可是|然而|(?=我现在|我真的|其实我))"
+SENTENCE_SPLIT_PATTERN = re.compile(r"[。！？!?\n]+")
+SUBCLAUSE_SPLIT_PATTERN = re.compile(
+    r"[，,；;]+|(?:不过|可是|然而|(?<!不)但(?:是)?|而(?!且))|"
+    r"(?=我(?:现在|真的|也)|其实我|本人)"
 )
 MINOR_PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE)
@@ -93,17 +98,23 @@ DIAGNOSIS_ASSERTION_TOKENS = (
     "可以确诊",
 )
 DIAGNOSIS_TOKENS = ("抑郁", "焦虑", "精神疾病", "酒精依赖")
-DIAGNOSIS_NEGATION_PATTERN = re.compile(
-    r"(?:不能|无法|不应|不该).{0,8}(?:诊断|判断|确定).{0,16}"
-    r"(?:抑郁|焦虑|精神疾病|酒精依赖)",
+DIAGNOSIS_NEGATION_CUE_PATTERN = re.compile(
+    r"(?:不能|无法|不应|不该).{0,8}(?:诊断|判断|确定)",
     re.IGNORECASE,
 )
 ALCOHOL_TOKENS = ("酒精", "喝酒", "喝一杯", "来一杯", "灌一杯", "灌醉", "麻痹")
 ALCOHOL_RELIEF_TOKENS = ("缓解", "忘掉", "忘记", "好受", "解决", "麻痹")
 EMOTIONAL_DISTRESS_TOKENS = ("难过", "痛苦", "焦虑", "失眠")
-ALCOHOL_NEGATION_PATTERN = re.compile(
-    r"(?:酒精|喝酒|喝一杯|来一杯|灌一杯|灌醉|麻痹).{0,8}"
-    r"(?:不能|无法|不会|不该).{0,8}(?:缓解|忘掉|忘记|好受|解决|麻痹)",
+ALCOHOL_PATTERN_TEXT = "|".join(re.escape(token) for token in ALCOHOL_TOKENS)
+ALCOHOL_DISCOURAGEMENT_PATTERN = re.compile(
+    rf"(?:不要|别|避免|停止|不建议|不应|不该)"
+    rf"(?:再|继续|使用|用|靠|通过)?(?:{ALCOHOL_PATTERN_TEXT})",
+    re.IGNORECASE,
+)
+RELIEF_PATTERN_TEXT = "|".join(re.escape(token) for token in ALCOHOL_RELIEF_TOKENS)
+RELIEF_NEGATION_PATTERN = re.compile(
+    rf"(?:不能|无法|不会|不该|并非)(?:真正|有效地?|让人|让你)?"
+    rf"(?:{RELIEF_PATTERN_TEXT})",
     re.IGNORECASE,
 )
 CONTINUED_DRINKING_ENCOURAGEMENT_PATTERN = re.compile(
@@ -154,55 +165,44 @@ def _risk_decision(label: AiSafetyLabel, reply: str) -> SafetyDecision:
     return SafetyDecision(label=label, fixed_reply=reply, allow_recipes=False, allow_memory=False)
 
 
-def _without_crisis_terms(content: str) -> str:
-    for pattern in SELF_HARM_PATTERNS:
-        content = pattern.sub("", content)
-    return content
+def _sentences(content: str) -> list[str]:
+    return [part.strip() for part in SENTENCE_SPLIT_PATTERN.split(content) if part.strip()]
 
 
-def _without_reported_crisis_terms(clause: str) -> str:
-    reporting = REPORTING_CRISIS_PATTERN.search(clause)
-    if reporting is None:
-        return clause
-
-    direct_quote = re.match(r"[：:\s]*[\"“]", clause[reporting.end() :])
-    if direct_quote is not None:
-        quote_start = reporting.end() + direct_quote.end()
-        quote_end = re.search(r"[\"”]", clause[quote_start:])
-        if quote_end is not None:
-            reported_end = quote_start + quote_end.end()
-            reported = clause[quote_start:reported_end]
-            if _matches(reported, SELF_HARM_PATTERNS):
-                return (
-                    clause[:quote_start]
-                    + _without_crisis_terms(reported)
-                    + clause[reported_end:]
-                )
-
-    current_boundary = CURRENT_INTENT_BOUNDARY_PATTERN.search(clause, reporting.end())
-    reported_end = current_boundary.start() if current_boundary is not None else len(clause)
-    reported = clause[reporting.start() : reported_end]
-    if not _matches(reported, SELF_HARM_PATTERNS):
-        return clause
-    return clause[: reporting.start()] + _without_crisis_terms(reported) + clause[reported_end:]
+def _subclauses(content: str) -> list[str]:
+    return [part.strip() for part in SUBCLAUSE_SPLIT_PATTERN.split(content) if part.strip()]
 
 
-def _without_reported_crisis_content(content: str) -> str:
-    parts = CLAUSE_SPLIT_PATTERN.split(content)
-    return "".join(
-        part if CLAUSE_SPLIT_PATTERN.fullmatch(part) else _without_reported_crisis_terms(part)
-        for part in parts
+def _crisis_is_negated(clause: str, crisis: re.Match[str]) -> bool:
+    return any(
+        negation.start() <= crisis.start() < negation.end()
+        for negation in NEGATED_CRISIS_PATTERN.finditer(clause)
+    )
+
+
+def _crisis_is_reported_by_third_party(clause: str, crisis: re.Match[str]) -> bool:
+    return any(
+        report.end() <= crisis.start() and crisis.start() - report.end() <= 8
+        for report in THIRD_PARTY_REPORT_PATTERN.finditer(clause[: crisis.start()])
     )
 
 
 def _is_current_user_crisis(content: str) -> bool:
-    current_content = _without_reported_crisis_content(content)
-    if not _matches(current_content, SELF_HARM_PATTERNS):
-        return False
-    negated = NEGATED_CRISIS_PATTERN.search(current_content)
-    if negated is None:
-        return True
-    return _matches(current_content[negated.end() :], SELF_HARM_PATTERNS)
+    for sentence in _sentences(content):
+        for clause in _subclauses(sentence):
+            for pattern in SELF_HARM_PATTERNS:
+                for crisis in pattern.finditer(clause):
+                    if _crisis_is_negated(clause, crisis):
+                        continue
+                    if _crisis_is_reported_by_third_party(clause, crisis):
+                        continue
+                    subjects = list(EXPLICIT_SUBJECT_PATTERN.finditer(clause[: crisis.start()]))
+                    subject = subjects[-1].group() if subjects else None
+                    if subject is not None and THIRD_PARTY_SUBJECT_PATTERN.fullmatch(subject):
+                        continue
+                    if subject is None or CURRENT_USER_SUBJECT_PATTERN.fullmatch(subject):
+                        return True
+    return False
 
 
 def _contains_any(content: str, tokens: tuple[str, ...]) -> bool:
@@ -217,32 +217,71 @@ def _is_unsafe_dependency(reply: str) -> bool:
     )
 
 
+def _diagnosis_spans(clause: str) -> list[tuple[int, int]]:
+    return sorted(
+        (match.start(), match.end())
+        for token in DIAGNOSIS_TOKENS
+        for match in re.finditer(re.escape(token), clause)
+    )
+
+
 def _is_unsafe_diagnosis(reply: str) -> bool:
-    for clause in CLAUSE_SPLIT_PATTERN.split(reply):
-        if CLAUSE_SPLIT_PATTERN.fullmatch(clause) or DIAGNOSIS_NEGATION_PATTERN.search(clause):
-            continue
-        if _contains_any(clause, DIAGNOSIS_ASSERTION_TOKENS) and _contains_any(
-            clause,
-            DIAGNOSIS_TOKENS,
-        ):
-            return True
+    for sentence in _sentences(reply):
+        for clause in _subclauses(sentence):
+            diagnoses = _diagnosis_spans(clause)
+            negated_diagnoses: set[tuple[int, int]] = set()
+            for cue in DIAGNOSIS_NEGATION_CUE_PATTERN.finditer(clause):
+                adjacent = next(
+                    (diagnosis for diagnosis in diagnoses if diagnosis[0] >= cue.end()),
+                    None,
+                )
+                if adjacent is not None and adjacent[0] <= cue.end() + 24:
+                    negated_diagnoses.add(adjacent)
+            previous_end = 0
+            for diagnosis in diagnoses:
+                assertion_span = clause[previous_end : diagnosis[1]]
+                if diagnosis not in negated_diagnoses and _contains_any(
+                    assertion_span,
+                    DIAGNOSIS_ASSERTION_TOKENS,
+                ):
+                    return True
+                previous_end = diagnosis[1]
     return False
 
 
+def _has_uncovered_token(
+    content: str,
+    tokens: tuple[str, ...],
+    covering_pattern: re.Pattern[str],
+) -> bool:
+    covered_spans = [match.span() for match in covering_pattern.finditer(content)]
+    for token in tokens:
+        for match in re.finditer(re.escape(token), content):
+            if not any(
+                start <= match.start() and match.end() <= end for start, end in covered_spans
+            ):
+                return True
+    return False
+
+
+def _alcohol_relief_features(clause: str) -> tuple[bool, bool, bool]:
+    return (
+        _has_uncovered_token(clause, ALCOHOL_TOKENS, ALCOHOL_DISCOURAGEMENT_PATTERN),
+        _has_uncovered_token(clause, ALCOHOL_RELIEF_TOKENS, RELIEF_NEGATION_PATTERN),
+        _contains_any(clause, EMOTIONAL_DISTRESS_TOKENS),
+    )
+
+
 def _is_unsafe_alcohol_relief(reply: str) -> bool:
-    for clause in CLAUSE_SPLIT_PATTERN.split(reply):
-        if CLAUSE_SPLIT_PATTERN.fullmatch(clause):
-            continue
-        if CONTINUED_DRINKING_ENCOURAGEMENT_PATTERN.search(clause):
+    for sentence in _sentences(reply):
+        clauses = _subclauses(sentence)
+        if any(CONTINUED_DRINKING_ENCOURAGEMENT_PATTERN.search(clause) for clause in clauses):
             return True
-        if ALCOHOL_NEGATION_PATTERN.search(clause):
-            continue
-        if (
-            _contains_any(clause, ALCOHOL_TOKENS)
-            and _contains_any(clause, ALCOHOL_RELIEF_TOKENS)
-            and _contains_any(clause, EMOTIONAL_DISTRESS_TOKENS)
-        ):
-            return True
+        features = [_alcohol_relief_features(clause) for clause in clauses]
+        for index, current in enumerate(features):
+            windows = (current,) if index + 1 == len(features) else (current, features[index + 1])
+            if all(any(feature[position] for feature in windows) for position in range(3)):
+                return True
     return False
 
 
