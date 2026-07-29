@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime
+from uuid import UUID
 
 import pytest
 from sqlmodel import Session, select
@@ -7,6 +8,7 @@ from starlette.testclient import TestClient
 from app.api.routes import me
 from app.core.config import Settings, get_settings
 from app.db.models import AiDailyQuota, User, UserProfile, UserStatus
+from app.modules.users import service as users_service
 from tests.api.test_auth_sessions import bearer, create_login
 
 
@@ -150,6 +152,8 @@ def test_bootstrap_exposes_configured_ai_allowance(
     monkeypatch.setattr(me, "utc_now", lambda: now)
     login = create_login(database_client)
     user = database_session.exec(select(User)).one()
+    user.age_confirmed_at = now
+    database_session.add(user)
     database_session.add(
         AiDailyQuota(
             user_id=user.id,
@@ -160,6 +164,19 @@ def test_bootstrap_exposes_configured_ai_allowance(
         )
     )
     database_session.flush()
+    original_quota_snapshot = users_service.quota_snapshot
+    queried_user_ids: list[object] = []
+
+    def record_quota_snapshot(
+        session: Session,
+        user_id: UUID,
+        quota_settings: Settings,
+        quota_now: datetime,
+    ):
+        queried_user_ids.append(user_id)
+        return original_quota_snapshot(session, user_id, quota_settings, quota_now)
+
+    monkeypatch.setattr(users_service, "quota_snapshot", record_quota_snapshot)
 
     response = database_client.get(
         "/api/v1/me/bootstrap",
@@ -175,6 +192,86 @@ def test_bootstrap_exposes_configured_ai_allowance(
         "resetsAt": "2026-07-29T16:00:00Z",
     }
     assert body["featureFlags"]["aiChat"] is True
+    assert queried_user_ids == [user.id]
+
+
+@pytest.mark.parametrize(
+    ("status", "age_confirmed", "ai_enabled", "expected_flag"),
+    [
+        (UserStatus.BANNED, False, True, True),
+        (UserStatus.ACTIVE, False, True, True),
+        (UserStatus.ACTIVE, True, False, False),
+    ],
+)
+def test_bootstrap_skips_quota_snapshot_when_ai_access_is_unavailable(
+    database_client: TestClient,
+    database_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    status: UserStatus,
+    age_confirmed: bool,
+    ai_enabled: bool,
+    expected_flag: bool,
+) -> None:
+    now = datetime(2026, 7, 29, 12, tzinfo=UTC)
+    settings = Settings(
+        database_url="postgresql+psycopg://user:pass@db/beiyu",
+        ai_enabled=ai_enabled,
+    )
+    database_client.app.dependency_overrides[get_settings] = lambda: settings
+    monkeypatch.setattr(me, "utc_now", lambda: now)
+    login = create_login(database_client)
+    user = database_session.exec(select(User)).one()
+    user.status = status
+    user.age_confirmed_at = now if age_confirmed else None
+    database_session.add(user)
+    database_session.commit()
+
+    def quota_snapshot_must_not_run(*_: object, **__: object) -> object:
+        raise AssertionError("bootstrap must not select an AI quota without access")
+
+    monkeypatch.setattr(users_service, "quota_snapshot", quota_snapshot_must_not_run)
+
+    response = database_client.get(
+        "/api/v1/me/bootstrap",
+        headers=bearer(login["accessToken"]),
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["ai"] == {
+        "dailyMessageLimit": 0,
+        "messagesUsedToday": 0,
+        "remaining": 0,
+        "resetsAt": "2026-07-29T16:00:00Z",
+    }
+    assert response.json()["featureFlags"]["aiChat"] is expected_flag
+
+
+def test_bootstrap_propagates_quota_database_errors_for_allowed_user(
+    database_client: TestClient,
+    database_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    now = datetime(2026, 7, 29, 12, tzinfo=UTC)
+    database_client.app.dependency_overrides[get_settings] = lambda: Settings(
+        database_url="postgresql+psycopg://user:pass@db/beiyu",
+    )
+    monkeypatch.setattr(me, "utc_now", lambda: now)
+    login = create_login(database_client)
+    user = database_session.exec(select(User)).one()
+    user.age_confirmed_at = now
+    database_session.add(user)
+    database_session.commit()
+
+    def fail_quota_snapshot(*_: object, **__: object) -> object:
+        raise RuntimeError("quota database unavailable")
+
+    monkeypatch.setattr(users_service, "quota_snapshot", fail_quota_snapshot)
+
+    with pytest.raises(RuntimeError, match="quota database unavailable"):
+        database_client.get(
+            "/api/v1/me/bootstrap",
+            headers=bearer(login["accessToken"]),
+        )
 
 
 def test_delete_account_anonymizes_profile_and_revokes_access(

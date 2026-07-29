@@ -16,7 +16,8 @@ from app.db.models import (
     UserStatus,
 )
 from app.db.models.accounts import default_visibility, utc_now
-from app.modules.ai.quota import quota_snapshot
+from app.modules.ai.access import require_ai_access
+from app.modules.ai.quota import next_reset, quota_snapshot
 from app.modules.auth.schemas import AuthenticatedUser
 from app.modules.auth.service import list_user_devices
 from app.modules.cellar.service import (
@@ -145,6 +146,38 @@ def confirm_age(*, session: Session, user: User) -> User:
     return user
 
 
+def bootstrap_ai_allowance(
+    *,
+    session: Session,
+    user: User,
+    settings: Settings,
+    now: datetime,
+) -> AiAllowance:
+    try:
+        require_ai_access(user, settings)
+    except AppError as exc:
+        if exc.code not in {
+            "AI_ACCESS_SUSPENDED",
+            "AGE_CONFIRMATION_REQUIRED",
+            "AI_FEATURE_DISABLED",
+        }:
+            raise
+        return AiAllowance(
+            daily_message_limit=0,
+            messages_used_today=0,
+            remaining=0,
+            resets_at=next_reset(now),
+        )
+
+    quota = quota_snapshot(session, user.id, settings, now)
+    return AiAllowance(
+        daily_message_limit=quota.daily_message_limit,
+        messages_used_today=quota.messages_used_today,
+        remaining=quota.remaining,
+        resets_at=quota.resets_at,
+    )
+
+
 def bootstrap_response(
     *,
     session: Session,
@@ -155,7 +188,6 @@ def bootstrap_response(
 ) -> BootstrapResponse:
     profile = get_user_profile(session, user)
     devices = list_user_devices(session=session, user=user)
-    quota = quota_snapshot(session, user.id, settings, now)
     return BootstrapResponse(
         user=AuthenticatedUser(
             id=user.id,
@@ -182,11 +214,11 @@ def bootstrap_response(
             ],
         ),
         cellar=cellar_list_response(list_cellar_items(session=session, user=user)),
-        ai=AiAllowance(
-            daily_message_limit=quota.daily_message_limit,
-            messages_used_today=quota.messages_used_today,
-            remaining=quota.remaining,
-            resets_at=quota.resets_at,
+        ai=bootstrap_ai_allowance(
+            session=session,
+            user=user,
+            settings=settings,
+            now=now,
         ),
         feature_flags=FeatureFlags(ai_chat=settings.ai_enabled),
     )

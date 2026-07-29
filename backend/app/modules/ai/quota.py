@@ -42,14 +42,15 @@ def quota_snapshot(
     now: datetime,
 ) -> QuotaSnapshot:
     today = quota_date(now)
-    quota = session.exec(
-        select(AiDailyQuota).where(
-            AiDailyQuota.user_id == user_id,
-            AiDailyQuota.quota_date == today,
-        )
-    ).first()
-    used_count = quota.used_count if quota is not None else 0
-    reserved_count = quota.reserved_count if quota is not None else 0
+    with session.no_autoflush:
+        quota = session.exec(
+            select(AiDailyQuota).where(
+                AiDailyQuota.user_id == user_id,
+                AiDailyQuota.quota_date == today,
+            )
+        ).first()
+    used_count = max(0, quota.used_count) if quota is not None else 0
+    reserved_count = max(0, quota.reserved_count) if quota is not None else 0
     remaining = max(settings.ai_daily_limit - used_count - reserved_count, 0)
     return QuotaSnapshot(
         daily_message_limit=settings.ai_daily_limit,

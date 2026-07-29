@@ -1,4 +1,7 @@
+from contextlib import nullcontext
 from datetime import UTC, date, datetime
+from types import SimpleNamespace
+from typing import cast
 from uuid import uuid4
 
 from sqlalchemy import func
@@ -6,6 +9,7 @@ from sqlmodel import Session, select
 
 from app.core.config import Settings
 from app.db.models import AiDailyQuota, User
+from app.db.session import get_engine
 from app.modules.ai.quota import next_reset, quota_date, quota_snapshot
 
 
@@ -50,6 +54,33 @@ def test_snapshot_without_today_row_is_read_only_and_returns_full_limit(
     assert database_session.exec(select(func.count()).select_from(AiDailyQuota)).one() == 0
 
 
+def test_snapshot_does_not_flush_the_callers_pending_or_dirty_work(
+    database_session: Session,
+) -> None:
+    dirty_user = persisted_user(database_session)
+    pending_user = User(
+        phone_hash=f"pending-{uuid4().hex}",
+        phone_masked="+86138****9999",
+    )
+    database_session.add(pending_user)
+    dirty_user.phone_masked = "+86138****1111"
+
+    snapshot = quota_snapshot(
+        database_session,
+        dirty_user.id,
+        Settings(database_url="postgresql+psycopg://user:pass@db/beiyu"),
+        datetime(2026, 7, 29, 12, tzinfo=UTC),
+    )
+
+    assert snapshot.remaining == 50
+    assert pending_user in database_session.new
+    assert dirty_user in database_session.dirty
+    with Session(get_engine()) as other_session:
+        assert other_session.exec(
+            select(User).where(User.phone_hash == pending_user.phone_hash)
+        ).first() is None
+
+
 def test_snapshot_uses_configured_limit_and_only_todays_row(
     database_session: Session,
 ) -> None:
@@ -88,3 +119,47 @@ def test_snapshot_uses_configured_limit_and_only_todays_row(
     assert snapshot.messages_used_today == 8
     assert snapshot.remaining == 0
     assert snapshot.resets_at == datetime(2026, 7, 29, 16, tzinfo=UTC)
+
+
+class SnapshotResult:
+    def __init__(self, quota: object) -> None:
+        self.quota = quota
+
+    def first(self) -> object:
+        return self.quota
+
+
+class SnapshotSession:
+    def __init__(self, quota: object) -> None:
+        self.quota = quota
+
+    def exec(self, _: object) -> SnapshotResult:
+        return SnapshotResult(self.quota)
+
+    @property
+    def no_autoflush(self):
+        return nullcontext()
+
+
+def test_snapshot_clamps_negative_persisted_counts_before_calculating_allowance() -> None:
+    snapshot = quota_snapshot(
+        cast(Session, SnapshotSession(SimpleNamespace(used_count=-8, reserved_count=-3))),
+        uuid4(),
+        Settings(database_url="postgresql+psycopg://user:pass@db/beiyu"),
+        datetime(2026, 7, 29, 12, tzinfo=UTC),
+    )
+
+    assert snapshot.messages_used_today == 0
+    assert snapshot.remaining == 50
+
+
+def test_snapshot_clamps_remaining_when_completed_and_reserved_counts_exceed_limit() -> None:
+    snapshot = quota_snapshot(
+        cast(Session, SnapshotSession(SimpleNamespace(used_count=49, reserved_count=4))),
+        uuid4(),
+        Settings(database_url="postgresql+psycopg://user:pass@db/beiyu"),
+        datetime(2026, 7, 29, 12, tzinfo=UTC),
+    )
+
+    assert snapshot.messages_used_today == 49
+    assert snapshot.remaining == 0

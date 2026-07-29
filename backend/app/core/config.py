@@ -70,12 +70,33 @@ class Settings(BaseSettings):
     ai_api_key: SecretStr | None = None
     ai_memory_hmac_key: SecretStr = SecretStr(DEVELOPMENT_MEMORY_HMAC_KEY)
 
+    @field_validator("ai_model", mode="before")
+    @classmethod
+    def normalize_ai_model(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
     @field_validator("ai_base_url", mode="before")
     @classmethod
     def normalize_optional_ai_base_url(cls, value: object) -> object:
         if isinstance(value, str):
             value = value.strip()
             return value or None
+        return value
+
+    @field_validator("ai_api_key", mode="before")
+    @classmethod
+    def normalize_ai_api_key(cls, value: object) -> object:
+        if isinstance(value, SecretStr):
+            value = value.get_secret_value()
+        return value.strip() if isinstance(value, str) else value
+
+    @field_validator("ai_memory_hmac_key", mode="before")
+    @classmethod
+    def reject_blank_memory_hmac_key(cls, value: object) -> object:
+        if isinstance(value, SecretStr):
+            value = value.get_secret_value()
+        if isinstance(value, str) and not value.strip():
+            raise ValueError("memory HMAC key must not be blank")
         return value
 
     @model_validator(mode="after")
@@ -111,6 +132,7 @@ class Settings(BaseSettings):
             if (
                 memory_hmac_key == DEVELOPMENT_MEMORY_HMAC_KEY
                 or len(memory_hmac_key.encode("utf-8")) < MIN_SECRET_KEY_LENGTH
+                or not memory_hmac_key.strip()
                 or memory_hmac_key == self.secret_key
                 or memory_hmac_key == api_key
             ):

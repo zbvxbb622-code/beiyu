@@ -92,6 +92,67 @@ def test_non_dev_accepts_independent_aliyun_secrets() -> None:
     assert isinstance(settings.ai_api_key, SecretStr)
 
 
+def test_ai_model_and_api_key_strip_surrounding_whitespace() -> None:
+    settings = Settings(
+        environment=Environment.PROD,
+        database_url="postgresql+psycopg://user:pass@db/beiyu",
+        secret_key="s" * 32,
+        sms_provider="aliyun",
+        ai_provider=AiProvider.ALIYUN,
+        ai_model="  qwen-plus  ",
+        ai_base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        ai_api_key=SecretStr("  provider-key  "),
+        ai_memory_hmac_key=SecretStr("m" * 32),
+    )
+
+    assert settings.ai_model == "qwen-plus"
+    assert settings.ai_api_key is not None
+    assert settings.ai_api_key.get_secret_value() == "provider-key"
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [("ai_model", " \t "), ("ai_api_key", SecretStr(" \n "))],
+)
+def test_non_dev_rejects_blank_model_or_provider_key(
+    field_name: str,
+    value: str | SecretStr,
+) -> None:
+    provider_key = SecretStr("provider-key")
+    values: dict[str, object] = {
+        "environment": Environment.PROD,
+        "database_url": "postgresql+psycopg://user:pass@db/beiyu",
+        "secret_key": "s" * 32,
+        "sms_provider": "aliyun",
+        "ai_provider": AiProvider.ALIYUN,
+        "ai_model": "qwen-plus",
+        "ai_base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "ai_api_key": provider_key,
+        "ai_memory_hmac_key": SecretStr("m" * 32),
+    }
+    values[field_name] = value
+
+    with pytest.raises(ValidationError) as exc_info:
+        Settings.model_validate(values)
+
+    assert "provider-key" not in str(exc_info.value)
+
+
+def test_non_dev_rejects_all_whitespace_memory_hmac_key() -> None:
+    with pytest.raises(ValidationError):
+        Settings(
+            environment=Environment.PROD,
+            database_url="postgresql+psycopg://user:pass@db/beiyu",
+            secret_key="s" * 32,
+            sms_provider="aliyun",
+            ai_provider=AiProvider.ALIYUN,
+            ai_model="qwen-plus",
+            ai_base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            ai_api_key=SecretStr("provider-key"),
+            ai_memory_hmac_key=SecretStr(" " * 32),
+        )
+
+
 @pytest.mark.parametrize(
     ("field_name", "value"),
     [
