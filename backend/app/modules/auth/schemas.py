@@ -63,3 +63,19 @@ class LoginResponse(ApiModel):
     is_new_user: bool
     user: AuthenticatedUser
     device: AuthenticatedDevice
+
+
+class RefreshRequest(ApiModel):
+    refresh_token: str = Field(min_length=32, max_length=512)
+
+
+class TokenResponse(ApiModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    refresh_expires_in: int
+
+
+class DeviceList(ApiModel):
+    items: list[AuthenticatedDevice]

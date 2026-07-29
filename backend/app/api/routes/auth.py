@@ -1,22 +1,34 @@
 import ipaddress
+import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlmodel import Session
 
 from app.core.config import Settings, get_settings
 from app.core.errors import ErrorEnvelope
 from app.db.session import get_session
 from app.integrations.sms import SmsProvider, get_sms_provider_dependency
+from app.modules.auth.dependencies import CurrentAuth
 from app.modules.auth.schemas import (
     AuthenticatedDevice,
     AuthenticatedUser,
+    DeviceList,
     LoginRequest,
     LoginResponse,
+    RefreshRequest,
     SmsCodeAccepted,
     SmsCodeRequest,
+    TokenResponse,
 )
-from app.modules.auth.service import issue_sms_code, login_with_sms
+from app.modules.auth.service import (
+    issue_sms_code,
+    list_user_devices,
+    login_with_sms,
+    revoke_auth_session,
+    revoke_user_device,
+    rotate_refresh_token,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -98,3 +110,71 @@ def login(
             is_current=True,
         ),
     )
+
+
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    responses={401: {"model": ErrorEnvelope}},
+)
+def refresh(
+    payload: RefreshRequest,
+    session: SessionDep,
+    settings: SettingsDep,
+) -> TokenResponse:
+    result = rotate_refresh_token(
+        session=session,
+        settings=settings,
+        refresh_token=payload.refresh_token,
+    )
+    return TokenResponse(
+        access_token=result.access_token,
+        refresh_token=result.refresh_token,
+        expires_in=settings.access_token_minutes * 60,
+        refresh_expires_in=settings.refresh_token_days * 24 * 60 * 60,
+    )
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(session: SessionDep, auth: CurrentAuth) -> Response:
+    revoke_auth_session(session=session, auth_session=auth.session)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get(
+    "/devices",
+    response_model=DeviceList,
+    responses={401: {"model": ErrorEnvelope}},
+)
+def devices(session: SessionDep, auth: CurrentAuth) -> DeviceList:
+    return DeviceList(
+        items=[
+            AuthenticatedDevice(
+                id=device.id,
+                platform=device.platform,
+                device_name=device.device_name,
+                app_version=device.app_version,
+                last_active_at=device.last_active_at,
+                is_current=device.id == auth.device.id,
+            )
+            for device in list_user_devices(session=session, user=auth.user)
+        ]
+    )
+
+
+@router.delete(
+    "/devices/{device_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={401: {"model": ErrorEnvelope}, 404: {"model": ErrorEnvelope}},
+)
+def delete_device(
+    device_id: uuid.UUID,
+    session: SessionDep,
+    auth: CurrentAuth,
+) -> Response:
+    revoke_user_device(
+        session=session,
+        user=auth.user,
+        device_id=device_id,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

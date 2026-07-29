@@ -1,4 +1,5 @@
 import hmac
+import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import cast
@@ -17,6 +18,7 @@ from app.core.security import (
     normalize_cn_phone,
     otp_hash,
     phone_hash,
+    refresh_token_hash,
 )
 from app.db.models import (
     AuthSession,
@@ -43,6 +45,12 @@ class LoginResult:
     access_token: str
     refresh_token: str
     is_new_user: bool
+
+
+@dataclass(frozen=True, slots=True)
+class TokenResult:
+    access_token: str
+    refresh_token: str
 
 
 def _normalized_phone(raw_phone: str) -> str:
@@ -342,3 +350,134 @@ def login_with_sms(
         refresh_token=refresh_token,
         is_new_user=is_new_user,
     )
+
+
+def rotate_refresh_token(
+    *,
+    session: Session,
+    settings: Settings,
+    refresh_token: str,
+) -> TokenResult:
+    now = utc_now()
+    stored_token_hash = refresh_token_hash(refresh_token, settings.secret_key)
+    old_session = session.exec(
+        select(AuthSession)
+        .where(AuthSession.refresh_token_hash == stored_token_hash)
+        .with_for_update()
+    ).first()
+    if (
+        old_session is None
+        or old_session.revoked_at is not None
+        or old_session.expires_at <= now
+    ):
+        raise AppError(
+            code="INVALID_REFRESH_TOKEN",
+            message="刷新令牌无效或已过期",
+            status_code=401,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = session.get(User, old_session.user_id)
+    device = session.get(UserDevice, old_session.device_id)
+    if (
+        user is None
+        or user.status is not UserStatus.ACTIVE
+        or device is None
+        or device.revoked_at is not None
+    ):
+        raise AppError(
+            code="INVALID_REFRESH_TOKEN",
+            message="刷新令牌无效或已过期",
+            status_code=401,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    old_session.revoked_at = now
+    old_session.updated_at = now
+    session.add(old_session)
+    new_refresh_token, new_refresh_hash = create_refresh_token(settings.secret_key)
+    new_session = AuthSession(
+        user_id=user.id,
+        device_id=device.id,
+        refresh_token_hash=new_refresh_hash,
+        expires_at=now + timedelta(days=settings.refresh_token_days),
+    )
+    session.add(new_session)
+    session.flush()
+    access_token = create_access_token(
+        user.id,
+        new_session.id,
+        settings.secret_key,
+        expires_minutes=settings.access_token_minutes,
+        now=now,
+    )
+    session.commit()
+    return TokenResult(
+        access_token=access_token,
+        refresh_token=new_refresh_token,
+    )
+
+
+def revoke_auth_session(*, session: Session, auth_session: AuthSession) -> None:
+    if auth_session.revoked_at is None:
+        now = utc_now()
+        auth_session.revoked_at = now
+        auth_session.updated_at = now
+        session.add(auth_session)
+        session.commit()
+
+
+def list_user_devices(
+    *,
+    session: Session,
+    user: User,
+) -> list[UserDevice]:
+    return list(
+        session.exec(
+            select(UserDevice)
+            .where(
+                UserDevice.user_id == user.id,
+                _column(UserDevice.revoked_at).is_(None),
+            )
+            .order_by(_column(UserDevice.last_active_at).desc())
+        ).all()
+    )
+
+
+def revoke_user_device(
+    *,
+    session: Session,
+    user: User,
+    device_id: uuid.UUID,
+) -> None:
+    device = session.exec(
+        select(UserDevice)
+        .where(
+            UserDevice.id == device_id,
+            UserDevice.user_id == user.id,
+            _column(UserDevice.revoked_at).is_(None),
+        )
+        .with_for_update()
+    ).first()
+    if device is None:
+        raise AppError(
+            code="DEVICE_NOT_FOUND",
+            message="设备不存在",
+            status_code=404,
+        )
+
+    now = utc_now()
+    device.revoked_at = now
+    device.updated_at = now
+    session.add(device)
+    active_sessions = session.exec(
+        select(AuthSession).where(
+            AuthSession.device_id == device.id,
+            _column(AuthSession.revoked_at).is_(None),
+        )
+    ).all()
+    for auth_session in active_sessions:
+        auth_session.revoked_at = now
+        auth_session.updated_at = now
+        session.add(auth_session)
+    session.commit()
