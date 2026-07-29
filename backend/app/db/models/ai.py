@@ -2,6 +2,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
+from typing import Any
 
 from sqlalchemy import (
     CHAR,
@@ -10,10 +11,14 @@ from sqlalchemy import (
     DateTime,
     Enum,
     Index,
+    Integer,
     Numeric,
+    String,
     Text,
+    TypeDecorator,
     UniqueConstraint,
     desc,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Column, Field, SQLModel
@@ -53,8 +58,38 @@ class AiMemoryCategory(StrEnum):
     SAFETY_REMINDER = "SAFETY_REMINDER"
 
 
-def json_column() -> Column:
-    return Column(JSON().with_variant(JSONB, "postgresql"), nullable=False)
+class RecipeIdsType(TypeDecorator):
+    impl = JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect: Any) -> Any:
+        return JSON().with_variant(JSONB, "postgresql").dialect_impl(dialect)
+
+    def process_bind_param(
+        self,
+        value: list[uuid.UUID] | None,
+        dialect: Any,
+    ) -> list[str] | None:
+        if value is None:
+            return None
+        return [str(recipe_id) for recipe_id in value]
+
+    def process_result_value(
+        self,
+        value: list[str] | None,
+        dialect: Any,
+    ) -> list[uuid.UUID] | None:
+        if value is None:
+            return None
+        return [uuid.UUID(recipe_id) for recipe_id in value]
+
+
+def recipe_ids_column() -> Column:
+    return Column(
+        RecipeIdsType(),
+        nullable=False,
+        server_default=text("'[]'::jsonb"),
+    )
 
 
 class AiConversation(SQLModel, table=True):
@@ -70,7 +105,14 @@ class AiConversation(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", ondelete="CASCADE")
-    title: str = Field(default="新的对话", max_length=80)
+    title: str = Field(
+        default="新的对话",
+        sa_column=Column(
+            String(80),
+            nullable=False,
+            server_default=text("'新的对话'"),
+        ),
+    )
     last_message_at: datetime | None = Field(
         default=None,
         sa_column=Column(DateTime(timezone=True), nullable=True),
@@ -111,10 +153,17 @@ class AiMessage(SQLModel, table=True):
         sa_column=Column(Enum(AiMessageRole, name="ai_message_role"), nullable=False),
     )
     content: str = Field(sa_column=Column(Text(), nullable=False))
-    recipe_ids: list[uuid.UUID] = Field(default_factory=list, sa_column=json_column())
+    recipe_ids: list[uuid.UUID] = Field(
+        default_factory=list,
+        sa_column=recipe_ids_column(),
+    )
     safety_label: AiSafetyLabel = Field(
         default=AiSafetyLabel.SAFE,
-        sa_column=Column(Enum(AiSafetyLabel, name="ai_safety_label"), nullable=False),
+        sa_column=Column(
+            Enum(AiSafetyLabel, name="ai_safety_label"),
+            nullable=False,
+            server_default=text("'SAFE'"),
+        ),
     )
     created_at: datetime = Field(
         default_factory=utc_now,
@@ -150,9 +199,16 @@ class AiRequest(SQLModel, table=True):
     )
     status: AiRequestStatus = Field(
         default=AiRequestStatus.RESERVED,
-        sa_column=Column(Enum(AiRequestStatus, name="ai_request_status"), nullable=False),
+        sa_column=Column(
+            Enum(AiRequestStatus, name="ai_request_status"),
+            nullable=False,
+            server_default=text("'RESERVED'"),
+        ),
     )
-    attempt_count: int = Field(default=1)
+    attempt_count: int = Field(
+        default=1,
+        sa_column=Column(Integer, nullable=False, server_default=text("1")),
+    )
     quota_date: date
     reservation_expires_at: datetime | None = Field(
         default=None,
@@ -196,9 +252,18 @@ class AiDailyQuota(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", ondelete="CASCADE")
     quota_date: date
-    free_limit: int = Field(default=50)
-    used_count: int = Field(default=0)
-    reserved_count: int = Field(default=0)
+    free_limit: int = Field(
+        default=50,
+        sa_column=Column(Integer, nullable=False, server_default=text("50")),
+    )
+    used_count: int = Field(
+        default=0,
+        sa_column=Column(Integer, nullable=False, server_default=text("0")),
+    )
+    reserved_count: int = Field(
+        default=0,
+        sa_column=Column(Integer, nullable=False, server_default=text("0")),
+    )
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), nullable=False),
@@ -214,6 +279,18 @@ class AiUsageLog(SQLModel, table=True):
     __table_args__ = (
         CheckConstraint("attempt_no >= 1", name="ck_ai_usage_logs_attempt_no"),
         CheckConstraint("latency_ms >= 0", name="ck_ai_usage_logs_latency_ms"),
+        CheckConstraint(
+            "input_tokens IS NULL OR input_tokens >= 0",
+            name="ck_ai_usage_logs_input_tokens",
+        ),
+        CheckConstraint(
+            "output_tokens IS NULL OR output_tokens >= 0",
+            name="ck_ai_usage_logs_output_tokens",
+        ),
+        CheckConstraint(
+            "cost_estimate IS NULL OR cost_estimate >= 0",
+            name="ck_ai_usage_logs_cost_estimate",
+        ),
         UniqueConstraint("request_id", "attempt_no", name="uq_ai_usage_logs_attempt"),
     )
 

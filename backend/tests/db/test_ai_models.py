@@ -1,11 +1,24 @@
 from datetime import UTC, date
+from decimal import Decimal
 from typing import cast
 from uuid import uuid4
 
-from sqlalchemy import CheckConstraint, Enum, Numeric, String, Table, UniqueConstraint
+import pytest
+from sqlalchemy import (
+    CheckConstraint,
+    Enum,
+    Numeric,
+    String,
+    Table,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.exc import IntegrityError
+from sqlmodel import Session
 
+from app.db.models.accounts import User
 from app.db.models.ai import (
     AiChatMode,
     AiConversation,
@@ -20,6 +33,7 @@ from app.db.models.ai import (
     AiRequestStatus,
     AiSafetyLabel,
     AiUsageLog,
+    RecipeIdsType,
 )
 
 
@@ -54,6 +68,28 @@ def enum_name(table: Table, column_name: str) -> str | None:
 
 def string_length(table: Table, column_name: str) -> int | None:
     return cast(String, table.columns[column_name].type).length
+
+
+def persisted_user(session: Session) -> User:
+    user = User(
+        phone_hash=f"hash-{uuid4().hex}",
+        phone_masked="+86138****0000",
+    )
+    session.add(user)
+    session.flush()
+    return user
+
+
+def persisted_request(session: Session, user: User) -> AiRequest:
+    request = AiRequest(
+        user_id=user.id,
+        client_message_id=uuid4(),
+        mode=AiChatMode.TEMPORARY,
+        quota_date=date.today(),
+    )
+    session.add(request)
+    session.flush()
+    return request
 
 
 def test_ai_models_publish_the_expected_enum_contracts() -> None:
@@ -182,7 +218,11 @@ def test_ai_models_match_field_shapes_and_nullability() -> None:
     assert string_length(conversation, "title") == 80
     assert conversation.columns["last_message_at"].nullable is True
     assert message.columns["content"].type.__class__.__name__ == "Text"
-    assert isinstance(message.columns["recipe_ids"].type.dialect_impl(postgresql.dialect()), JSONB)
+    recipe_ids_type = cast(RecipeIdsType, message.columns["recipe_ids"].type)
+    assert isinstance(
+        recipe_ids_type.load_dialect_impl(postgresql.dialect()),
+        JSONB,
+    )
     assert message.columns["recipe_ids"].nullable is False
     assert string_length(request, "failure_code") == 80
     assert request.columns["conversation_id"].nullable is True
@@ -252,7 +292,12 @@ def test_ai_models_define_constraints_and_ordering_indexes() -> None:
         "ck_ai_daily_quotas_reserved_count",
         "ck_ai_daily_quotas_within_limit",
     } <= check_names(quota)
-    assert {"ck_ai_usage_logs_latency_ms"} <= check_names(usage)
+    assert {
+        "ck_ai_usage_logs_latency_ms",
+        "ck_ai_usage_logs_input_tokens",
+        "ck_ai_usage_logs_output_tokens",
+        "ck_ai_usage_logs_cost_estimate",
+    } <= check_names(usage)
 
     conversation_indexes = {str(index.name): index for index in conversation.indexes}
     message_indexes = {str(index.name): index for index in message.indexes}
@@ -269,3 +314,68 @@ def test_ai_models_define_constraints_and_ordering_indexes() -> None:
     assert [str(expression) for expression in message_indexes[
         "ix_ai_messages_user_created"
     ].expressions] == ["ai_messages.user_id", "created_at DESC"]
+
+
+def test_ai_message_persists_uuid_recipe_ids_as_json_strings(
+    database_session: Session,
+) -> None:
+    user = persisted_user(database_session)
+    conversation = AiConversation(user_id=user.id)
+    database_session.add(conversation)
+    database_session.flush()
+    recipe_id = uuid4()
+    message = AiMessage.model_validate(
+        {
+            "conversation_id": conversation.id,
+            "user_id": user.id,
+            "role": AiMessageRole.ASSISTANT,
+            "content": "试试这杯。",
+            "recipe_ids": [recipe_id],
+        }
+    )
+
+    database_session.add(message)
+    database_session.flush()
+    database_session.expire(message)
+
+    stored_recipe_ids = database_session.connection().execute(
+        text("SELECT recipe_ids FROM ai_messages WHERE id = :message_id"),
+        {"message_id": message.id},
+    ).scalar_one()
+
+    assert stored_recipe_ids == [str(recipe_id)]
+    assert message.recipe_ids == [recipe_id]
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [
+        ("input_tokens", -1),
+        ("output_tokens", -1),
+        ("cost_estimate", Decimal("-0.000001")),
+    ],
+)
+def test_ai_usage_log_rejects_negative_usage_values(
+    database_session: Session,
+    field_name: str,
+    value: int | Decimal,
+) -> None:
+    user = persisted_user(database_session)
+    request = persisted_request(database_session, user)
+    usage = AiUsageLog(
+        request_id=request.id,
+        attempt_no=1,
+        user_id=user.id,
+        mode=AiChatMode.TEMPORARY,
+        outcome="SUCCEEDED",
+        provider="development",
+        model="development-ai",
+        prompt_version="v1",
+        latency_ms=0,
+    )
+    setattr(usage, field_name, value)
+    database_session.add(usage)
+
+    with pytest.raises(IntegrityError):
+        database_session.flush()
+    database_session.rollback()
