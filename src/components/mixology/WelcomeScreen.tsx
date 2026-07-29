@@ -14,6 +14,7 @@ export function WelcomeScreen() {
 
   const enterApp = async () => {
     await verifyAge();
+    router.replace('/login' as Href);
   };
 
   return (
@@ -29,9 +30,9 @@ export function WelcomeScreen() {
           <Text style={styles.title}>欢迎来到杯语</Text>
           <Text style={styles.script}>Beiyu</Text>
           <Text style={styles.subtitle}>你的 AI 调酒陪伴</Text>
-          <GradientButton label="我已满18岁，去聊天" onPress={enterApp} style={styles.cta} />
+          <GradientButton testID="welcome-age-consent" label="我已满18岁，继续" onPress={enterApp} style={styles.cta} />
           <Pressable onPress={() => router.push('/login' as Href)} style={styles.loginLink}>
-            <Text style={styles.loginText}>手机号登录 / 游客可跳过</Text>
+            <Text style={styles.loginText}>已有账号，手机号登录</Text>
           </Pressable>
         </View>
         <View style={styles.privacyBadge}>

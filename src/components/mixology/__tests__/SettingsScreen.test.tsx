@@ -16,10 +16,10 @@ jest.mock('expo-router', () => ({
 }));
 
 jest.mock('@/state/MixologyState', () => ({
-  useMixology: () => ({
-    logout: mockLogout,
-  }),
+  useMixology: () => ({}),
 }));
+
+jest.mock('@/state/AuthState', () => ({ useAuth: () => ({ logout: mockLogout }) }));
 
 describe('SettingsScreen', () => {
   it('renders header and all settings groups', async () => {

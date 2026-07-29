@@ -1,6 +1,6 @@
 import '../global.css';
 
-import { DarkTheme, ThemeProvider } from 'expo-router';
+import { DarkTheme, Redirect, ThemeProvider, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -9,6 +9,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import AppTabs from '@/components/app-tabs';
 import { WelcomeScreen } from '@/components/mixology/WelcomeScreen';
 import { ContentProvider } from '@/state/ContentState';
+import { AuthProvider, useAuth } from '@/state/AuthState';
 import { MixologyProvider, useMixology } from '@/state/MixologyState';
 import { colors } from '@/styles/mixologyTheme';
 
@@ -16,6 +17,8 @@ SplashScreen.preventAutoHideAsync();
 
 function RootContent() {
   const { isHydrated, localState } = useMixology();
+  const { status } = useAuth();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (isHydrated) {
@@ -23,7 +26,7 @@ function RootContent() {
     }
   }, [isHydrated]);
 
-  if (!isHydrated) {
+  if (!isHydrated || status === 'restoring') {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={colors.pink} />
@@ -36,6 +39,10 @@ function RootContent() {
     return <WelcomeScreen />;
   }
 
+  if (pathname === '/ai' && status !== 'signedIn') {
+    return <Redirect href="/login" />;
+  }
+
   return <AppTabs />;
 }
 
@@ -44,9 +51,11 @@ export default function RootLayout() {
     <ThemeProvider value={DarkTheme}>
       <StatusBar style="light" />
       <ContentProvider>
-        <MixologyProvider>
-          <RootContent />
-        </MixologyProvider>
+        <AuthProvider>
+          <MixologyProvider>
+            <RootContent />
+          </MixologyProvider>
+        </AuthProvider>
       </ContentProvider>
     </ThemeProvider>
   );

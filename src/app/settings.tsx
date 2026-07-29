@@ -13,12 +13,12 @@ import {
 } from 'lucide-react-native';
 
 import { ScreenShell } from '@/components/mixology/ScreenShell';
-import { useMixology } from '@/state/MixologyState';
+import { useAuth } from '@/state/AuthState';
 import { colors, radii, spacing } from '@/styles/mixologyTheme';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { logout } = useMixology();
+  const { logout } = useAuth();
 
   const handleLogout = async () => {
     await logout();

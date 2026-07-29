@@ -1,0 +1,211 @@
+import { act, render } from '@testing-library/react-native';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { Text } from 'react-native';
+
+import { AuthProvider, createAuthRuntime, useAuth, type AuthRuntime } from '@/state/AuthState';
+import { AuthRepository, type LocalSyncInput } from '@/services/auth/authRepository';
+import type { DeviceInput } from '@/services/auth/authSchemas';
+import { tokenStore } from '@/services/auth/tokenStore';
+
+const bootstrap = {
+  user: {
+    id: '0f38f737-b8e9-4f75-8bb3-0b5a53f93afc',
+    phoneMasked: '138****0000',
+    status: 'ACTIVE' as const,
+    ageConfirmed: true,
+    memoryEnabled: true,
+    membershipLevel: 'FREE' as const,
+  },
+  profile: {
+    nickname: '杯友', avatarKey: 'avatar-default', avatarUri: null, signature: '', city: '上海', gender: null,
+    birthday: null, showBirthdayTag: false, showAge: false, showZodiac: false, occupation: null, school: null,
+  },
+  privacy: { localOnlyMode: false, analyticsOptIn: false, syncWhenLoggedIn: true },
+  accountSecurity: { phone: '13800000000', phoneVerified: true, devices: [] },
+  cellar: { items: [] },
+  ai: { dailyMessageLimit: 50, messagesUsedToday: 0, remaining: 50, resetsAt: '2026-07-29T16:00:00Z' },
+  featureFlags: { aiChat: true },
+};
+
+type RepositoryMethods = Pick<
+  AuthRuntime['repository'],
+  'requestSmsCode' | 'login' | 'refresh' | 'logout' | 'bootstrap' | 'syncLocalState'
+>;
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((nextResolve) => { resolve = nextResolve; });
+  return { promise, resolve };
+}
+
+function createRuntime(methods: Partial<RepositoryMethods> = {}, isNewUser = false): AuthRuntime {
+  const requestSmsCode = jest.fn<AuthRepository['requestSmsCode']>();
+  const login = jest.fn<AuthRepository['login']>().mockResolvedValue({
+    accessToken: 'login-access',
+    refreshToken: 'login-refresh',
+    expiresIn: 900,
+    refreshExpiresIn: 2_592_000,
+    isNewUser,
+    user: bootstrap.user,
+    device: {
+      id: '5364864c-3a48-4ca8-90b7-04f049b3227b',
+      platform: 'IOS',
+      deviceName: 'Test iPhone',
+      appVersion: '1.0.0',
+      lastActiveAt: '2026-07-29T08:00:00.000Z',
+      isCurrent: true,
+    },
+  });
+  const refresh = jest.fn<AuthRepository['refresh']>().mockResolvedValue({
+    accessToken: 'restored-access', refreshToken: 'rotated-refresh', expiresIn: 900, refreshExpiresIn: 2_592_000,
+  });
+  const logout = jest.fn<AuthRepository['logout']>().mockResolvedValue();
+  const loadBootstrap = jest.fn<AuthRepository['bootstrap']>().mockResolvedValue(bootstrap);
+  const syncLocalState = jest.fn<AuthRepository['syncLocalState']>().mockResolvedValue(bootstrap);
+  const repository = {
+    requestSmsCode,
+    login,
+    refresh,
+    logout,
+    bootstrap: loadBootstrap,
+    syncLocalState,
+    ...methods,
+  } as unknown as AuthRuntime['repository'];
+
+  return {
+    repository,
+    authenticatedRequest: (async () => undefined) as AuthRuntime['authenticatedRequest'],
+    setAccessToken: jest.fn<(accessToken: string | null) => void>(),
+    getDeviceIdentity: jest.fn<() => Promise<DeviceInput>>().mockResolvedValue({
+      installationId: 'installation-123', platform: 'IOS', deviceName: 'Test iPhone', appVersion: '1.0.0',
+    }),
+    loadLocalSyncInput: jest.fn<() => Promise<LocalSyncInput>>().mockResolvedValue({
+      ageVerified: true,
+      profile: { nickname: '本地杯友' },
+      privacySettings: { localOnlyMode: true },
+      cellarIngredientIds: ['gin'],
+    }),
+  };
+}
+
+function StatusProbe() {
+  const { status } = useAuth();
+  return <Text>{status}</Text>;
+}
+
+function AuthProbe({ onReady }: { onReady: (auth: ReturnType<typeof useAuth>) => void }) {
+  const auth = useAuth();
+  onReady(auth);
+  return <Text>{auth.status}</Text>;
+}
+
+describe('AuthProvider', () => {
+  beforeEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('restores a stored session, keeps the access token in memory, and bootstraps the account', async () => {
+    jest.spyOn(tokenStore, 'getRefreshToken').mockResolvedValue('stored-refresh-token');
+    const runtime = createRuntime();
+    const screen = await render(<AuthProvider runtime={runtime}><StatusProbe /></AuthProvider>);
+
+    expect(await screen.findByText('signedIn')).toBeTruthy();
+    expect(runtime.repository.refresh).toHaveBeenCalledTimes(1);
+    expect(runtime.repository.bootstrap).toHaveBeenCalledTimes(1);
+  });
+
+  it('becomes signed out without calling refresh when no refresh token is stored', async () => {
+    jest.spyOn(tokenStore, 'getRefreshToken').mockResolvedValue(null);
+    const runtime = createRuntime();
+    const screen = await render(<AuthProvider runtime={runtime}><StatusProbe /></AuthProvider>);
+
+    expect(await screen.findByText('signedOut')).toBeTruthy();
+    expect(runtime.repository.refresh).not.toHaveBeenCalled();
+    expect(runtime.repository.bootstrap).not.toHaveBeenCalled();
+  });
+
+  it('clears the stored refresh token and becomes signed out when restore refresh fails', async () => {
+    jest.spyOn(tokenStore, 'getRefreshToken').mockResolvedValue('expired-refresh-token');
+    const clearRefreshToken = jest.spyOn(tokenStore, 'clearRefreshToken').mockResolvedValue();
+    const refresh = jest.fn<AuthRepository['refresh']>().mockRejectedValue(new Error('expired'));
+    const runtime = createRuntime({ refresh });
+    const screen = await render(<AuthProvider runtime={runtime}><StatusProbe /></AuthProvider>);
+
+    expect(await screen.findByText('signedOut')).toBeTruthy();
+    expect(clearRefreshToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('syncs local first-run data before bootstrapping a new account', async () => {
+    jest.spyOn(tokenStore, 'getRefreshToken').mockResolvedValue(null);
+    const runtime = createRuntime({}, true);
+    let auth: ReturnType<typeof useAuth> | undefined;
+    const screen = await render(<AuthProvider runtime={runtime}><AuthProbe onReady={(value) => { auth = value; }} /></AuthProvider>);
+    await screen.findByText('signedOut');
+
+    await act(async () => { await auth?.login('13800000000', '123456'); });
+
+    expect(runtime.loadLocalSyncInput).toHaveBeenCalledTimes(1);
+    expect(runtime.repository.syncLocalState).toHaveBeenCalledWith({
+      ageVerified: true,
+      profile: { nickname: '本地杯友' },
+      privacySettings: { localOnlyMode: true },
+      cellarIngredientIds: ['gin'],
+    });
+    expect(runtime.repository.bootstrap).toHaveBeenCalledTimes(1);
+    expect(
+      (runtime.repository.syncLocalState as jest.Mock).mock.invocationCallOrder[0]
+    ).toBeLessThan((runtime.repository.bootstrap as jest.Mock).mock.invocationCallOrder[0]);
+    expect(screen.getByText('signedIn')).toBeTruthy();
+  });
+
+  it('bootstraps an existing account without overwriting it from local data', async () => {
+    jest.spyOn(tokenStore, 'getRefreshToken').mockResolvedValue(null);
+    const runtime = createRuntime({}, false);
+    let auth: ReturnType<typeof useAuth> | undefined;
+    const screen = await render(<AuthProvider runtime={runtime}><AuthProbe onReady={(value) => { auth = value; }} /></AuthProvider>);
+    await screen.findByText('signedOut');
+
+    await act(async () => { await auth?.login('13800000000', '123456'); });
+
+    expect(runtime.loadLocalSyncInput).not.toHaveBeenCalled();
+    expect(runtime.repository.syncLocalState).not.toHaveBeenCalled();
+    expect(runtime.repository.bootstrap).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs out through the repository and clears the in-memory authenticated state', async () => {
+    jest.spyOn(tokenStore, 'getRefreshToken').mockResolvedValue('stored-refresh-token');
+    const runtime = createRuntime();
+    let auth: ReturnType<typeof useAuth> | undefined;
+    const screen = await render(<AuthProvider runtime={runtime}><AuthProbe onReady={(value) => { auth = value; }} /></AuthProvider>);
+    await screen.findByText('signedIn');
+
+    await act(async () => { await auth?.logout(); });
+
+    expect(runtime.repository.logout).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('signedOut')).toBeTruthy();
+  });
+
+  it('does not update React state after it unmounts while restoring', async () => {
+    const refresh = deferred<Awaited<ReturnType<AuthRepository['refresh']>>>();
+    jest.spyOn(tokenStore, 'getRefreshToken').mockResolvedValue('stored-refresh-token');
+    const runtime = createRuntime({ refresh: jest.fn<AuthRepository['refresh']>(() => refresh.promise) });
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const screen = await render(<AuthProvider runtime={runtime}><StatusProbe /></AuthProvider>);
+
+    screen.unmount();
+    await act(async () => {
+      refresh.resolve({
+        accessToken: 'late-access', refreshToken: 'rotated-refresh', expiresIn: 900, refreshExpiresIn: 2_592_000,
+      });
+    });
+
+    expect(consoleError).not.toHaveBeenCalledWith(expect.stringContaining('unmounted'));
+  });
+
+  it('builds the production runtime from the Task 2-3 repository and authenticated client', () => {
+    expect(createAuthRuntime()).toEqual(expect.objectContaining({
+      repository: expect.anything(),
+      authenticatedRequest: expect.any(Function),
+    }));
+  });
+});
