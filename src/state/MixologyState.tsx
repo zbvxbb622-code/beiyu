@@ -96,6 +96,10 @@ function cellarIngredientIdsFromBootstrap(response: BootstrapResponse): string[]
   return Array.from(new Set(response.cellar.items.flatMap((item) => item.ingredientId ? [item.ingredientId] : [])));
 }
 
+function accountScopeKey(userId: string | null, generation: number) {
+  return userId ? `user:${userId}:${generation}` : `guest:${generation}`;
+}
+
 export function MixologyProvider({ children }: { children: ReactNode }) {
   const { bootstrapData, repository, session, status } = useAuth();
   const [isHydrated, setIsHydrated] = useState(false);
@@ -103,6 +107,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
   const [interactionState, setInteractionState] = useState<LocalInteractionState>(defaultInteractionState);
   const [userProfile, setUserProfile] = useState<UserProfile>(defaultUserProfile);
   const [accountSecurity, setAccountSecurity] = useState<AccountSecurity>(anonymousAccountSecurity);
+  const [visibleAccountScope, setVisibleAccountScope] = useState('guest:0');
   const interactionStateRef = useRef<LocalInteractionState>(defaultInteractionState);
   const localStateRef = useRef<LocalState>(defaultLocalState);
   const userProfileRef = useRef<UserProfile>(defaultUserProfile);
@@ -135,6 +140,10 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
 
   const sessionGeneration = session?.generation ?? 0;
   const sessionUserId = session?.userId ?? bootstrapData?.user.id ?? null;
+  const activeAccountScope = accountScopeKey(status === 'signedIn' ? sessionUserId : null, sessionGeneration);
+  const accountStateIsVisible = session === undefined
+    ? visibleAccountScope === activeAccountScope || visibleAccountScope.startsWith('user:')
+    : visibleAccountScope === activeAccountScope;
 
   const resetAccountState = useCallback(() => {
     localStateRef.current = defaultLocalState;
@@ -162,6 +171,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       cellarIngredientIdsRef.current = guestState.cellarIngredientIds;
       setLocalState(guestState);
       setUserProfile(guestProfile);
+      setVisibleAccountScope(accountScopeKey(null, sessionGeneration));
     });
     return () => { cancelled = true; };
   }, [resetAccountState, sessionGeneration, sessionUserId, status]);
@@ -226,6 +236,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
     setLocalState(nextLocalState);
     setUserProfile(nextProfile);
     setAccountSecurity(nextAccountSecurity);
+    setVisibleAccountScope(accountScopeKey(response.user.id, expected.generation));
   }, [isSessionActive]);
 
   const updateUserProfile = useCallback(
@@ -579,9 +590,9 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       isHydrated,
-      localState,
+      localState: accountStateIsVisible ? localState : defaultLocalState,
       interactionState,
-      userProfile,
+      userProfile: accountStateIsVisible ? userProfile : defaultUserProfile,
       applyBootstrap,
       updateUserProfile,
       verifyAge,
@@ -599,7 +610,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       drawBlindBoxCard,
       resetLocalState,
       logout,
-      accountSecurity,
+      accountSecurity: accountStateIsVisible ? accountSecurity : anonymousAccountSecurity,
       updateAccountSecurity,
       bindWechat,
       unbindWechat,
@@ -615,6 +626,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       localState,
       interactionState,
       userProfile,
+      accountStateIsVisible,
       applyBootstrap,
       updateUserProfile,
       verifyAge,

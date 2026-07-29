@@ -1,4 +1,4 @@
-import { act, render } from '@testing-library/react-native';
+import { act, render, waitFor } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { Text } from 'react-native';
 
@@ -109,6 +109,20 @@ function AuthProbe({ onReady }: { onReady: (auth: ReturnType<typeof useAuth>) =>
   const auth = useAuth();
   onReady(auth);
   return <Text>{auth.status}</Text>;
+}
+
+function SessionProbe({ onReady }: { onReady: (auth: ReturnType<typeof useAuth>) => void }) {
+  const auth = useAuth();
+  onReady(auth);
+  return <Text>{`${auth.status}:${auth.bootstrapData?.profile.nickname ?? 'none'}:${auth.session.userId ?? 'none'}`}</Text>;
+}
+
+function bootstrapFor(userId: string, nickname: string) {
+  return {
+    ...bootstrap,
+    user: { ...bootstrap.user, id: userId },
+    profile: { ...bootstrap.profile, nickname },
+  };
 }
 
 describe('AuthProvider', () => {
@@ -283,6 +297,68 @@ describe('AuthProvider', () => {
 
     expect(runtime.repository.logout).toHaveBeenCalledTimes(1);
     expect(screen.getByText('signedOut')).toBeTruthy();
+  });
+
+  it('does not let a delayed A bootstrap replace B after logout and login', async () => {
+    jest.spyOn(tokenStore, 'getRefreshToken').mockResolvedValue(null);
+    const a = bootstrapFor('5364864c-3a48-4ca8-90b7-04f049b3227b', 'A');
+    const b = bootstrapFor('6364864c-3a48-4ca8-90b7-04f049b3227b', 'B');
+    const delayedA = deferred<typeof bootstrap>();
+    const loadBootstrap = jest.fn<AuthRepository['bootstrap']>()
+      .mockImplementationOnce(() => delayedA.promise)
+      .mockResolvedValueOnce(b);
+    const runtime = createRuntime({ bootstrap: loadBootstrap });
+    let auth: ReturnType<typeof useAuth> | undefined;
+    const screen = await render(<AuthProvider runtime={runtime}><SessionProbe onReady={(value) => { auth = value; }} /></AuthProvider>);
+    await screen.findByText('signedOut:none:none');
+
+    let loggingInAsA!: Promise<void>;
+    await act(async () => {
+      loggingInAsA = auth!.login('13800000000', '123456');
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(loadBootstrap).toHaveBeenCalledTimes(1));
+    await act(async () => { await auth!.logout(); });
+    await act(async () => { await auth!.login('13900000000', '123456'); });
+    expect(screen.getByText(`signedIn:B:${b.user.id}`)).toBeTruthy();
+
+    await act(async () => {
+      delayedA.resolve(a);
+      await loggingInAsA;
+    });
+
+    expect(screen.getByText(`signedIn:B:${b.user.id}`)).toBeTruthy();
+    expect(screen.queryByText(`signedIn:A:${a.user.id}`)).toBeNull();
+  });
+
+  it('revokes visible auth state before a delayed refresh-token cleanup can finish', async () => {
+    jest.spyOn(tokenStore, 'getRefreshToken').mockResolvedValue('stored-refresh-token');
+    const delayedClear = deferred<void>();
+    jest.spyOn(tokenStore, 'clearRefreshToken').mockImplementation(() => delayedClear.promise);
+    const b = bootstrapFor('6364864c-3a48-4ca8-90b7-04f049b3227b', 'B');
+    const runtime = createRuntime({ bootstrap: jest.fn<AuthRepository['bootstrap']>().mockResolvedValueOnce(bootstrap).mockResolvedValueOnce(b) });
+    let auth: ReturnType<typeof useAuth> | undefined;
+    const screen = await render(<AuthProvider runtime={runtime}><SessionProbe onReady={(value) => { auth = value; }} /></AuthProvider>);
+    await screen.findByText(`signedIn:${bootstrap.profile.nickname}:${bootstrap.user.id}`);
+
+    let loggingOut!: Promise<void>;
+    await act(async () => {
+      loggingOut = auth!.logout();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText('signedOut:none:none')).toBeTruthy();
+    expect(runtime.setAccessToken).toHaveBeenLastCalledWith(null);
+
+    await act(async () => { await auth!.login('13900000000', '123456'); });
+    expect(screen.getByText(`signedIn:B:${b.user.id}`)).toBeTruthy();
+
+    await act(async () => {
+      delayedClear.resolve();
+      await loggingOut;
+    });
+
+    expect(screen.getByText(`signedIn:B:${b.user.id}`)).toBeTruthy();
   });
 
   it('does not update React state after it unmounts while restoring', async () => {

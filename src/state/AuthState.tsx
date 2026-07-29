@@ -94,6 +94,7 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
   const [bootstrapData, setBootstrapData] = useState<BootstrapResponse | null>(null);
   const [session, setSession] = useState<AuthSession>({ userId: null, generation: 0 });
   const isMountedRef = useRef(true);
+  const generationRef = useRef(0);
 
   const setIfMounted = useCallback((callback: () => void) => {
     if (isMountedRef.current) {
@@ -101,29 +102,55 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
     }
   }, []);
 
-  const clearSession = useCallback(async () => {
+  const isCurrentGeneration = useCallback((generation: number) => (
+    isMountedRef.current && generationRef.current === generation
+  ), []);
+
+  const publishSignedOut = useCallback((generation: number) => {
+    setIfMounted(() => {
+      if (!isCurrentGeneration(generation)) return;
+      setBootstrapData(null);
+      setStatus('signedOut');
+      setSession({ userId: null, generation });
+    });
+  }, [isCurrentGeneration, setIfMounted]);
+
+  const beginGeneration = useCallback(() => {
+    generationRef.current += 1;
+    return generationRef.current;
+  }, []);
+
+  const clearSession = useCallback(async (expectedGeneration?: number) => {
+    if (expectedGeneration !== undefined && !isCurrentGeneration(expectedGeneration)) return;
+    const generation = beginGeneration();
     activeRuntime.setAccessToken(null);
+    publishSignedOut(generation);
     try {
       await tokenStore.clearRefreshToken();
     } catch {
       // Token cleanup is best effort and must not obscure the authentication failure.
     }
-    setIfMounted(() => {
-      setBootstrapData(null);
-      setStatus('signedOut');
-      setSession((current) => ({ userId: null, generation: current.generation + 1 }));
-    });
-  }, [activeRuntime, setIfMounted]);
+  }, [activeRuntime, beginGeneration, isCurrentGeneration, publishSignedOut]);
 
-  const bootstrap = useCallback(async () => {
+  const beginLogin = useCallback(() => {
+    const generation = beginGeneration();
+    activeRuntime.setAccessToken(null);
+    publishSignedOut(generation);
+    return generation;
+  }, [activeRuntime, beginGeneration, publishSignedOut]);
+
+  const bootstrap = useCallback(async (expectedGeneration = generationRef.current) => {
     const data = await activeRuntime.repository.bootstrap();
+    if (!isCurrentGeneration(expectedGeneration)) return data;
+    const generation = beginGeneration();
     setIfMounted(() => {
+      if (!isCurrentGeneration(generation)) return;
       setBootstrapData(data);
       setStatus('signedIn');
-      setSession((current) => ({ userId: data.user.id, generation: current.generation + 1 }));
+      setSession({ userId: data.user.id, generation });
     });
     return data;
-  }, [activeRuntime, setIfMounted]);
+  }, [activeRuntime, beginGeneration, isCurrentGeneration, setIfMounted]);
 
   useEffect(() => {
     activeRuntime.setUnauthorizedHandler(clearSession);
@@ -142,23 +169,25 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
   useEffect(() => {
     isMountedRef.current = true;
     let cancelled = false;
+    const restoreGeneration = generationRef.current;
 
     const restore = async () => {
       try {
         const refreshToken = await tokenStore.getRefreshToken();
         if (!refreshToken) {
-          if (!cancelled) {
-            setIfMounted(() => setStatus('signedOut'));
+          if (!cancelled && isCurrentGeneration(restoreGeneration)) {
+            publishSignedOut(restoreGeneration);
           }
           return;
         }
 
         const tokens = await activeRuntime.repository.refresh();
+        if (cancelled || !isCurrentGeneration(restoreGeneration)) return;
         activeRuntime.setAccessToken(tokens.accessToken);
-        await bootstrap();
+        await bootstrap(restoreGeneration);
       } catch {
-        if (!cancelled) {
-          await clearSession();
+        if (!cancelled && isCurrentGeneration(restoreGeneration)) {
+          await clearSession(restoreGeneration);
         }
       }
     };
@@ -168,7 +197,7 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
       cancelled = true;
       isMountedRef.current = false;
     };
-  }, [activeRuntime, bootstrap, clearSession, setIfMounted]);
+  }, [activeRuntime, bootstrap, clearSession, isCurrentGeneration, publishSignedOut]);
 
   const requestSmsCode = useCallback(
     async (phone: string) => {
@@ -180,28 +209,34 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
 
   const login = useCallback(
     async (phone: string, code: string) => {
+      const loginGeneration = beginLogin();
       const device = await activeRuntime.getDeviceIdentity();
       const response = await activeRuntime.repository.login({ phone, code, device });
+      if (!isCurrentGeneration(loginGeneration)) return;
       activeRuntime.setAccessToken(response.accessToken);
 
       try {
         if (response.isNewUser) {
           await activeRuntime.repository.syncLocalState(await activeRuntime.loadLocalSyncInput());
+          if (!isCurrentGeneration(loginGeneration)) return;
         }
-        await bootstrap();
+        await bootstrap(loginGeneration);
       } catch (error) {
-        await clearSession();
+        await clearSession(loginGeneration);
         throw error;
       }
     },
-    [activeRuntime, bootstrap, clearSession]
+    [activeRuntime, beginLogin, bootstrap, clearSession, isCurrentGeneration]
   );
 
   const logout = useCallback(async () => {
+    const cleanup = clearSession();
     try {
       await activeRuntime.repository.logout();
+    } catch {
+      // Local revocation is authoritative even if the logout request cannot reach the server.
     } finally {
-      await clearSession();
+      await cleanup;
     }
   }, [activeRuntime, clearSession]);
 

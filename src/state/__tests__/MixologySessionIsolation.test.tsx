@@ -34,6 +34,7 @@ let mockAuthSnapshot: {
 };
 let currentValue: MixologyValue | null = null;
 let refresh: (() => void) | null = null;
+let renderedAccountSnapshots: Pick<MixologyValue, 'userProfile' | 'localState' | 'accountSecurity'>[] = [];
 
 jest.mock('@/state/AuthState', () => ({ useAuth: () => mockAuthSnapshot }));
 
@@ -51,6 +52,11 @@ function bootstrapFor(userId: string, nickname: string): BootstrapResponse {
 
 function Probe() {
   const value = useMixology();
+  renderedAccountSnapshots.push({
+    userProfile: value.userProfile,
+    localState: value.localState,
+    accountSecurity: value.accountSecurity,
+  });
   useEffect(() => { currentValue = value; }, [value]);
   return <Text>{value.userProfile.nickname}</Text>;
 }
@@ -76,6 +82,7 @@ describe('Mixology session isolation', () => {
     await AsyncStorage.clear();
     currentValue = null;
     refresh = null;
+    renderedAccountSnapshots = [];
     Object.values(mockRepository).forEach((method) => method.mockReset());
     mockAuthSnapshot = {
       status: 'signedOut',
@@ -119,6 +126,24 @@ describe('Mixology session isolation', () => {
     expect(currentValue?.localState.ageVerified).toBe(false);
     expect(currentValue?.localState.cellarIngredientIds).toEqual([]);
     expect(currentValue?.accountSecurity.devices).toEqual([]);
+  });
+
+  it('masks A account data in the first B render before passive cleanup runs', async () => {
+    const a = bootstrapFor('5364864c-3a48-4ca8-90b7-04f049b3227b', 'A');
+    const b = bootstrapFor('6364864c-3a48-4ca8-90b7-04f049b3227b', 'B');
+    await render(<Harness />);
+    await waitFor(() => expect(refresh).not.toBeNull());
+    await switchSession({ status: 'signedIn', bootstrapData: a, session: { userId: a.user.id, generation: 1 }, repository: mockRepository });
+    await applyBootstrap(a);
+
+    renderedAccountSnapshots = [];
+    await switchSession({ status: 'signedIn', bootstrapData: b, session: { userId: b.user.id, generation: 2 }, repository: mockRepository });
+
+    expect(renderedAccountSnapshots[0]).toMatchObject({
+      userProfile: { nickname: '游客调酒师' },
+      localState: { ageVerified: false, cellarIngredientIds: [], privacySettings: { localOnlyMode: true } },
+      accountSecurity: { phone: '', devices: [] },
+    });
   });
 
   it('persists account-security edits only in the active account mirror', async () => {
