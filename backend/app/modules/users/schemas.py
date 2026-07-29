@@ -101,6 +101,8 @@ class AccountSecurityResponse(ApiModel):
 class AiAllowance(ApiModel):
     daily_message_limit: int
     messages_used_today: int
+    remaining: int
+    resets_at: datetime
 
 
 class FeatureFlags(ApiModel):

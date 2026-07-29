@@ -42,6 +42,8 @@ class Settings(BaseSettings):
     otp_max_per_device_day: int = Field(default=20, ge=1, le=100)
     otp_max_per_ip_day: int = Field(default=30, ge=1, le=200)
     max_active_devices: int = Field(default=5, ge=1, le=10)
+    ai_enabled: bool = True
+    ai_daily_limit: int = Field(default=50, ge=1)
 
     @model_validator(mode="after")
     def require_generated_secret_outside_dev(self) -> "Settings":

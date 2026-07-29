@@ -3,7 +3,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Response, status
 from sqlmodel import Session
 
+from app.core.config import Settings, get_settings
 from app.core.errors import ErrorEnvelope
+from app.db.models.accounts import utc_now
 from app.db.session import get_session
 from app.modules.auth.dependencies import CurrentAuth
 from app.modules.users.schemas import (
@@ -31,14 +33,21 @@ from app.modules.users.service import (
 
 router = APIRouter(prefix="/me", tags=["me"])
 SessionDep = Annotated[Session, Depends(get_session)]
+SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
 @router.get("/bootstrap", response_model=BootstrapResponse)
-def bootstrap(session: SessionDep, auth: CurrentAuth) -> BootstrapResponse:
+def bootstrap(
+    session: SessionDep,
+    auth: CurrentAuth,
+    settings: SettingsDep,
+) -> BootstrapResponse:
     return bootstrap_response(
         session=session,
         user=auth.user,
         current_device=auth.device,
+        settings=settings,
+        now=utc_now(),
     )
 
 
@@ -112,10 +121,13 @@ def local_sync(
     payload: LocalSyncRequest,
     session: SessionDep,
     auth: CurrentAuth,
+    settings: SettingsDep,
 ) -> BootstrapResponse:
     return sync_local_state(
         session=session,
         user=auth.user,
         current_device=auth.device,
         payload=payload,
+        settings=settings,
+        now=utc_now(),
     )

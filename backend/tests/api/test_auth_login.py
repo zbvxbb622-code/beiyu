@@ -4,7 +4,15 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 from starlette.testclient import TestClient
 
-from app.db.models import AuthSession, SmsCode, User, UserDevice, UserProfile
+from app.db.models import (
+    AuthSession,
+    SmsCode,
+    User,
+    UserDevice,
+    UserProfile,
+    UserStatus,
+)
+from tests.api.test_auth_sessions import bearer
 
 PHONE = "13800138000"
 DEVICE = {
@@ -153,3 +161,32 @@ def test_consumed_code_cannot_be_reused(
 
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "INVALID_SMS_CODE"
+
+
+def test_banned_user_can_authenticate_but_deleted_user_cannot(
+    database_client: TestClient,
+    database_session: Session,
+) -> None:
+    request_code(database_client)
+    authenticated = login(database_client).json()
+    user = database_session.exec(select(User)).one()
+
+    user.status = UserStatus.BANNED
+    database_session.add(user)
+    database_session.commit()
+
+    banned = database_client.get(
+        "/api/v1/me/profile",
+        headers=bearer(authenticated["accessToken"]),
+    )
+    assert banned.status_code == 200, banned.text
+
+    user.status = UserStatus.DELETED
+    database_session.add(user)
+    database_session.commit()
+
+    deleted = database_client.get(
+        "/api/v1/me/profile",
+        headers=bearer(authenticated["accessToken"]),
+    )
+    assert deleted.status_code == 401

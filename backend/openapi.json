@@ -873,11 +873,22 @@
           "messagesUsedToday": {
             "title": "Messagesusedtoday",
             "type": "integer"
+          },
+          "remaining": {
+            "title": "Remaining",
+            "type": "integer"
+          },
+          "resetsAt": {
+            "format": "date-time",
+            "title": "Resetsat",
+            "type": "string"
           }
         },
         "required": [
           "dailyMessageLimit",
-          "messagesUsedToday"
+          "messagesUsedToday",
+          "remaining",
+          "resetsAt"
         ],
         "title": "AiAllowance",
         "type": "object"

@@ -1,6 +1,11 @@
+from datetime import UTC, datetime
+
+import pytest
 from sqlmodel import Session, select
 from starlette.testclient import TestClient
 
+from app.api.routes import me
+from app.core.config import Settings, get_settings
 from app.db.models import User, UserProfile, UserStatus
 from tests.api.test_auth_sessions import bearer, create_login
 
@@ -128,6 +133,36 @@ def test_bootstrap_exposes_mobile_contract_without_internal_secrets(
     assert "phoneHash" not in serialized
     assert "refreshToken" not in serialized
     assert "secret" not in serialized.lower()
+
+
+def test_bootstrap_exposes_configured_ai_allowance(
+    database_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = Settings(
+        database_url="postgresql+psycopg://user:pass@db/beiyu",
+        ai_enabled=True,
+        ai_daily_limit=50,
+    )
+    now = datetime(2026, 7, 29, 12, tzinfo=UTC)
+    database_client.app.dependency_overrides[get_settings] = lambda: settings
+    monkeypatch.setattr(me, "utc_now", lambda: now)
+    login = create_login(database_client)
+
+    response = database_client.get(
+        "/api/v1/me/bootstrap",
+        headers=bearer(login["accessToken"]),
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["ai"] == {
+        "dailyMessageLimit": 50,
+        "messagesUsedToday": 0,
+        "remaining": 50,
+        "resetsAt": "2026-07-29T16:00:00Z",
+    }
+    assert body["featureFlags"]["aiChat"] is True
 
 
 def test_delete_account_anonymizes_profile_and_revokes_access(

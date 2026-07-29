@@ -15,6 +15,8 @@ def test_settings_default_to_dev() -> None:
     assert settings.sms_provider == "development"
     assert settings.sms_development_code == "123456"
     assert settings.max_active_devices == 5
+    assert settings.ai_enabled is True
+    assert settings.ai_daily_limit == 50
 
 
 def test_prod_rejects_placeholder_secret() -> None:

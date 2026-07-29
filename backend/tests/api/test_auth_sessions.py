@@ -3,7 +3,7 @@ from typing import Any
 from sqlmodel import Session, select
 from starlette.testclient import TestClient
 
-from app.db.models import AuthSession
+from app.db.models import AuthSession, User, UserStatus
 
 PHONE = "13800138000"
 DEVICE = {
@@ -59,6 +59,24 @@ def test_refresh_rotates_token_and_rejects_replay(
     )
     assert replay.status_code == 401
     assert replay.json()["error"]["code"] == "INVALID_REFRESH_TOKEN"
+
+
+def test_banned_user_can_refresh(
+    database_client: TestClient,
+    database_session: Session,
+) -> None:
+    login = create_login(database_client)
+    user = database_session.exec(select(User)).one()
+    user.status = UserStatus.BANNED
+    database_session.add(user)
+    database_session.commit()
+
+    response = database_client.post(
+        "/api/v1/auth/refresh",
+        json={"refreshToken": login["refreshToken"]},
+    )
+
+    assert response.status_code == 200, response.text
 
 
 def test_logout_revokes_current_session(

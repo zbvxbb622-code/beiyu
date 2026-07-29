@@ -1,9 +1,12 @@
 import uuid
+from datetime import UTC, datetime, time, timedelta
 from typing import Any, cast
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlmodel import Session, select
 
+from app.core.config import Settings
 from app.core.errors import AppError
 from app.db.models import (
     AuthSession,
@@ -142,11 +145,30 @@ def confirm_age(*, session: Session, user: User) -> User:
     return user
 
 
+def next_beijing_reset(now: datetime) -> datetime:
+    local_now = now.astimezone(ZoneInfo("Asia/Shanghai"))
+    next_day = local_now.date() + timedelta(days=1)
+    return datetime.combine(next_day, time.min, ZoneInfo("Asia/Shanghai")).astimezone(
+        UTC
+    )
+
+
+def ai_allowance(*, settings: Settings, now: datetime) -> AiAllowance:
+    return AiAllowance(
+        daily_message_limit=settings.ai_daily_limit,
+        messages_used_today=0,
+        remaining=settings.ai_daily_limit,
+        resets_at=next_beijing_reset(now),
+    )
+
+
 def bootstrap_response(
     *,
     session: Session,
     user: User,
     current_device: UserDevice,
+    settings: Settings,
+    now: datetime,
 ) -> BootstrapResponse:
     profile = get_user_profile(session, user)
     devices = list_user_devices(session=session, user=user)
@@ -176,8 +198,8 @@ def bootstrap_response(
             ],
         ),
         cellar=cellar_list_response(list_cellar_items(session=session, user=user)),
-        ai=AiAllowance(daily_message_limit=50, messages_used_today=0),
-        feature_flags=FeatureFlags(),
+        ai=ai_allowance(settings=settings, now=now),
+        feature_flags=FeatureFlags(ai_chat=settings.ai_enabled),
     )
 
 
@@ -187,9 +209,10 @@ def sync_local_state(
     user: User,
     current_device: UserDevice,
     payload: LocalSyncRequest,
+    settings: Settings,
+    now: datetime,
 ) -> BootstrapResponse:
     profile = get_user_profile(session, user)
-    now = utc_now()
 
     if payload.profile is not None:
         local_values = payload.profile.model_dump(
@@ -246,6 +269,8 @@ def sync_local_state(
         session=session,
         user=user,
         current_device=current_device,
+        settings=settings,
+        now=now,
     )
 
 
