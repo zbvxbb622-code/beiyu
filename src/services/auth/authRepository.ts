@@ -79,8 +79,10 @@ export class AuthRepository {
     return response;
   }
 
-  async refresh() {
-    const refreshToken = await tokenStore.getRefreshToken();
+  async refresh(expectedRefreshToken?: string | null) {
+    const refreshToken = expectedRefreshToken === undefined
+      ? await tokenStore.getRefreshToken()
+      : expectedRefreshToken;
     if (!refreshToken) {
       throw new ApiError('refresh-token-missing', 401, {});
     }
@@ -90,11 +92,16 @@ export class AuthRepository {
       jsonRequest('POST', { refreshToken }),
       tokenResponseSchema
     );
-    await tokenStore.setRefreshToken(response.refreshToken);
+    if (expectedRefreshToken === undefined) {
+      await tokenStore.setRefreshToken(response.refreshToken);
+    } else {
+      await tokenStore.replaceRefreshToken(refreshToken, response.refreshToken);
+    }
     return response;
   }
 
   async logout(): Promise<void> {
+    const refreshToken = await tokenStore.getRefreshToken();
     try {
       await this.options.authenticatedClient.request(
         '/auth/logout',
@@ -102,7 +109,7 @@ export class AuthRepository {
         emptyResponseSchema
       );
     } finally {
-      await tokenStore.clearRefreshToken();
+      await tokenStore.clearRefreshToken(refreshToken);
     }
   }
 

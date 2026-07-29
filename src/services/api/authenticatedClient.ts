@@ -36,8 +36,9 @@ export type AuthenticatedClient = {
 
 type AuthenticatedClientOptions = ClientOptions & {
   getAccessToken: () => string | null;
-  refresh: () => Promise<void>;
-  onUnauthorized: () => Promise<void> | void;
+  getAuthIdentity?: () => unknown;
+  refresh: (identity?: unknown) => Promise<void>;
+  onUnauthorized: (identity?: unknown) => Promise<void> | void;
 };
 
 function normalizeApiBaseUrl(value: string): string {
@@ -146,20 +147,32 @@ export function createRawRequest(options: ClientOptions): RequestWithSchema {
 export function createAuthenticatedClient(
   options: AuthenticatedClientOptions
 ): AuthenticatedClient {
-  let refreshPromise: Promise<void> | null = null;
+  const refreshPromises = new Map<unknown, Promise<void>>();
 
-  function refreshAccessToken(): Promise<void> {
-    if (!refreshPromise) {
-      refreshPromise = options.refresh().finally(() => {
-        refreshPromise = null;
-      });
-    }
+  function refreshAccessToken(identity: unknown): Promise<void> {
+    const existing = refreshPromises.get(identity);
+    if (existing) return existing;
+    const refreshPromise = options.refresh(identity).finally(() => {
+      if (refreshPromises.get(identity) === refreshPromise) {
+        refreshPromises.delete(identity);
+      }
+    });
+    refreshPromises.set(identity, refreshPromise);
     return refreshPromise;
   }
 
-  async function cleanUpUnauthorized(): Promise<void> {
+  function identityIsCurrent(identity: unknown) {
+    return !options.getAuthIdentity || options.getAuthIdentity() === identity;
+  }
+
+  function staleSessionError() {
+    return new ApiError('stale-session', 401, {});
+  }
+
+  async function cleanUpUnauthorized(identity: unknown): Promise<void> {
+    if (!identityIsCurrent(identity)) return;
     try {
-      await options.onUnauthorized();
+      await options.onUnauthorized(identity);
     } catch {
       // Cleanup failures must not replace the authentication error that triggered them.
     }
@@ -169,8 +182,12 @@ export function createAuthenticatedClient(
     path: string,
     init: RequestInit,
     schema: Schema,
-    retried = false
+    retried = false,
+    identity = options.getAuthIdentity?.()
   ): Promise<z.output<Schema>> {
+    if (!identityIsCurrent(identity)) {
+      throw staleSessionError();
+    }
     const accessToken = options.getAccessToken();
     const response = await fetchWithTimeout(options, path, init, accessToken);
 
@@ -179,22 +196,24 @@ export function createAuthenticatedClient(
     }
 
     if (retried) {
-      await cleanUpUnauthorized();
+      await cleanUpUnauthorized(identity);
       throw await apiErrorFrom(response);
     }
 
-    if (accessToken !== options.getAccessToken()) {
+    if (accessToken !== options.getAccessToken() || !identityIsCurrent(identity)) {
+      if (options.getAuthIdentity) throw staleSessionError();
       return request(path, init, schema, true);
     }
 
     try {
-      await refreshAccessToken();
+      await refreshAccessToken(identity);
     } catch (error) {
-      await cleanUpUnauthorized();
+      await cleanUpUnauthorized(identity);
       throw toApiError(error, 'refresh-failed', 401);
     }
 
-    return request(path, init, schema, true);
+    if (!identityIsCurrent(identity)) throw staleSessionError();
+    return request(path, init, schema, true, identity);
   }
 
   return { request };

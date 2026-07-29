@@ -1,6 +1,6 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import { createAuthenticatedClient, type AuthenticatedClient } from '@/services/api/authenticatedClient';
+import { ApiError, createAuthenticatedClient, type AuthenticatedClient } from '@/services/api/authenticatedClient';
 import { AuthRepository, type LocalSyncInput } from '@/services/auth/authRepository';
 import type { BootstrapResponse, DeviceInput } from '@/services/auth/authSchemas';
 import { getDeviceIdentity } from '@/services/auth/deviceIdentity';
@@ -9,6 +9,12 @@ import { loadGuestState } from '@/services/storageService';
 
 export type AuthStatus = 'restoring' | 'signedOut' | 'signedIn';
 export type AuthSession = { userId: string | null; generation: number };
+type AuthRequestIdentity = { generation: number; refreshToken: string | null };
+type AuthRequestHandlers = {
+  getAuthIdentity: () => AuthRequestIdentity;
+  refresh: (identity: unknown) => Promise<void>;
+  onUnauthorized: (identity: unknown) => Promise<void>;
+};
 
 export type AuthRuntime = {
   repository: AuthRepository;
@@ -17,6 +23,7 @@ export type AuthRuntime = {
   loadLocalSyncInput: () => Promise<LocalSyncInput>;
   setAccessToken: (accessToken: string | null) => void;
   setUnauthorizedHandler: (handler: () => Promise<void>) => void;
+  setRequestIdentityHandlers?: (handlers: AuthRequestHandlers | null) => void;
 };
 
 type AuthContextValue = {
@@ -46,8 +53,17 @@ export async function loadLocalSyncInput(): Promise<LocalSyncInput> {
 export function createAuthRuntime(): AuthRuntime {
   let accessToken: string | null = null;
   let repository: AuthRepository;
+  const anonymousRequestIdentity: AuthRequestIdentity = { generation: 0, refreshToken: null };
   let unauthorizedHandler = async () => {
     await tokenStore.clearRefreshToken();
+  };
+  let requestIdentityHandlers: AuthRequestHandlers = {
+    getAuthIdentity: () => anonymousRequestIdentity,
+    refresh: async () => {
+      const tokens = await repository.refresh();
+      accessToken = tokens.accessToken;
+    },
+    onUnauthorized: async () => unauthorizedHandler(),
   };
   const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL ?? '';
 
@@ -56,14 +72,9 @@ export function createAuthRuntime(): AuthRuntime {
     fetch,
     timeoutMs: 15_000,
     getAccessToken: () => accessToken,
-    refresh: async () => {
-      const tokens = await repository.refresh();
-      accessToken = tokens.accessToken;
-    },
-    onUnauthorized: async () => {
-      accessToken = null;
-      await unauthorizedHandler();
-    },
+    getAuthIdentity: () => requestIdentityHandlers.getAuthIdentity(),
+    refresh: (identity) => requestIdentityHandlers.refresh(identity),
+    onUnauthorized: (identity) => requestIdentityHandlers.onUnauthorized(identity),
   });
 
   repository = new AuthRepository({
@@ -84,6 +95,16 @@ export function createAuthRuntime(): AuthRuntime {
     setUnauthorizedHandler: (handler) => {
       unauthorizedHandler = handler;
     },
+    setRequestIdentityHandlers: (handlers) => {
+      requestIdentityHandlers = handlers ?? {
+        getAuthIdentity: () => anonymousRequestIdentity,
+        refresh: async () => {
+          const tokens = await repository.refresh();
+          accessToken = tokens.accessToken;
+        },
+        onUnauthorized: async () => unauthorizedHandler(),
+      };
+    },
   };
 }
 
@@ -95,6 +116,8 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
   const [session, setSession] = useState<AuthSession>({ userId: null, generation: 0 });
   const isMountedRef = useRef(true);
   const generationRef = useRef(0);
+  const refreshTokenRef = useRef<string | null>(null);
+  const authIdentityRef = useRef<AuthRequestIdentity>({ generation: 0, refreshToken: null });
 
   const setIfMounted = useCallback((callback: () => void) => {
     if (isMountedRef.current) {
@@ -117,27 +140,50 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
 
   const beginGeneration = useCallback(() => {
     generationRef.current += 1;
+    authIdentityRef.current = {
+      generation: generationRef.current,
+      refreshToken: refreshTokenRef.current,
+    };
     return generationRef.current;
   }, []);
 
+  const setRefreshTokenIdentity = useCallback((refreshToken: string | null) => {
+    refreshTokenRef.current = refreshToken;
+    authIdentityRef.current = {
+      generation: generationRef.current,
+      refreshToken,
+    };
+  }, []);
+
+  const isCurrentRequestIdentity = useCallback((identity: unknown): identity is AuthRequestIdentity => (
+    identity === authIdentityRef.current && isCurrentGeneration(authIdentityRef.current.generation)
+  ), [isCurrentGeneration]);
+
   const clearSession = useCallback(async (expectedGeneration?: number) => {
     if (expectedGeneration !== undefined && !isCurrentGeneration(expectedGeneration)) return;
+    const refreshToken = refreshTokenRef.current;
     const generation = beginGeneration();
+    setRefreshTokenIdentity(null);
     activeRuntime.setAccessToken(null);
     publishSignedOut(generation);
     try {
-      await tokenStore.clearRefreshToken();
+      await tokenStore.clearRefreshToken(refreshToken);
     } catch {
       // Token cleanup is best effort and must not obscure the authentication failure.
     }
-  }, [activeRuntime, beginGeneration, isCurrentGeneration, publishSignedOut]);
+  }, [activeRuntime, beginGeneration, isCurrentGeneration, publishSignedOut, setRefreshTokenIdentity]);
 
   const beginLogin = useCallback(() => {
+    const refreshToken = refreshTokenRef.current;
     const generation = beginGeneration();
+    setRefreshTokenIdentity(null);
     activeRuntime.setAccessToken(null);
     publishSignedOut(generation);
+    if (refreshToken !== null) {
+      void tokenStore.clearRefreshToken(refreshToken).catch(() => undefined);
+    }
     return generation;
-  }, [activeRuntime, beginGeneration, publishSignedOut]);
+  }, [activeRuntime, beginGeneration, publishSignedOut, setRefreshTokenIdentity]);
 
   const bootstrap = useCallback(async (expectedGeneration = generationRef.current) => {
     const data = await activeRuntime.repository.bootstrap();
@@ -167,6 +213,28 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
   }, [activeRuntime, clearSession]);
 
   useEffect(() => {
+    activeRuntime.setRequestIdentityHandlers?.({
+      getAuthIdentity: () => authIdentityRef.current,
+      refresh: async (identity) => {
+        if (!isCurrentRequestIdentity(identity)) {
+          throw new ApiError('stale-session', 401, {});
+        }
+        const tokens = await activeRuntime.repository.refresh(identity.refreshToken);
+        if (!isCurrentRequestIdentity(identity)) {
+          throw new ApiError('stale-session', 401, {});
+        }
+        setRefreshTokenIdentity(tokens.refreshToken);
+        activeRuntime.setAccessToken(tokens.accessToken);
+      },
+      onUnauthorized: async (identity) => {
+        if (!isCurrentRequestIdentity(identity)) return;
+        await clearSession(identity.generation);
+      },
+    });
+    return () => activeRuntime.setRequestIdentityHandlers?.(null);
+  }, [activeRuntime, clearSession, isCurrentRequestIdentity, setRefreshTokenIdentity]);
+
+  useEffect(() => {
     isMountedRef.current = true;
     let cancelled = false;
     const restoreGeneration = generationRef.current;
@@ -181,8 +249,11 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
           return;
         }
 
-        const tokens = await activeRuntime.repository.refresh();
         if (cancelled || !isCurrentGeneration(restoreGeneration)) return;
+        setRefreshTokenIdentity(refreshToken);
+        const tokens = await activeRuntime.repository.refresh(refreshToken);
+        if (cancelled || !isCurrentGeneration(restoreGeneration)) return;
+        setRefreshTokenIdentity(tokens.refreshToken);
         activeRuntime.setAccessToken(tokens.accessToken);
         await bootstrap(restoreGeneration);
       } catch {
@@ -197,7 +268,7 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
       cancelled = true;
       isMountedRef.current = false;
     };
-  }, [activeRuntime, bootstrap, clearSession, isCurrentGeneration, publishSignedOut]);
+  }, [activeRuntime, bootstrap, clearSession, isCurrentGeneration, publishSignedOut, setRefreshTokenIdentity]);
 
   const requestSmsCode = useCallback(
     async (phone: string) => {
@@ -213,6 +284,7 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
       const device = await activeRuntime.getDeviceIdentity();
       const response = await activeRuntime.repository.login({ phone, code, device });
       if (!isCurrentGeneration(loginGeneration)) return;
+      setRefreshTokenIdentity(response.refreshToken);
       activeRuntime.setAccessToken(response.accessToken);
 
       try {
@@ -226,7 +298,7 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
         throw error;
       }
     },
-    [activeRuntime, beginLogin, bootstrap, clearSession, isCurrentGeneration]
+    [activeRuntime, beginLogin, bootstrap, clearSession, isCurrentGeneration, setRefreshTokenIdentity]
   );
 
   const logout = useCallback(async () => {

@@ -1,6 +1,7 @@
 import { act, render, waitFor } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { Text } from 'react-native';
+import { z } from 'zod';
 
 import { AuthProvider, createAuthRuntime, loadLocalSyncInput, useAuth, type AuthRuntime } from '@/state/AuthState';
 import { AuthRepository, type LocalSyncInput } from '@/services/auth/authRepository';
@@ -125,6 +126,33 @@ function bootstrapFor(userId: string, nickname: string) {
   };
 }
 
+function jsonResponse(body: unknown, status = 200): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async (): Promise<unknown> => body,
+  } as unknown as Response;
+}
+
+function loginResponseFor(data: ReturnType<typeof bootstrapFor>, accessToken: string, refreshToken: string) {
+  return {
+    accessToken,
+    refreshToken,
+    expiresIn: 900,
+    refreshExpiresIn: 2_592_000,
+    isNewUser: false,
+    user: data.user,
+    device: {
+      id: '7364864c-3a48-4ca8-90b7-04f049b3227b',
+      platform: 'IOS',
+      deviceName: 'Test iPhone',
+      appVersion: '1.0.0',
+      lastActiveAt: '2026-07-29T08:00:00.000Z',
+      isCurrent: true,
+    },
+  };
+}
+
 describe('AuthProvider', () => {
   beforeEach(() => {
     jest.restoreAllMocks();
@@ -176,7 +204,7 @@ describe('AuthProvider', () => {
 
   it('clears the stored refresh token and becomes signed out when restore refresh fails', async () => {
     jest.spyOn(tokenStore, 'getRefreshToken').mockResolvedValue('expired-refresh-token');
-    const clearRefreshToken = jest.spyOn(tokenStore, 'clearRefreshToken').mockResolvedValue();
+    const clearRefreshToken = jest.spyOn(tokenStore, 'clearRefreshToken').mockResolvedValue(true);
     const refresh = jest.fn<AuthRepository['refresh']>().mockRejectedValue(new Error('expired'));
     const runtime = createRuntime({ refresh });
     const screen = await render(<AuthProvider runtime={runtime}><StatusProbe /></AuthProvider>);
@@ -233,7 +261,7 @@ describe('AuthProvider', () => {
 
   it('rolls back both token stores when post-login initialization fails', async () => {
     jest.spyOn(tokenStore, 'getRefreshToken').mockResolvedValue(null);
-    const clearRefreshToken = jest.spyOn(tokenStore, 'clearRefreshToken').mockResolvedValue();
+    const clearRefreshToken = jest.spyOn(tokenStore, 'clearRefreshToken').mockResolvedValue(true);
     const initializationFailure = new Error('local sync timed out');
     const runtime = createRuntime({ syncLocalState: jest.fn<AuthRepository['syncLocalState']>().mockRejectedValue(initializationFailure) }, true);
     let auth: ReturnType<typeof useAuth> | undefined;
@@ -274,7 +302,7 @@ describe('AuthProvider', () => {
 
   it('moves a mounted provider to signed out when the authenticated client invalidates a session', async () => {
     jest.spyOn(tokenStore, 'getRefreshToken').mockResolvedValue('stored-refresh-token');
-    const clearRefreshToken = jest.spyOn(tokenStore, 'clearRefreshToken').mockResolvedValue();
+    const clearRefreshToken = jest.spyOn(tokenStore, 'clearRefreshToken').mockResolvedValue(true);
     const runtime = createRuntime();
     const screen = await render(<AuthProvider runtime={runtime}><StatusProbe /></AuthProvider>);
     await screen.findByText('signedIn');
@@ -333,7 +361,7 @@ describe('AuthProvider', () => {
 
   it('revokes visible auth state before a delayed refresh-token cleanup can finish', async () => {
     jest.spyOn(tokenStore, 'getRefreshToken').mockResolvedValue('stored-refresh-token');
-    const delayedClear = deferred<void>();
+    const delayedClear = deferred<boolean>();
     jest.spyOn(tokenStore, 'clearRefreshToken').mockImplementation(() => delayedClear.promise);
     const b = bootstrapFor('6364864c-3a48-4ca8-90b7-04f049b3227b', 'B');
     const runtime = createRuntime({ bootstrap: jest.fn<AuthRepository['bootstrap']>().mockResolvedValueOnce(bootstrap).mockResolvedValueOnce(b) });
@@ -354,11 +382,106 @@ describe('AuthProvider', () => {
     expect(screen.getByText(`signedIn:B:${b.user.id}`)).toBeTruthy();
 
     await act(async () => {
-      delayedClear.resolve();
+      delayedClear.resolve(true);
       await loggingOut;
     });
 
     expect(screen.getByText(`signedIn:B:${b.user.id}`)).toBeTruthy();
+  });
+
+  it('keeps B active when an A protected request resolves its real refresh after the session changed', async () => {
+    const previousApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+    process.env.EXPO_PUBLIC_API_BASE_URL = 'https://api.example.test';
+    const a = bootstrapFor('5364864c-3a48-4ca8-90b7-04f049b3227b', 'A');
+    const b = bootstrapFor('6364864c-3a48-4ca8-90b7-04f049b3227b', 'B');
+    const delayedARefresh = deferred<Response>();
+    let refreshCalls = 0;
+    let bootstrapCalls = 0;
+    const fetchMock = jest.fn(async (input: string | URL | Request) => {
+      const path = new URL(input.toString()).pathname;
+      if (path === '/auth/refresh') {
+        refreshCalls += 1;
+        return refreshCalls === 1
+          ? jsonResponse({ accessToken: 'a-access', refreshToken: 'a-refresh-rotated', expiresIn: 900, refreshExpiresIn: 2_592_000 })
+          : delayedARefresh.promise;
+      }
+      if (path === '/me/bootstrap') {
+        bootstrapCalls += 1;
+        return jsonResponse(bootstrapCalls === 1 ? a : b);
+      }
+      if (path === '/auth/login') return jsonResponse(loginResponseFor(b, 'b-access', 'b-refresh'));
+      if (path === '/auth/logout') return jsonResponse(undefined, 204);
+      if (path === '/protected') return jsonResponse({ error: { code: 'AUTH_EXPIRED', message: 'Expired', details: {} } }, 401);
+      throw new Error(`Unexpected ${path}`);
+    });
+    jest.spyOn(global, 'fetch').mockImplementation(fetchMock as typeof fetch);
+    await tokenStore.setRefreshToken('a-refresh');
+
+    let auth: ReturnType<typeof useAuth> | undefined;
+    const screen = await render(<AuthProvider><SessionProbe onReady={(value) => { auth = value; }} /></AuthProvider>);
+    await screen.findByText(`signedIn:A:${a.user.id}`);
+
+    const staleRequest = auth!.authenticatedRequest('/protected', {}, z.object({ value: z.string() }));
+    await waitFor(() => expect(refreshCalls).toBe(2));
+    await act(async () => { await auth!.logout(); });
+    await act(async () => { await auth!.login('13900000000', '123456'); });
+    expect(screen.getByText(`signedIn:B:${b.user.id}`)).toBeTruthy();
+
+    await act(async () => {
+      delayedARefresh.resolve(jsonResponse({ accessToken: 'a-late-access', refreshToken: 'a-late-refresh', expiresIn: 900, refreshExpiresIn: 2_592_000 }));
+      await expect(staleRequest).rejects.toBeDefined();
+    });
+
+    expect(screen.getByText(`signedIn:B:${b.user.id}`)).toBeTruthy();
+    await expect(tokenStore.getRefreshToken()).resolves.toBe('b-refresh');
+    if (previousApiBaseUrl === undefined) delete process.env.EXPO_PUBLIC_API_BASE_URL;
+    else process.env.EXPO_PUBLIC_API_BASE_URL = previousApiBaseUrl;
+  });
+
+  it('keeps B refresh token when A real logout finishes after B login', async () => {
+    const previousApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+    process.env.EXPO_PUBLIC_API_BASE_URL = 'https://api.example.test';
+    const a = bootstrapFor('5364864c-3a48-4ca8-90b7-04f049b3227b', 'A');
+    const b = bootstrapFor('6364864c-3a48-4ca8-90b7-04f049b3227b', 'B');
+    const delayedLogout = deferred<Response>();
+    let bootstrapCalls = 0;
+    const fetchMock = jest.fn(async (input: string | URL | Request) => {
+      const path = new URL(input.toString()).pathname;
+      if (path === '/auth/refresh') return jsonResponse({ accessToken: 'a-access', refreshToken: 'a-refresh-rotated', expiresIn: 900, refreshExpiresIn: 2_592_000 });
+      if (path === '/me/bootstrap') {
+        bootstrapCalls += 1;
+        return jsonResponse(bootstrapCalls === 1 ? a : b);
+      }
+      if (path === '/auth/login') return jsonResponse(loginResponseFor(b, 'b-access', 'b-refresh'));
+      if (path === '/auth/logout') return delayedLogout.promise;
+      throw new Error(`Unexpected ${path}`);
+    });
+    jest.spyOn(global, 'fetch').mockImplementation(fetchMock as typeof fetch);
+    await tokenStore.setRefreshToken('a-refresh');
+
+    let auth: ReturnType<typeof useAuth> | undefined;
+    const screen = await render(<AuthProvider><SessionProbe onReady={(value) => { auth = value; }} /></AuthProvider>);
+    await screen.findByText(`signedIn:A:${a.user.id}`);
+
+    let logoutA!: Promise<void>;
+    await act(async () => {
+      logoutA = auth!.logout();
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/auth/logout'), expect.anything()));
+    await act(async () => { await auth!.login('13900000000', '123456'); });
+    expect(screen.getByText(`signedIn:B:${b.user.id}`)).toBeTruthy();
+    await expect(tokenStore.getRefreshToken()).resolves.toBe('b-refresh');
+
+    await act(async () => {
+      delayedLogout.resolve(jsonResponse(undefined, 204));
+      await logoutA;
+    });
+
+    expect(screen.getByText(`signedIn:B:${b.user.id}`)).toBeTruthy();
+    await expect(tokenStore.getRefreshToken()).resolves.toBe('b-refresh');
+    if (previousApiBaseUrl === undefined) delete process.env.EXPO_PUBLIC_API_BASE_URL;
+    else process.env.EXPO_PUBLIC_API_BASE_URL = previousApiBaseUrl;
   });
 
   it('does not update React state after it unmounts while restoring', async () => {

@@ -101,7 +101,7 @@ describe('AuthRepository', () => {
 
   it('uses the authenticated client for protected logout and clears the refresh token after its 204 response', async () => {
     const request = jest.fn(async () => undefined) as unknown as AuthenticatedClient['request'];
-    const clearRefreshToken = jest.spyOn(tokenStore, 'clearRefreshToken').mockResolvedValue();
+    const clearRefreshToken = jest.spyOn(tokenStore, 'clearRefreshToken').mockResolvedValue(true);
     const repository = createRepository(jest.fn<FetchLike>(), { request });
 
     await expect(repository.logout()).resolves.toBeUndefined();
