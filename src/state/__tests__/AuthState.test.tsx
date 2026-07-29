@@ -212,6 +212,27 @@ describe('AuthProvider', () => {
     expect(screen.getByText('signedOut')).toBeTruthy();
   });
 
+  it('preserves the original initialization failure when refresh-token cleanup also fails', async () => {
+    jest.spyOn(tokenStore, 'getRefreshToken').mockResolvedValue(null);
+    const cleanupFailure = new Error('secure storage unavailable');
+    const originalFailure = new Error('bootstrap timed out');
+    const clearRefreshToken = jest.spyOn(tokenStore, 'clearRefreshToken').mockRejectedValue(cleanupFailure);
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const runtime = createRuntime({ bootstrap: jest.fn<AuthRepository['bootstrap']>().mockRejectedValue(originalFailure) });
+    let auth: ReturnType<typeof useAuth> | undefined;
+    const screen = await render(<AuthProvider runtime={runtime}><AuthProbe onReady={(value) => { auth = value; }} /></AuthProvider>);
+    await screen.findByText('signedOut');
+
+    await act(async () => {
+      await expect(auth?.login('13800000000', '123456')).rejects.toBe(originalFailure);
+    });
+
+    expect(clearRefreshToken).toHaveBeenCalledTimes(1);
+    expect(runtime.setAccessToken).toHaveBeenLastCalledWith(null);
+    expect(screen.getByText('signedOut')).toBeTruthy();
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
   it('moves a mounted provider to signed out when the authenticated client invalidates a session', async () => {
     jest.spyOn(tokenStore, 'getRefreshToken').mockResolvedValue('stored-refresh-token');
     const clearRefreshToken = jest.spyOn(tokenStore, 'clearRefreshToken').mockResolvedValue();

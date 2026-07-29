@@ -1,10 +1,11 @@
 import { act, fireEvent, render } from '@testing-library/react-native';
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import LoginScreen from '@/app/login';
 import { useAuth } from '@/state/AuthState';
 
 const mockReplace = jest.fn();
+const mockPush = jest.fn();
 const mockRequestSmsCode = jest.fn<(phone: string) => Promise<{ expiresIn: number; retryAfter: number }>>();
 const mockLogin = jest.fn<(phone: string, code: string) => Promise<void>>();
 
@@ -18,13 +19,18 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-jest.mock('expo-router', () => ({ useRouter: () => ({ replace: mockReplace }) }));
+jest.mock('expo-router', () => ({ useRouter: () => ({ replace: mockReplace, push: mockPush }) }));
 jest.mock('@/state/AuthState', () => ({ useAuth: jest.fn() }));
 
 describe('LoginScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useAuth as jest.Mock).mockReturnValue({ requestSmsCode: mockRequestSmsCode, login: mockLogin });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest.useRealTimers();
   });
 
   it('uses controlled phone and six-digit code fields, and requires agreement before submitting', async () => {
@@ -86,25 +92,32 @@ describe('LoginScreen', () => {
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
-  it('does not update state after unmount when SMS and login async work complete', async () => {
-    const request = deferred<{ expiresIn: number; retryAfter: number }>();
+  it('does not update after unmount when a started SMS countdown ticks and login later succeeds', async () => {
+    jest.useFakeTimers();
     const login = deferred<void>();
-    mockRequestSmsCode.mockImplementationOnce(() => request.promise);
+    mockRequestSmsCode.mockResolvedValueOnce({ expiresIn: 300, retryAfter: 2 });
     mockLogin.mockImplementationOnce(() => login.promise);
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     const screen = await render(<LoginScreen />);
     await fireEvent.changeText(screen.getByTestId('login-phone'), '13800000000');
     await fireEvent.press(screen.getByTestId('request-sms-code'));
+    expect(screen.getByText('2 秒后重试')).toBeTruthy();
     await fireEvent.changeText(screen.getByTestId('login-code'), '123456');
     await fireEvent.press(screen.getByTestId('login-agreement'));
     await fireEvent.press(screen.getByTestId('login-submit'));
 
-    screen.rerender(<></>);
+    await act(async () => { screen.unmount(); });
+    expect(mockReplace).not.toHaveBeenCalled();
     await act(async () => {
-      request.resolve({ expiresIn: 300, retryAfter: 60 });
-      login.reject(new Error('bootstrap failed'));
+      jest.advanceTimersByTime(1_000);
+      login.resolve();
     });
 
-    expect(consoleError).not.toHaveBeenCalledWith(expect.stringContaining('unmounted'));
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
+    const unmountedWarnings = consoleError.mock.calls.filter((args) =>
+      args.some((value) => typeof value === 'string' && /(unmounted|state update)/i.test(value))
+    );
+    expect(unmountedWarnings).toEqual([]);
   });
 });
