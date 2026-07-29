@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     otp_expires_seconds: int = Field(default=300, ge=60, le=900)
     otp_retry_after_seconds: int = Field(default=60, ge=30, le=300)
     otp_max_attempts: int = Field(default=5, ge=1, le=10)
+    otp_max_per_phone_day: int = Field(default=10, ge=1, le=50)
+    otp_max_per_device_day: int = Field(default=20, ge=1, le=100)
+    otp_max_per_ip_day: int = Field(default=30, ge=1, le=200)
     max_active_devices: int = Field(default=5, ge=1, le=10)
 
     @model_validator(mode="after")
