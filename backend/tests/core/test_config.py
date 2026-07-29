@@ -10,6 +10,11 @@ def test_settings_default_to_dev() -> None:
 
     assert settings.environment is Environment.DEV
     assert settings.api_v1_prefix == "/api/v1"
+    assert settings.access_token_minutes == 15
+    assert settings.refresh_token_days == 90
+    assert settings.sms_provider == "development"
+    assert settings.sms_development_code == "123456"
+    assert settings.max_active_devices == 5
 
 
 def test_prod_rejects_placeholder_secret() -> None:
@@ -18,6 +23,16 @@ def test_prod_rejects_placeholder_secret() -> None:
             environment=Environment.PROD,
             database_url="postgresql+psycopg://user:pass@db/beiyu",
             secret_key="change-me",
+        )
+
+
+def test_prod_rejects_development_sms_provider() -> None:
+    with pytest.raises(ValidationError):
+        Settings(
+            environment=Environment.PROD,
+            database_url="postgresql+psycopg://user:pass@db/beiyu",
+            secret_key="x" * 32,
+            sms_provider="development",
         )
 
 
