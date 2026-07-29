@@ -95,8 +95,10 @@ class Settings(BaseSettings):
     def reject_blank_memory_hmac_key(cls, value: object) -> object:
         if isinstance(value, SecretStr):
             value = value.get_secret_value()
-        if isinstance(value, str) and not value.strip():
-            raise ValueError("memory HMAC key must not be blank")
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                raise ValueError("memory HMAC key must not be blank")
         return value
 
     @model_validator(mode="after")
@@ -128,12 +130,16 @@ class Settings(BaseSettings):
                 raise ValueError("aliyun AI provider requires a configured model")
         if self.environment is not Environment.DEV:
             memory_hmac_key = self.ai_memory_hmac_key.get_secret_value()
-            api_key = self.ai_api_key.get_secret_value() if self.ai_api_key else None
+            secret_key = self.secret_key.strip()
+            api_key = (
+                self.ai_api_key.get_secret_value().strip()
+                if self.ai_api_key
+                else None
+            )
             if (
                 memory_hmac_key == DEVELOPMENT_MEMORY_HMAC_KEY
                 or len(memory_hmac_key.encode("utf-8")) < MIN_SECRET_KEY_LENGTH
-                or not memory_hmac_key.strip()
-                or memory_hmac_key == self.secret_key
+                or memory_hmac_key == secret_key
                 or memory_hmac_key == api_key
             ):
                 raise ValueError("memory HMAC key must be independently configured")

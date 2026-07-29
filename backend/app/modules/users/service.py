@@ -146,13 +146,13 @@ def confirm_age(*, session: Session, user: User) -> User:
     return user
 
 
-def bootstrap_ai_allowance(
+def bootstrap_ai_state(
     *,
     session: Session,
     user: User,
     settings: Settings,
     now: datetime,
-) -> AiAllowance:
+) -> tuple[AiAllowance, bool]:
     try:
         require_ai_access(user, settings)
     except AppError as exc:
@@ -162,19 +162,25 @@ def bootstrap_ai_allowance(
             "AI_FEATURE_DISABLED",
         }:
             raise
-        return AiAllowance(
-            daily_message_limit=0,
-            messages_used_today=0,
-            remaining=0,
-            resets_at=next_reset(now),
+        return (
+            AiAllowance(
+                daily_message_limit=0,
+                messages_used_today=0,
+                remaining=0,
+                resets_at=next_reset(now),
+            ),
+            False,
         )
 
     quota = quota_snapshot(session, user.id, settings, now)
-    return AiAllowance(
-        daily_message_limit=quota.daily_message_limit,
-        messages_used_today=quota.messages_used_today,
-        remaining=quota.remaining,
-        resets_at=quota.resets_at,
+    return (
+        AiAllowance(
+            daily_message_limit=quota.daily_message_limit,
+            messages_used_today=quota.messages_used_today,
+            remaining=quota.remaining,
+            resets_at=quota.resets_at,
+        ),
+        True,
     )
 
 
@@ -188,6 +194,12 @@ def bootstrap_response(
 ) -> BootstrapResponse:
     profile = get_user_profile(session, user)
     devices = list_user_devices(session=session, user=user)
+    ai_allowance, ai_chat_enabled = bootstrap_ai_state(
+        session=session,
+        user=user,
+        settings=settings,
+        now=now,
+    )
     return BootstrapResponse(
         user=AuthenticatedUser(
             id=user.id,
@@ -214,13 +226,8 @@ def bootstrap_response(
             ],
         ),
         cellar=cellar_list_response(list_cellar_items(session=session, user=user)),
-        ai=bootstrap_ai_allowance(
-            session=session,
-            user=user,
-            settings=settings,
-            now=now,
-        ),
-        feature_flags=FeatureFlags(ai_chat=settings.ai_enabled),
+        ai=ai_allowance,
+        feature_flags=FeatureFlags(ai_chat=ai_chat_enabled),
     )
 
 

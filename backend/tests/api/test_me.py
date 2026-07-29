@@ -187,7 +187,7 @@ def test_bootstrap_exposes_configured_ai_allowance(
     body = response.json()
     assert body["ai"] == {
         "dailyMessageLimit": 50,
-        "messagesUsedToday": 17,
+        "messagesUsedToday": 19,
         "remaining": 31,
         "resetsAt": "2026-07-29T16:00:00Z",
     }
@@ -198,8 +198,8 @@ def test_bootstrap_exposes_configured_ai_allowance(
 @pytest.mark.parametrize(
     ("status", "age_confirmed", "ai_enabled", "expected_flag"),
     [
-        (UserStatus.BANNED, False, True, True),
-        (UserStatus.ACTIVE, False, True, True),
+        (UserStatus.BANNED, False, True, False),
+        (UserStatus.ACTIVE, False, True, False),
         (UserStatus.ACTIVE, True, False, False),
     ],
 )
@@ -244,6 +244,41 @@ def test_bootstrap_skips_quota_snapshot_when_ai_access_is_unavailable(
         "resetsAt": "2026-07-29T16:00:00Z",
     }
     assert response.json()["featureFlags"]["aiChat"] is expected_flag
+
+
+def test_bootstrap_keeps_ai_flag_enabled_when_quota_is_exhausted(
+    database_client: TestClient,
+    database_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    now = datetime(2026, 7, 29, 12, tzinfo=UTC)
+    database_client.app.dependency_overrides[get_settings] = lambda: Settings(
+        database_url="postgresql+psycopg://user:pass@db/beiyu",
+    )
+    monkeypatch.setattr(me, "utc_now", lambda: now)
+    login = create_login(database_client)
+    user = database_session.exec(select(User)).one()
+    user.age_confirmed_at = now
+    database_session.add(user)
+    database_session.add(
+        AiDailyQuota(
+            user_id=user.id,
+            quota_date=date(2026, 7, 29),
+            free_limit=50,
+            used_count=48,
+            reserved_count=2,
+        )
+    )
+    database_session.commit()
+
+    response = database_client.get(
+        "/api/v1/me/bootstrap",
+        headers=bearer(login["accessToken"]),
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["ai"]["remaining"] == 0
+    assert response.json()["featureFlags"]["aiChat"] is True
 
 
 def test_bootstrap_propagates_quota_database_errors_for_allowed_user(

@@ -193,6 +193,64 @@ def test_non_dev_memory_hmac_key_must_be_independent_and_secret() -> None:
     assert shared_secret not in str(exc_info.value)
 
 
+@pytest.mark.parametrize(
+    ("secret_key", "api_key"),
+    [
+        ("shared-secret-value-which-is-32-bytes ", "provider-key"),
+        ("s" * 32, " shared-secret-value-which-is-32-bytes"),
+    ],
+)
+def test_non_dev_rejects_memory_hmac_key_matching_trimmed_secret_values(
+    secret_key: str,
+    api_key: str,
+) -> None:
+    shared_hmac_key = "shared-secret-value-which-is-32-bytes"
+
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(
+            environment=Environment.PROD,
+            database_url="postgresql+psycopg://user:pass@db/beiyu",
+            secret_key=secret_key,
+            sms_provider="aliyun",
+            ai_provider=AiProvider.ALIYUN,
+            ai_model="qwen-plus",
+            ai_base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            ai_api_key=SecretStr(api_key),
+            ai_memory_hmac_key=SecretStr(f"  {shared_hmac_key}  "),
+        )
+
+    assert shared_hmac_key not in str(exc_info.value)
+
+
+def test_memory_hmac_key_uses_canonical_utf8_byte_length() -> None:
+    exactly_32_bytes = "密" * 10 + "ab"
+    settings = Settings(
+        environment=Environment.PROD,
+        database_url="postgresql+psycopg://user:pass@db/beiyu",
+        secret_key="s" * 32,
+        sms_provider="aliyun",
+        ai_provider=AiProvider.ALIYUN,
+        ai_model="qwen-plus",
+        ai_base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        ai_api_key=SecretStr("provider-key"),
+        ai_memory_hmac_key=SecretStr(f"  {exactly_32_bytes}  "),
+    )
+
+    assert settings.ai_memory_hmac_key.get_secret_value() == exactly_32_bytes
+    with pytest.raises(ValidationError):
+        Settings(
+            environment=Environment.PROD,
+            database_url="postgresql+psycopg://user:pass@db/beiyu",
+            secret_key="s" * 32,
+            sms_provider="aliyun",
+            ai_provider=AiProvider.ALIYUN,
+            ai_model="qwen-plus",
+            ai_base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            ai_api_key=SecretStr("provider-key"),
+            ai_memory_hmac_key=SecretStr("密" * 10 + "a"),
+        )
+
+
 def test_settings_reject_env_api_v1_prefix_override(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

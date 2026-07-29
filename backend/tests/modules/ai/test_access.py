@@ -48,6 +48,10 @@ def test_banned_user_is_denied_before_age_or_feature_checks() -> None:
     )
 
 
+def test_deleted_user_is_denied_without_disclosing_account_state() -> None:
+    assert_access_error(user(status=UserStatus.DELETED), "AI_ACCESS_SUSPENDED", 403)
+
+
 def test_unconfirmed_user_is_denied_before_feature_check() -> None:
     assert_access_error(
         user(age_confirmed=False),

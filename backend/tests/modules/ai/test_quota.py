@@ -116,7 +116,7 @@ def test_snapshot_uses_configured_limit_and_only_todays_row(
     )
 
     assert snapshot.daily_message_limit == 10
-    assert snapshot.messages_used_today == 8
+    assert snapshot.messages_used_today == 10
     assert snapshot.remaining == 0
     assert snapshot.resets_at == datetime(2026, 7, 29, 16, tzinfo=UTC)
 
@@ -153,13 +153,37 @@ def test_snapshot_clamps_negative_persisted_counts_before_calculating_allowance(
     assert snapshot.remaining == 50
 
 
-def test_snapshot_clamps_remaining_when_completed_and_reserved_counts_exceed_limit() -> None:
+def test_snapshot_reports_all_available_allowance_as_used_when_completed_count_exceeds_limit() -> None:
     snapshot = quota_snapshot(
-        cast(Session, SnapshotSession(SimpleNamespace(used_count=49, reserved_count=4))),
+        cast(Session, SnapshotSession(SimpleNamespace(used_count=51, reserved_count=0))),
         uuid4(),
         Settings(database_url="postgresql+psycopg://user:pass@db/beiyu"),
         datetime(2026, 7, 29, 12, tzinfo=UTC),
     )
 
-    assert snapshot.messages_used_today == 49
+    assert snapshot.messages_used_today == 50
     assert snapshot.remaining == 0
+
+
+def test_snapshot_reports_reserved_count_as_used_when_it_exceeds_limit() -> None:
+    snapshot = quota_snapshot(
+        cast(Session, SnapshotSession(SimpleNamespace(used_count=3, reserved_count=51))),
+        uuid4(),
+        Settings(database_url="postgresql+psycopg://user:pass@db/beiyu"),
+        datetime(2026, 7, 29, 12, tzinfo=UTC),
+    )
+
+    assert snapshot.messages_used_today == 50
+    assert snapshot.remaining == 0
+
+
+def test_snapshot_counts_only_nonnegative_completed_and_reserved_values() -> None:
+    snapshot = quota_snapshot(
+        cast(Session, SnapshotSession(SimpleNamespace(used_count=-8, reserved_count=7))),
+        uuid4(),
+        Settings(database_url="postgresql+psycopg://user:pass@db/beiyu"),
+        datetime(2026, 7, 29, 12, tzinfo=UTC),
+    )
+
+    assert snapshot.messages_used_today == 7
+    assert snapshot.remaining == 43

@@ -51,10 +51,11 @@ def quota_snapshot(
         ).first()
     used_count = max(0, quota.used_count) if quota is not None else 0
     reserved_count = max(0, quota.reserved_count) if quota is not None else 0
-    remaining = max(settings.ai_daily_limit - used_count - reserved_count, 0)
+    occupied_count = min(settings.ai_daily_limit, used_count + reserved_count)
+    remaining = settings.ai_daily_limit - occupied_count
     return QuotaSnapshot(
         daily_message_limit=settings.ai_daily_limit,
-        messages_used_today=used_count,
+        messages_used_today=occupied_count,
         remaining=remaining,
         resets_at=next_reset(now),
     )

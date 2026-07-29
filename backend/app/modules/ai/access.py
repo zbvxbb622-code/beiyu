@@ -4,7 +4,7 @@ from app.db.models import User, UserStatus
 
 
 def require_ai_access(user: User, settings: Settings) -> None:
-    if user.status is UserStatus.BANNED:
+    if user.status in {UserStatus.BANNED, UserStatus.DELETED}:
         raise AppError(
             code="AI_ACCESS_SUSPENDED",
             message="账号暂不可使用 AI",
