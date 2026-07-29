@@ -127,6 +127,28 @@ export async function saveAccountSecurity(accountSecurity: AccountSecurity) {
   await writeJson(ACCOUNT_SECURITY_KEY, accountSecurity);
 }
 
+export async function saveAuthenticatedState({
+  localState,
+  userProfile,
+  accountSecurity,
+}: {
+  localState: LocalState;
+  userProfile: UserProfile;
+  accountSecurity: AccountSecurity;
+}) {
+  try {
+    await AsyncStorage.multiSet([
+      [AGE_VERIFIED_KEY, JSON.stringify(localState.ageVerified)],
+      [CELLAR_KEY, JSON.stringify(localState.cellarIngredientIds)],
+      [PRIVACY_KEY, JSON.stringify(localState.privacySettings)],
+      [USER_PROFILE_KEY, JSON.stringify(userProfile)],
+      [ACCOUNT_SECURITY_KEY, JSON.stringify(accountSecurity)],
+    ]);
+  } catch {
+    // Keep UI usable in Expo Go even if native storage is unavailable.
+  }
+}
+
 export async function clearLocalState() {
   await Promise.all([
     removeKey(AGE_VERIFIED_KEY),

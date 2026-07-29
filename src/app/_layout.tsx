@@ -9,6 +9,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import AppTabs from '@/components/app-tabs';
 import { WelcomeScreen } from '@/components/mixology/WelcomeScreen';
 import { ContentProvider } from '@/state/ContentState';
+import { AuthenticatedMixologyBridge } from '@/state/AuthenticatedMixologyBridge';
 import { AuthProvider, useAuth } from '@/state/AuthState';
 import { MixologyProvider, useMixology } from '@/state/MixologyState';
 import { colors } from '@/styles/mixologyTheme';
@@ -53,7 +54,9 @@ export default function RootLayout() {
       <ContentProvider>
         <AuthProvider>
           <MixologyProvider>
-            <RootContent />
+            <AuthenticatedMixologyBridge>
+              <RootContent />
+            </AuthenticatedMixologyBridge>
           </MixologyProvider>
         </AuthProvider>
       </ContentProvider>

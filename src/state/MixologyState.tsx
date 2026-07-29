@@ -17,10 +17,13 @@ import {
   loadUserProfile,
   saveAccountSecurity,
   saveAgeVerified,
+  saveAuthenticatedState,
   saveCellarIngredientIds,
   savePrivacySettings,
   saveUserProfile,
 } from '@/services/storageService';
+import type { BootstrapResponse } from '@/services/auth/authSchemas';
+import { useAuth } from '@/state/AuthState';
 import { canDrawToday, drawCard, todayKey } from '@/services/blindBoxService';
 import { clearPostDraft } from '@/services/postDraftService';
 import { deriveCoverImageKey } from '@/utils/postImages';
@@ -32,6 +35,7 @@ type MixologyContextValue = {
   interactionState: LocalInteractionState;
   userProfile: UserProfile;
   accountSecurity: AccountSecurity;
+  applyBootstrap: (response: BootstrapResponse) => Promise<void>;
   updateUserProfile: (patch: Partial<UserProfile>) => Promise<void>;
   verifyAge: () => Promise<void>;
   toggleCellarIngredient: (ingredientId: string) => Promise<void>;
@@ -73,13 +77,44 @@ export type PublishPostInput = {
 
 const MixologyContext = createContext<MixologyContextValue | null>(null);
 
+function accountSecurityFromBootstrap(response: BootstrapResponse): AccountSecurity {
+  return {
+    phone: response.accountSecurity.phone,
+    phoneVerified: response.accountSecurity.phoneVerified,
+    wechatBound: response.accountSecurity.wechatBound ?? false,
+    wechatAccount: response.accountSecurity.wechatAccount ?? '',
+    passwordSet: response.accountSecurity.passwordSet ?? false,
+    realnameVerified: response.accountSecurity.realnameVerified ?? false,
+    realnameName: response.accountSecurity.realnameName ?? '',
+    officialVerified: response.accountSecurity.officialVerified ?? false,
+    officialType: response.accountSecurity.officialType ?? '',
+    devices: response.accountSecurity.devices.map((device) => ({
+      id: device.id,
+      name: device.name,
+      platform: device.platform === 'IOS' ? 'iOS' : device.platform === 'ANDROID' ? 'Android' : 'Web',
+      lastActive: device.lastActiveAt,
+      isCurrent: device.isCurrent,
+    })),
+  };
+}
+
+function cellarIngredientIdsFromBootstrap(response: BootstrapResponse): string[] {
+  return Array.from(new Set(response.cellar.items.flatMap((item) => item.ingredientId ? [item.ingredientId] : [])));
+}
+
 export function MixologyProvider({ children }: { children: ReactNode }) {
+  const { bootstrapData, repository, status } = useAuth();
   const [isHydrated, setIsHydrated] = useState(false);
   const [localState, setLocalState] = useState<LocalState>(defaultLocalState);
   const [interactionState, setInteractionState] = useState<LocalInteractionState>(defaultInteractionState);
   const [userProfile, setUserProfile] = useState<UserProfile>(defaultUserProfile);
   const [accountSecurity, setAccountSecurity] = useState<AccountSecurity>(defaultAccountSecurity);
   const interactionStateRef = useRef<LocalInteractionState>(defaultInteractionState);
+  const localStateRef = useRef<LocalState>(defaultLocalState);
+  const userProfileRef = useRef<UserProfile>(defaultUserProfile);
+  const cellarIngredientIdsRef = useRef<string[]>(defaultLocalState.cellarIngredientIds);
+  const cellarMutationVersionRef = useRef(0);
+  const cellarMutationQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     let isMounted = true;
@@ -92,6 +127,9 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
     ])
       .then(([storedLocalState, storedInteractionState, storedUserProfile, storedAccountSecurity]) => {
         if (isMounted) {
+          localStateRef.current = storedLocalState;
+          cellarIngredientIdsRef.current = storedLocalState.cellarIngredientIds;
+          userProfileRef.current = storedUserProfile;
           setLocalState(storedLocalState);
           interactionStateRef.current = storedInteractionState;
           setInteractionState(storedInteractionState);
@@ -110,29 +148,96 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const applyBootstrap = useCallback(async (response: BootstrapResponse) => {
+    const currentBootstrapUserId = bootstrapData?.user.id;
+    if (currentBootstrapUserId && (status !== 'signedIn' || currentBootstrapUserId !== response.user.id)) {
+      return;
+    }
+
+    const nextLocalState: LocalState = {
+      ageVerified: response.user.ageConfirmed,
+      cellarIngredientIds: cellarIngredientIdsFromBootstrap(response),
+      privacySettings: response.privacy,
+    };
+    const nextProfile: UserProfile = response.profile;
+    const nextAccountSecurity = accountSecurityFromBootstrap(response);
+    await saveAuthenticatedState({
+      localState: nextLocalState,
+      userProfile: nextProfile,
+      accountSecurity: nextAccountSecurity,
+    });
+
+    if (currentBootstrapUserId && (status !== 'signedIn' || bootstrapData?.user.id !== response.user.id)) {
+      return;
+    }
+
+    localStateRef.current = nextLocalState;
+    cellarIngredientIdsRef.current = nextLocalState.cellarIngredientIds;
+    userProfileRef.current = nextProfile;
+    setLocalState(nextLocalState);
+    setUserProfile(nextProfile);
+    setAccountSecurity(nextAccountSecurity);
+  }, [bootstrapData, status]);
+
   const updateUserProfile = useCallback(
     async (patch: Partial<UserProfile>) => {
-      const next = { ...userProfile, ...patch };
+      const next = status === 'signedIn'
+        ? await repository.patchProfile(patch)
+        : { ...userProfileRef.current, ...patch };
+      userProfileRef.current = next;
       setUserProfile(next);
       await saveUserProfile(next);
     },
-    [userProfile]
+    [repository, status]
   );
 
   const verifyAge = useCallback(async () => {
-    setLocalState((state) => ({ ...state, ageVerified: true }));
+    if (status === 'signedIn') {
+      await repository.confirmAge();
+    }
+    const next = { ...localStateRef.current, ageVerified: true };
+    localStateRef.current = next;
+    setLocalState(next);
     await saveAgeVerified(true);
-  }, []);
+  }, [repository, status]);
 
   const setCellarIngredientIds = useCallback(async (ingredientIds: string[]) => {
     const uniqueIds = Array.from(new Set(ingredientIds));
-    setLocalState((state) => ({ ...state, cellarIngredientIds: uniqueIds }));
-    await saveCellarIngredientIds(uniqueIds);
-  }, []);
+    if (status !== 'signedIn') {
+      const next = { ...localStateRef.current, cellarIngredientIds: uniqueIds };
+      localStateRef.current = next;
+      cellarIngredientIdsRef.current = uniqueIds;
+      setLocalState(next);
+      await saveCellarIngredientIds(uniqueIds);
+      return;
+    }
+
+    cellarIngredientIdsRef.current = uniqueIds;
+    const mutationVersion = ++cellarMutationVersionRef.current;
+    const mutation = cellarMutationQueueRef.current.then(async () => {
+      const response = await repository.batchCellarItems(uniqueIds);
+      const serverIngredientIds = Array.from(new Set(
+        response.items.flatMap((item) => item.ingredientId ? [item.ingredientId] : [])
+      ));
+      const next = { ...localStateRef.current, cellarIngredientIds: serverIngredientIds };
+      localStateRef.current = next;
+      if (mutationVersion === cellarMutationVersionRef.current) {
+        cellarIngredientIdsRef.current = serverIngredientIds;
+      }
+      setLocalState(next);
+      await saveCellarIngredientIds(serverIngredientIds);
+    });
+    cellarMutationQueueRef.current = mutation.catch(() => {
+      if (mutationVersion === cellarMutationVersionRef.current) {
+        cellarIngredientIdsRef.current = localStateRef.current.cellarIngredientIds;
+      }
+    });
+    await mutation;
+  }, [repository, status]);
 
   const toggleCellarIngredient = useCallback(
     async (ingredientId: string) => {
-      const current = new Set(localState.cellarIngredientIds);
+      const current = new Set(cellarIngredientIdsRef.current);
       if (current.has(ingredientId)) {
         current.delete(ingredientId);
       } else {
@@ -140,13 +245,18 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       }
       await setCellarIngredientIds(Array.from(current));
     },
-    [localState.cellarIngredientIds, setCellarIngredientIds]
+    [setCellarIngredientIds]
   );
 
   const updatePrivacySettings = useCallback(async (privacySettings: PrivacySettings) => {
-    setLocalState((state) => ({ ...state, privacySettings }));
-    await savePrivacySettings(privacySettings);
-  }, []);
+    const nextPrivacySettings = status === 'signedIn'
+      ? await repository.patchPrivacy(privacySettings)
+      : privacySettings;
+    const next = { ...localStateRef.current, privacySettings: nextPrivacySettings };
+    localStateRef.current = next;
+    setLocalState(next);
+    await savePrivacySettings(nextPrivacySettings);
+  }, [repository, status]);
 
   const updateInteractions = useCallback(async (updater: (state: LocalInteractionState) => LocalInteractionState) => {
     const nextState = updater(interactionStateRef.current);
@@ -294,6 +404,9 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
 
   const resetLocalState = useCallback(async () => {
     await Promise.all([clearLocalState(), clearInteractionState(), clearPostDraft()]);
+    localStateRef.current = defaultLocalState;
+    cellarIngredientIdsRef.current = defaultLocalState.cellarIngredientIds;
+    userProfileRef.current = defaultUserProfile;
     setLocalState(defaultLocalState);
     interactionStateRef.current = defaultInteractionState;
     setInteractionState(defaultInteractionState);
@@ -301,7 +414,9 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    setLocalState((state) => ({ ...state, ageVerified: false }));
+    const next = { ...localStateRef.current, ageVerified: false };
+    localStateRef.current = next;
+    setLocalState(next);
     await saveAgeVerified(false);
   }, []);
 
@@ -390,7 +505,9 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
   const deleteAccount = useCallback(async () => {
     setAccountSecurity(defaultAccountSecurity);
     await saveAccountSecurity(defaultAccountSecurity);
-    setLocalState((state) => ({ ...state, ageVerified: false }));
+    const next = { ...localStateRef.current, ageVerified: false };
+    localStateRef.current = next;
+    setLocalState(next);
     await saveAgeVerified(false);
   }, []);
 
@@ -400,6 +517,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       localState,
       interactionState,
       userProfile,
+      applyBootstrap,
       updateUserProfile,
       verifyAge,
       toggleCellarIngredient,
@@ -432,6 +550,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       localState,
       interactionState,
       userProfile,
+      applyBootstrap,
       updateUserProfile,
       verifyAge,
       toggleCellarIngredient,

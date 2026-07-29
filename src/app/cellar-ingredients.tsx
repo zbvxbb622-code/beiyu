@@ -46,7 +46,7 @@ export default function CellarIngredientsScreen() {
           <Boxes color={colors.pink} size={28} />
           <View style={styles.summaryCopy}>
             <Text style={styles.summaryTitle}>{selectedCount} 个材料已选择</Text>
-            <Text style={styles.summaryText}>只保存在本机，用于 AI Mock 推荐，不会上传。</Text>
+            <Text style={styles.summaryText}>已同步到账号，用于 AI 调酒建议。</Text>
           </View>
         </View>
 
