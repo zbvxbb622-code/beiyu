@@ -3,6 +3,10 @@ import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import PublishPostScreen from '@/app/publish-post';
+import {
+  ContentTestProvider,
+  createContentTestSnapshot,
+} from '@/test-utils/ContentTestProvider';
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
@@ -25,7 +29,11 @@ describe('PublishPostScreen 图片管理', () => {
   });
 
   it('从内置图库添加图片缩略图，点删除角标移除', async () => {
-    const screen = await render(<PublishPostScreen />);
+    const screen = await render(
+      <ContentTestProvider>
+        <PublishPostScreen />
+      </ContentTestProvider>
+    );
     // 等待挂载副作用（草稿加载）结束，避免 act 重叠吞掉后续状态更新
     await act(async () => {});
 
@@ -48,6 +56,25 @@ describe('PublishPostScreen 图片管理', () => {
     fireEvent.press(screen.getByTestId(/^remove-image-/));
     await waitFor(() => {
       expect(screen.queryAllByTestId(/^image-thumb-/).length).toBe(0);
+    });
+  });
+
+  it('地点选择器使用当前内容快照中的酒吧', async () => {
+    const snapshot = createContentTestSnapshot();
+    snapshot.bars = [
+      { ...snapshot.bars[0], id: 'remote-publish-bar', name: '后台发布地点' },
+    ];
+    const screen = await render(
+      <ContentTestProvider snapshot={snapshot}>
+        <PublishPostScreen />
+      </ContentTestProvider>
+    );
+    await act(async () => {});
+
+    fireEvent.press(screen.getByTestId('venue-row'));
+
+    await waitFor(() => {
+      expect(screen.getByText('后台发布地点')).toBeTruthy();
     });
   });
 });

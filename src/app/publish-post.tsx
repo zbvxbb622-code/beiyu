@@ -19,9 +19,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
 import { TopBar } from '@/components/mixology/TopBar';
 import { getImageAsset, imageAssetKeys } from '@/data/imageAssets';
-import { getBarVenues } from '@/services/contentService';
 import { clearPostDraft, loadPostDraft, savePostDraft } from '@/services/postDraftService';
 import { pickPostImagesFromLibrary } from '@/services/postImagePickerService';
+import { useContent } from '@/state/ContentState';
 import { useMixology } from '@/state/MixologyState';
 import { colors, gradients, radii } from '@/styles/mixologyTheme';
 import { resolvePostImageSource } from '@/utils/postImages';
@@ -40,6 +40,7 @@ export default function PublishPostScreen() {
   // 支持从其它页面（如盲盒抽卡）带参跳转，预填表单
   const params = useLocalSearchParams<{ from?: string; title?: string; body?: string; imageKey?: string }>();
   const { publishPost } = useMixology();
+  const { snapshot } = useContent();
   const hasPrefill = Boolean(params.title || params.body || params.imageKey);
 
   const [title, setTitle] = useState(params.title ?? '');
@@ -58,7 +59,7 @@ export default function PublishPostScreen() {
   const [submitting, setSubmitting] = useState(false);
   const imageSeq = useRef(0);
 
-  const venues = getBarVenues();
+  const venues = snapshot.bars;
   const selectedVenue = venueId ? venues.find((venue) => venue.id === venueId) : undefined;
   const backHref = params.from === 'blind-box' ? '/blind-box' : '/community';
 

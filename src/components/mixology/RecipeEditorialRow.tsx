@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { ChevronRight, Clock } from 'lucide-react-native';
 import { Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
-import { getImageAsset } from '@/data/imageAssets';
+import { getContentImageSource, getImageAsset } from '@/data/imageAssets';
 import { colors, radii } from '@/styles/mixologyTheme';
 import type { CocktailRecipe } from '@/types/mixology';
 
@@ -22,7 +22,8 @@ export function RecipeEditorialRow({ recipe }: { recipe: CocktailRecipe }) {
       <View style={styles.row}>
         <Image
           testID="recipe-card-image"
-          source={getImageAsset(recipe.imageKey)}
+          source={getContentImageSource(recipe.imageKey, recipe.imageUrl)}
+          defaultSource={getImageAsset(recipe.imageKey)}
           resizeMode="cover"
           style={[styles.thumb, compact ? styles.thumbCompact : null]}
         />

@@ -1,6 +1,6 @@
-import type { ImageSourcePropType } from 'react-native';
+import type { ImageURISource } from 'react-native';
 
-export const imageAssets: Record<string, ImageSourcePropType> = {
+export const imageAssets: Record<string, ImageURISource | number> = {
   homeHero: require('../../assets/mixology/online/hero-cocktail.jpg'),
   heroBar: require('../../assets/mixology/online/hero-bar.jpg'),
   heroNeon: require('../../assets/mixology/online/hero-neon.jpg'),
@@ -69,4 +69,8 @@ export const imageAssetKeys = Object.keys(imageAssets);
 
 export function getImageAsset(imageKey: string) {
   return imageAssets[imageKey] ?? imageAssets.homeHero;
+}
+
+export function getContentImageSource(imageKey: string, imageUrl?: string | null) {
+  return imageUrl ? { uri: imageUrl } : getImageAsset(imageKey);
 }

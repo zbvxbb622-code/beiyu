@@ -3,6 +3,10 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { StyleSheet } from 'react-native';
 
 import BarDetailScreen from '@/app/bar/[id]';
+import {
+  ContentTestProvider,
+  createContentTestSnapshot,
+} from '@/test-utils/ContentTestProvider';
 import type { BarVenue } from '@/types/mixology';
 
 jest.mock('expo-router', () => ({
@@ -36,10 +40,6 @@ const venue: BarVenue = {
   reviews: [],
 };
 
-jest.mock('@/services/contentService', () => ({
-  getBarVenueById: () => venue,
-}));
-
 jest.mock('@/state/MixologyState', () => ({
   useMixology: () => ({
     interactionState: {
@@ -51,7 +51,13 @@ jest.mock('@/state/MixologyState', () => ({
 
 describe('BarDetailScreen', () => {
   it('uses one design-size hero image at the top', async () => {
-    const screen = await render(<BarDetailScreen />);
+    const snapshot = createContentTestSnapshot();
+    snapshot.bars = [venue];
+    const screen = await render(
+      <ContentTestProvider snapshot={snapshot}>
+        <BarDetailScreen />
+      </ContentTestProvider>
+    );
     const hero = screen.getByTestId('bar-detail-hero');
     const style = StyleSheet.flatten(hero.props.style);
 

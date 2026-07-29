@@ -301,4 +301,5 @@ export type SearchResult = {
   title: string;
   subtitle: string;
   imageKey: string;
+  imageUrl?: string | null;
 };

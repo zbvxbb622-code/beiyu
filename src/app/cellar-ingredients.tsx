@@ -1,10 +1,10 @@
 import { Boxes, CircleCheckBig } from 'lucide-react-native';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { IngredientChip } from '@/components/mixology/IngredientChip';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
 import { TopBar } from '@/components/mixology/TopBar';
-import { ingredients } from '@/data/ingredients';
+import { useContent } from '@/state/ContentState';
 import { useMixology } from '@/state/MixologyState';
 import { colors, radii } from '@/styles/mixologyTheme';
 import type { IngredientCategory } from '@/types/mixology';
@@ -22,12 +22,26 @@ const categoryLabels: Record<IngredientCategory, string> = {
 // 酒柜材料选择（供 AI Mock 推荐使用），入口在「我的」快捷操作
 export default function CellarIngredientsScreen() {
   const { localState, toggleCellarIngredient } = useMixology();
+  const { snapshot, isRefreshing, lastRefreshError, refresh } = useContent();
+  const ingredients = snapshot.ingredients;
   const selectedCount = localState.cellarIngredientIds.length;
 
   return (
     <ScreenShell>
       <TopBar title="酒柜材料" backHref="/profile" />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => void refresh()}
+            tintColor={colors.pink}
+          />
+        }>
+        {lastRefreshError ? (
+          <Text style={styles.refreshNotice}>{lastRefreshError}</Text>
+        ) : null}
         <View style={styles.summary}>
           <Boxes color={colors.pink} size={28} />
           <View style={styles.summaryCopy}>
@@ -66,6 +80,12 @@ export default function CellarIngredientsScreen() {
 const styles = StyleSheet.create({
   content: {
     paddingBottom: 36,
+  },
+  refreshNotice: {
+    color: colors.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
   },
   summary: {
     flexDirection: 'row',

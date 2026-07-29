@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { ChevronRight, Clock, Martini } from 'lucide-react-native';
 import { ImageBackground, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
-import { getImageAsset } from '@/data/imageAssets';
+import { getContentImageSource, getImageAsset } from '@/data/imageAssets';
 import { colors, gradients, radii } from '@/styles/mixologyTheme';
 import type { CocktailRecipe } from '@/types/mixology';
 
@@ -29,7 +29,8 @@ export function RecipeEditorialHero({
       <View style={styles.hero}>
         <ImageBackground
           testID="recipe-hero-image"
-          source={getImageAsset(recipe.imageKey)}
+          source={getContentImageSource(recipe.imageKey, recipe.imageUrl)}
+          defaultSource={getImageAsset(recipe.imageKey)}
           resizeMode="cover"
           style={[styles.heroImage, compact ? styles.heroImageCompact : null]}
           imageStyle={styles.heroImageRadius}>

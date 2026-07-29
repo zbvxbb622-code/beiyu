@@ -1,6 +1,6 @@
-import { cocktailRecipes } from '@/data/recipes';
-import { barVenues } from '@/data/content';
+import { bundledContent } from '@/services/content/bundledContent';
 import { mergeCommunityPosts } from '@/services/contentService';
+import type { ContentSnapshot } from '@/services/content/contentSchemas';
 import type { CommunityPost, SearchResult } from '@/types/mixology';
 
 function normalize(text: string) {
@@ -11,14 +11,18 @@ function matches(text: string, query: string) {
   return normalize(text).includes(query);
 }
 
-export function searchAll(query: string, localPosts: CommunityPost[] = []): SearchResult[] {
+export function searchAll(
+  query: string,
+  localPosts: CommunityPost[] = [],
+  content: ContentSnapshot = bundledContent
+): SearchResult[] {
   const q = normalize(query);
   if (!q) return [];
 
   const results: SearchResult[] = [];
 
   // 酒谱
-  for (const recipe of cocktailRecipes) {
+  for (const recipe of content.recipes) {
     if (
       matches(recipe.name, q) ||
       matches(recipe.englishName, q) ||
@@ -31,12 +35,13 @@ export function searchAll(query: string, localPosts: CommunityPost[] = []): Sear
         title: recipe.name,
         subtitle: recipe.englishName,
         imageKey: recipe.imageKey,
+        imageUrl: recipe.imageUrl,
       });
     }
   }
 
   // 酒吧
-  for (const venue of barVenues) {
+  for (const venue of content.bars) {
     if (
       matches(venue.name, q) ||
       matches(venue.address, q) ||
@@ -49,6 +54,7 @@ export function searchAll(query: string, localPosts: CommunityPost[] = []): Sear
         title: venue.name,
         subtitle: venue.address,
         imageKey: venue.imageKey,
+        imageUrl: venue.imageUrl,
       });
     }
   }

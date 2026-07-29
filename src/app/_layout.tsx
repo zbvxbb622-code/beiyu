@@ -8,6 +8,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import AppTabs from '@/components/app-tabs';
 import { WelcomeScreen } from '@/components/mixology/WelcomeScreen';
+import { ContentProvider } from '@/state/ContentState';
 import { MixologyProvider, useMixology } from '@/state/MixologyState';
 import { colors } from '@/styles/mixologyTheme';
 
@@ -42,9 +43,11 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={DarkTheme}>
       <StatusBar style="light" />
-      <MixologyProvider>
-        <RootContent />
-      </MixologyProvider>
+      <ContentProvider>
+        <MixologyProvider>
+          <RootContent />
+        </MixologyProvider>
+      </ContentProvider>
     </ThemeProvider>
   );
 }

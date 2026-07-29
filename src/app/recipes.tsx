@@ -1,6 +1,14 @@
 import { Search } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import {
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { RecipeEditorialHero } from '@/components/mixology/RecipeEditorialHero';
 import { RecipeEditorialRow } from '@/components/mixology/RecipeEditorialRow';
@@ -8,7 +16,7 @@ import { ScreenShell } from '@/components/mixology/ScreenShell';
 import { SectionHeader } from '@/components/mixology/SectionHeader';
 import { TopBar } from '@/components/mixology/TopBar';
 import { getDailyClassicFeature } from '@/services/classicService';
-import { getFeaturedRecipes } from '@/services/recipeService';
+import { useContent } from '@/state/ContentState';
 import { colors, radii, spacing } from '@/styles/mixologyTheme';
 
 // 桌面/平板下内容居中限宽，营造杂志阅读感；窄屏铺满（页边距由 ScreenShell 提供）
@@ -38,8 +46,12 @@ function todayLabel(): string {
 export default function RecipesScreen() {
   const [query, setQuery] = useState('');
   const { width } = useWindowDimensions();
-  const recipes = getFeaturedRecipes();
-  const daily = useMemo(() => getDailyClassicFeature(), []);
+  const { snapshot, isRefreshing, lastRefreshError, refresh } = useContent();
+  const recipes = snapshot.recipes;
+  const daily = useMemo(
+    () => getDailyClassicFeature(new Date(), recipes),
+    [recipes]
+  );
   const dateLabel = useMemo(() => todayLabel(), []);
 
   const normalized = query.trim().toLowerCase();
@@ -79,12 +91,22 @@ export default function RecipesScreen() {
         <ScrollView
           style={styles.scroll}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.content}>
-          {!isSearching && (
+          contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={() => void refresh()}
+              tintColor={colors.pink}
+            />
+          }>
+          {lastRefreshError ? (
+            <Text style={styles.refreshNotice}>{lastRefreshError}</Text>
+          ) : null}
+          {!isSearching && daily ? (
             <View style={styles.heroWrap}>
               <RecipeEditorialHero recipe={daily} dateLabel={dateLabel} />
             </View>
-          )}
+          ) : null}
 
           {isSearching && !hasResults && <ListEmpty query={query} />}
 
@@ -133,6 +155,12 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingBottom: spacing.bottomNavPadding,
+  },
+  refreshNotice: {
+    color: colors.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 8,
   },
   // 推荐大图与经典酒款直接衔接，两者之间不保留间距
   heroWrap: {
