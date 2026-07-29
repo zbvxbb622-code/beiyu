@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import { AuthProvider, createAuthRuntime, loadLocalSyncInput, useAuth, type AuthRuntime } from '@/state/AuthState';
 import { AuthRepository, type LocalSyncInput } from '@/services/auth/authRepository';
+import { ApiError } from '@/services/api/authenticatedClient';
 import type { DeviceInput } from '@/services/auth/authSchemas';
 import { tokenStore } from '@/services/auth/tokenStore';
 import { defaultUserProfile, loadAuthenticatedState, saveAuthenticatedState } from '@/services/storageService';
@@ -438,6 +439,172 @@ describe('AuthProvider', () => {
     else process.env.EXPO_PUBLIC_API_BASE_URL = previousApiBaseUrl;
   });
 
+  it('keeps B tokens and state when a stale A real refresh rejects', async () => {
+    const previousApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+    process.env.EXPO_PUBLIC_API_BASE_URL = 'https://api.example.test';
+    const a = bootstrapFor('5364864c-3a48-4ca8-90b7-04f049b3227b', 'A');
+    const b = bootstrapFor('6364864c-3a48-4ca8-90b7-04f049b3227b', 'B');
+    const delayedARefresh = deferred<Response>();
+    let refreshCalls = 0;
+    let bootstrapCalls = 0;
+    let bAuthorization: string | null = null;
+    const fetchMock = jest.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const path = new URL(input.toString()).pathname;
+      if (path === '/auth/refresh') {
+        refreshCalls += 1;
+        return refreshCalls === 1
+          ? jsonResponse({ accessToken: 'a-access', refreshToken: 'a-refresh-rotated', expiresIn: 900, refreshExpiresIn: 2_592_000 })
+          : delayedARefresh.promise;
+      }
+      if (path === '/me/bootstrap') {
+        bootstrapCalls += 1;
+        return jsonResponse(bootstrapCalls === 1 ? a : b);
+      }
+      if (path === '/auth/login') return jsonResponse(loginResponseFor(b, 'b-access', 'b-refresh'));
+      if (path === '/auth/logout') return jsonResponse(undefined, 204);
+      if (path === '/protected') return jsonResponse({ error: { code: 'AUTH_EXPIRED', message: 'Expired', details: {} } }, 401);
+      if (path === '/b-check') {
+        bAuthorization = new Headers(init?.headers).get('Authorization');
+        return jsonResponse({ value: 'b' });
+      }
+      throw new Error(`Unexpected ${path}`);
+    });
+    jest.spyOn(global, 'fetch').mockImplementation(fetchMock as typeof fetch);
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    try {
+      await tokenStore.setRefreshToken('a-refresh');
+      let auth: ReturnType<typeof useAuth> | undefined;
+      const screen = await render(<AuthProvider><SessionProbe onReady={(value) => { auth = value; }} /></AuthProvider>);
+      await screen.findByText(`signedIn:A:${a.user.id}`);
+
+      const staleRequest = auth!.authenticatedRequest('/protected', {}, z.object({ value: z.string() }));
+      await waitFor(() => expect(refreshCalls).toBe(2));
+      await act(async () => { await auth!.logout(); });
+      await act(async () => { await auth!.login('13900000000', '123456'); });
+      await act(async () => {
+        delayedARefresh.reject(new Error('network unavailable'));
+        await expect(staleRequest).rejects.toBeInstanceOf(ApiError);
+      });
+
+      expect(screen.getByText(`signedIn:B:${b.user.id}`)).toBeTruthy();
+      await expect(tokenStore.getRefreshToken()).resolves.toBe('b-refresh');
+      await expect(auth!.authenticatedRequest('/b-check', {}, z.object({ value: z.string() }))).resolves.toEqual({ value: 'b' });
+      expect(bAuthorization).toBe('Bearer b-access');
+      expect(consoleError).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+      if (previousApiBaseUrl === undefined) delete process.env.EXPO_PUBLIC_API_BASE_URL;
+      else process.env.EXPO_PUBLIC_API_BASE_URL = previousApiBaseUrl;
+    }
+  });
+
+  it('does not let a stale A retry 401 invalidate B after refresh succeeded', async () => {
+    const previousApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+    process.env.EXPO_PUBLIC_API_BASE_URL = 'https://api.example.test';
+    const a = bootstrapFor('5364864c-3a48-4ca8-90b7-04f049b3227b', 'A');
+    const b = bootstrapFor('6364864c-3a48-4ca8-90b7-04f049b3227b', 'B');
+    const delayedARefresh = deferred<Response>();
+    const delayedRetry401 = deferred<Response>();
+    let refreshCalls = 0;
+    let bootstrapCalls = 0;
+    let protectedCalls = 0;
+    const fetchMock = jest.fn(async (input: string | URL | Request) => {
+      const path = new URL(input.toString()).pathname;
+      if (path === '/auth/refresh') {
+        refreshCalls += 1;
+        return refreshCalls === 1
+          ? jsonResponse({ accessToken: 'a-access', refreshToken: 'a-refresh-rotated', expiresIn: 900, refreshExpiresIn: 2_592_000 })
+          : delayedARefresh.promise;
+      }
+      if (path === '/me/bootstrap') {
+        bootstrapCalls += 1;
+        return jsonResponse(bootstrapCalls === 1 ? a : b);
+      }
+      if (path === '/auth/login') return jsonResponse(loginResponseFor(b, 'b-access', 'b-refresh'));
+      if (path === '/auth/logout') return jsonResponse(undefined, 204);
+      if (path === '/protected') {
+        protectedCalls += 1;
+        return protectedCalls === 1
+          ? jsonResponse({ error: { code: 'AUTH_EXPIRED', message: 'Expired', details: {} } }, 401)
+          : delayedRetry401.promise;
+      }
+      throw new Error(`Unexpected ${path}`);
+    });
+    jest.spyOn(global, 'fetch').mockImplementation(fetchMock as typeof fetch);
+
+    try {
+      await tokenStore.setRefreshToken('a-refresh');
+      let auth: ReturnType<typeof useAuth> | undefined;
+      const screen = await render(<AuthProvider><SessionProbe onReady={(value) => { auth = value; }} /></AuthProvider>);
+      await screen.findByText(`signedIn:A:${a.user.id}`);
+
+      const staleRequest = auth!.authenticatedRequest('/protected', {}, z.object({ value: z.string() }));
+      await waitFor(() => expect(refreshCalls).toBe(2));
+      delayedARefresh.resolve(jsonResponse({ accessToken: 'a-fresh-access', refreshToken: 'a-fresh-refresh', expiresIn: 900, refreshExpiresIn: 2_592_000 }));
+      await waitFor(() => expect(protectedCalls).toBe(2));
+      await act(async () => { await auth!.logout(); });
+      await act(async () => { await auth!.login('13900000000', '123456'); });
+      await act(async () => {
+        delayedRetry401.resolve(jsonResponse({ error: { code: 'AUTH_EXPIRED', message: 'Expired', details: {} } }, 401));
+        await expect(staleRequest).rejects.toBeInstanceOf(ApiError);
+      });
+
+      expect(screen.getByText(`signedIn:B:${b.user.id}`)).toBeTruthy();
+      await expect(tokenStore.getRefreshToken()).resolves.toBe('b-refresh');
+      expect(protectedCalls).toBe(2);
+    } finally {
+      if (previousApiBaseUrl === undefined) delete process.env.EXPO_PUBLIC_API_BASE_URL;
+      else process.env.EXPO_PUBLIC_API_BASE_URL = previousApiBaseUrl;
+    }
+  });
+
+  it('coalesces two real same-session 401 refreshes and retries each request once', async () => {
+    const previousApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+    process.env.EXPO_PUBLIC_API_BASE_URL = 'https://api.example.test';
+    const delayedRefresh = deferred<Response>();
+    let refreshCalls = 0;
+    const protectedCalls = new Map<string, number>();
+    const fetchMock = jest.fn(async (input: string | URL | Request) => {
+      const path = new URL(input.toString()).pathname;
+      if (path === '/auth/refresh') {
+        refreshCalls += 1;
+        return refreshCalls === 1
+          ? jsonResponse({ accessToken: 'a-access', refreshToken: 'a-refresh-rotated', expiresIn: 900, refreshExpiresIn: 2_592_000 })
+          : delayedRefresh.promise;
+      }
+      if (path === '/me/bootstrap') return jsonResponse(bootstrap);
+      if (path === '/protected/one' || path === '/protected/two') {
+        const calls = (protectedCalls.get(path) ?? 0) + 1;
+        protectedCalls.set(path, calls);
+        return calls === 1
+          ? jsonResponse({ error: { code: 'AUTH_EXPIRED', message: 'Expired', details: {} } }, 401)
+          : jsonResponse({ value: path.slice(-3) });
+      }
+      throw new Error(`Unexpected ${path}`);
+    });
+    jest.spyOn(global, 'fetch').mockImplementation(fetchMock as typeof fetch);
+
+    try {
+      await tokenStore.setRefreshToken('a-refresh');
+      let auth: ReturnType<typeof useAuth> | undefined;
+      const screen = await render(<AuthProvider><SessionProbe onReady={(value) => { auth = value; }} /></AuthProvider>);
+      await screen.findByText(`signedIn:${bootstrap.profile.nickname}:${bootstrap.user.id}`);
+
+      const first = auth!.authenticatedRequest('/protected/one', {}, z.object({ value: z.string() }));
+      const second = auth!.authenticatedRequest('/protected/two', {}, z.object({ value: z.string() }));
+      await waitFor(() => expect(refreshCalls).toBe(2));
+      delayedRefresh.resolve(jsonResponse({ accessToken: 'a-fresh-access', refreshToken: 'a-fresh-refresh', expiresIn: 900, refreshExpiresIn: 2_592_000 }));
+
+      await expect(Promise.all([first, second])).resolves.toEqual([{ value: 'one' }, { value: 'two' }]);
+      expect(refreshCalls).toBe(2);
+      expect(protectedCalls).toEqual(new Map([['/protected/one', 2], ['/protected/two', 2]]));
+    } finally {
+      if (previousApiBaseUrl === undefined) delete process.env.EXPO_PUBLIC_API_BASE_URL;
+      else process.env.EXPO_PUBLIC_API_BASE_URL = previousApiBaseUrl;
+    }
+  });
+
   it('keeps B refresh token when A real logout finishes after B login', async () => {
     const previousApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
     process.env.EXPO_PUBLIC_API_BASE_URL = 'https://api.example.test';
@@ -482,6 +649,55 @@ describe('AuthProvider', () => {
     await expect(tokenStore.getRefreshToken()).resolves.toBe('b-refresh');
     if (previousApiBaseUrl === undefined) delete process.env.EXPO_PUBLIC_API_BASE_URL;
     else process.env.EXPO_PUBLIC_API_BASE_URL = previousApiBaseUrl;
+  });
+
+  it('keeps B refresh token when A real logout rejects after B login', async () => {
+    const previousApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+    process.env.EXPO_PUBLIC_API_BASE_URL = 'https://api.example.test';
+    const a = bootstrapFor('5364864c-3a48-4ca8-90b7-04f049b3227b', 'A');
+    const b = bootstrapFor('6364864c-3a48-4ca8-90b7-04f049b3227b', 'B');
+    const delayedLogout = deferred<Response>();
+    let bootstrapCalls = 0;
+    const fetchMock = jest.fn(async (input: string | URL | Request) => {
+      const path = new URL(input.toString()).pathname;
+      if (path === '/auth/refresh') return jsonResponse({ accessToken: 'a-access', refreshToken: 'a-refresh-rotated', expiresIn: 900, refreshExpiresIn: 2_592_000 });
+      if (path === '/me/bootstrap') {
+        bootstrapCalls += 1;
+        return jsonResponse(bootstrapCalls === 1 ? a : b);
+      }
+      if (path === '/auth/login') return jsonResponse(loginResponseFor(b, 'b-access', 'b-refresh'));
+      if (path === '/auth/logout') return delayedLogout.promise;
+      throw new Error(`Unexpected ${path}`);
+    });
+    jest.spyOn(global, 'fetch').mockImplementation(fetchMock as typeof fetch);
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    try {
+      await tokenStore.setRefreshToken('a-refresh');
+      let auth: ReturnType<typeof useAuth> | undefined;
+      const screen = await render(<AuthProvider><SessionProbe onReady={(value) => { auth = value; }} /></AuthProvider>);
+      await screen.findByText(`signedIn:A:${a.user.id}`);
+
+      let logoutA!: Promise<void>;
+      await act(async () => {
+        logoutA = auth!.logout();
+        await Promise.resolve();
+      });
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/auth/logout'), expect.anything()));
+      await act(async () => { await auth!.login('13900000000', '123456'); });
+      await act(async () => {
+        delayedLogout.reject(new Error('network unavailable'));
+        await logoutA;
+      });
+
+      expect(screen.getByText(`signedIn:B:${b.user.id}`)).toBeTruthy();
+      await expect(tokenStore.getRefreshToken()).resolves.toBe('b-refresh');
+      expect(consoleError).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+      if (previousApiBaseUrl === undefined) delete process.env.EXPO_PUBLIC_API_BASE_URL;
+      else process.env.EXPO_PUBLIC_API_BASE_URL = previousApiBaseUrl;
+    }
   });
 
   it('does not update React state after it unmounts while restoring', async () => {

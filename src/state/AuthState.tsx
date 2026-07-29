@@ -12,6 +12,7 @@ export type AuthSession = { userId: string | null; generation: number };
 type AuthRequestIdentity = { generation: number; refreshToken: string | null };
 type AuthRequestHandlers = {
   getAuthIdentity: () => AuthRequestIdentity;
+  isAuthIdentityCurrent: (identity: unknown) => boolean;
   refresh: (identity: unknown) => Promise<void>;
   onUnauthorized: (identity: unknown) => Promise<void>;
 };
@@ -59,6 +60,7 @@ export function createAuthRuntime(): AuthRuntime {
   };
   let requestIdentityHandlers: AuthRequestHandlers = {
     getAuthIdentity: () => anonymousRequestIdentity,
+    isAuthIdentityCurrent: (identity) => identity === anonymousRequestIdentity,
     refresh: async () => {
       const tokens = await repository.refresh();
       accessToken = tokens.accessToken;
@@ -73,6 +75,7 @@ export function createAuthRuntime(): AuthRuntime {
     timeoutMs: 15_000,
     getAccessToken: () => accessToken,
     getAuthIdentity: () => requestIdentityHandlers.getAuthIdentity(),
+    isAuthIdentityCurrent: (identity) => requestIdentityHandlers.isAuthIdentityCurrent(identity),
     refresh: (identity) => requestIdentityHandlers.refresh(identity),
     onUnauthorized: (identity) => requestIdentityHandlers.onUnauthorized(identity),
   });
@@ -98,6 +101,7 @@ export function createAuthRuntime(): AuthRuntime {
     setRequestIdentityHandlers: (handlers) => {
       requestIdentityHandlers = handlers ?? {
         getAuthIdentity: () => anonymousRequestIdentity,
+        isAuthIdentityCurrent: (identity) => identity === anonymousRequestIdentity,
         refresh: async () => {
           const tokens = await repository.refresh();
           accessToken = tokens.accessToken;
@@ -156,7 +160,11 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
   }, []);
 
   const isCurrentRequestIdentity = useCallback((identity: unknown): identity is AuthRequestIdentity => (
-    identity === authIdentityRef.current && isCurrentGeneration(authIdentityRef.current.generation)
+    typeof identity === 'object'
+    && identity !== null
+    && 'generation' in identity
+    && typeof identity.generation === 'number'
+    && isCurrentGeneration(identity.generation)
   ), [isCurrentGeneration]);
 
   const clearSession = useCallback(async (expectedGeneration?: number) => {
@@ -215,6 +223,7 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
   useEffect(() => {
     activeRuntime.setRequestIdentityHandlers?.({
       getAuthIdentity: () => authIdentityRef.current,
+      isAuthIdentityCurrent: isCurrentRequestIdentity,
       refresh: async (identity) => {
         if (!isCurrentRequestIdentity(identity)) {
           throw new ApiError('stale-session', 401, {});

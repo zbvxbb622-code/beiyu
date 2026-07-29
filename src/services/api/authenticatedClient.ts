@@ -37,6 +37,7 @@ export type AuthenticatedClient = {
 type AuthenticatedClientOptions = ClientOptions & {
   getAccessToken: () => string | null;
   getAuthIdentity?: () => unknown;
+  isAuthIdentityCurrent?: (identity: unknown) => boolean;
   refresh: (identity?: unknown) => Promise<void>;
   onUnauthorized: (identity?: unknown) => Promise<void> | void;
 };
@@ -162,6 +163,7 @@ export function createAuthenticatedClient(
   }
 
   function identityIsCurrent(identity: unknown) {
+    if (options.isAuthIdentityCurrent) return options.isAuthIdentityCurrent(identity);
     return !options.getAuthIdentity || options.getAuthIdentity() === identity;
   }
 
