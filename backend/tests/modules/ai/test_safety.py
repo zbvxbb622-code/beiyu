@@ -9,6 +9,7 @@ from app.modules.ai.safety import (
     OUTPUT_REPLACED_REPLY,
     SELF_HARM_CRISIS_REPLY,
     classify_input,
+    redact_private_identifiers,
     review_output,
 )
 from app.modules.ai.schemas import AiGenerationResult, AiMemoryCandidate
@@ -61,6 +62,49 @@ def test_self_harm_priority_overrides_explicit_drinking_request(user: User) -> N
     assert decision.allow_memory is False
 
 
+@pytest.mark.parametrize(
+    "content",
+    [
+        "我想离开这个世界。",
+        "我不想活了。",
+        "我想结束生命。",
+    ],
+)
+def test_first_person_crisis_rephrasings_are_detected(user: User, content: str) -> None:
+    assert classify_input(content, user).label is AiSafetyLabel.SELF_HARM_CRISIS
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "我不是想自杀，只是今天有点累。",
+        "我没有自杀想法，想找朋友聊聊。",
+        "朋友说他想自杀，我不知道怎么陪他。",
+    ],
+)
+def test_negated_or_explicitly_third_party_crisis_language_is_not_misattributed_to_user(
+    user: User,
+    content: str,
+) -> None:
+    assert classify_input(content, user).label is AiSafetyLabel.SAFE
+
+
+def test_current_crisis_after_a_past_negation_still_takes_priority(user: User) -> None:
+    assert (
+        classify_input("我之前没有自杀想法，但现在想结束生命。", user).label
+        is AiSafetyLabel.SELF_HARM_CRISIS
+    )
+
+
+def test_email_and_exact_address_are_classified_and_redacted_everywhere(user: User) -> None:
+    private_value = "alice@example.com，浙江省杭州市西湖区文三路138号1201室"
+    decision = classify_input(f"请记住我的邮箱和地址：{private_value}", user)
+
+    assert decision.label is AiSafetyLabel.PRIVACY_SENSITIVE
+    assert private_value not in redact_private_identifiers(private_value)
+    assert "[已隐藏的敏感信息]" in redact_private_identifiers(private_value)
+
+
 def test_review_output_replaces_diagnosis_or_overuse_encouragement_and_drops_untrusted_recipes(
     user: User,
 ) -> None:
@@ -81,10 +125,9 @@ def test_review_output_replaces_diagnosis_or_overuse_encouragement_and_drops_unt
         ],
         provider="test",
         model="test",
-        candidate_recipe_ids=[allowed_recipe],
     )
 
-    reviewed = review_output(unsafe_result, safe)
+    reviewed = review_output(unsafe_result, safe, [allowed_recipe])
 
     assert reviewed.reply_text == OUTPUT_REPLACED_REPLY
     assert reviewed.recipe_ids == []
@@ -96,17 +139,95 @@ def test_review_output_removes_unknown_or_unpublished_recipe_ids_without_trustin
     user: User,
 ) -> None:
     allowed_recipe = uuid4()
+    unpublished_recipe = uuid4()
     reviewed = review_output(
-        AiGenerationResult(
-            reply_text="可以试试这杯清爽的选择。",
-            recipe_ids=[allowed_recipe, uuid4()],
-            memory_candidates=[],
-            provider="test",
-            model="test",
-            candidate_recipe_ids=[allowed_recipe],
+        AiGenerationResult.model_validate(
+            {
+                "replyText": "可以试试这杯清爽的选择。",
+                "recipeIds": [allowed_recipe, unpublished_recipe, allowed_recipe],
+                "memoryCandidates": [],
+                "provider": "test",
+                "model": "test",
+                "candidateRecipeIds": [allowed_recipe, unpublished_recipe],
+            }
         ),
         classify_input("想喝点清爽的", user),
+        [allowed_recipe],
     )
 
     assert reviewed.reply_text == "可以试试这杯清爽的选择。"
     assert reviewed.recipe_ids == [allowed_recipe]
+
+
+@pytest.mark.parametrize(
+    "reply_text",
+    [
+        "你患有抑郁症。",
+        "你就是抑郁症，可以确诊。",
+        "喝酒能缓解你的焦虑和失眠。",
+        "你只需要依赖我，只有我懂你，不要找别人。",
+    ],
+)
+def test_review_output_replaces_diagnostic_alcohol_relief_and_exclusive_dependency_claims(
+    user: User,
+    reply_text: str,
+) -> None:
+    reviewed = review_output(
+        AiGenerationResult(
+            reply_text=reply_text,
+            recipe_ids=[uuid4()],
+            memory_candidates=[],
+            provider="test",
+            model="test",
+        ),
+        classify_input("今天很难过", user),
+        [],
+    )
+
+    assert reviewed.reply_text == OUTPUT_REPLACED_REPLY
+    assert reviewed.recipe_ids == []
+    assert reviewed.memory_candidates == []
+
+
+def test_review_output_keeps_ordinary_companion_language_and_removes_private_memory_candidate(
+    user: User,
+) -> None:
+    private_value = "alice@example.com"
+    reviewed = review_output(
+        AiGenerationResult(
+            reply_text="我会陪你聊，但也可以找信任的人说说。",
+            memory_candidates=[
+                AiMemoryCandidate(
+                    category=AiMemoryCategory.EMOTIONAL_PREFERENCE,
+                    memory_key=private_value,
+                    summary=f"邮箱是{private_value}",
+                    confidence=0.9,
+                    sensitive=False,
+                )
+            ],
+            provider="test",
+            model="test",
+        ),
+        classify_input("今天很难过", user),
+        [],
+    )
+
+    assert reviewed.reply_text == "我会陪你聊，但也可以找信任的人说说。"
+    assert reviewed.memory_candidates == []
+    assert private_value not in str(reviewed.model_dump())
+
+
+@pytest.mark.parametrize("reply_text", ["", "x" * 8_001])
+def test_review_output_replaces_blank_or_oversized_provider_reply(
+    user: User,
+    reply_text: str,
+) -> None:
+    reviewed = review_output(
+        AiGenerationResult(reply_text=reply_text, provider="test", model="test"),
+        classify_input("今天很难过", user),
+        [],
+    )
+
+    assert reviewed.reply_text == OUTPUT_REPLACED_REPLY
+    assert reviewed.recipe_ids == []
+    assert reviewed.memory_candidates == []

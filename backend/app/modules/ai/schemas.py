@@ -150,7 +150,18 @@ class RegenerateMessageRequest(ApiModel):
 
 class AiGenerationMessage(ApiModel):
     role: Literal["user", "assistant"]
-    content: str = Field(min_length=1, max_length=MAX_USER_MESSAGE_CHARS)
+    content: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def enforce_role_aware_content_limit(self) -> "AiGenerationMessage":
+        limit = (
+            MAX_USER_MESSAGE_CHARS
+            if self.role == "user"
+            else MAX_PROVIDER_REPLY_CHARS
+        )
+        if len(self.content) > limit:
+            raise ValueError(f"{self.role} generation message exceeds character limit")
+        return self
 
 
 class AiRecipeCandidate(ApiModel):
@@ -179,7 +190,7 @@ class AiGenerationRequest(ApiModel):
 
 
 class AiGenerationResult(ApiModel):
-    reply_text: str = Field(min_length=1, max_length=MAX_PROVIDER_REPLY_CHARS)
+    reply_text: str
     recipe_ids: list[uuid.UUID] = Field(default_factory=list)
     memory_candidates: list[AiMemoryCandidate] = Field(default_factory=list)
     provider: str = Field(min_length=1, max_length=80)
@@ -188,4 +199,3 @@ class AiGenerationResult(ApiModel):
     output_tokens: int | None = Field(default=None, ge=0)
     cost_estimate: float | None = Field(default=None, ge=0)
     safety_label: AiSafetyLabel = AiSafetyLabel.SAFE
-    candidate_recipe_ids: list[uuid.UUID] = Field(default_factory=list)

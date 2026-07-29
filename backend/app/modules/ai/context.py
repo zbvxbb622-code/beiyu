@@ -20,6 +20,7 @@ from app.modules.ai.safety import (
     redact_private_identifiers,
 )
 from app.modules.ai.schemas import (
+    MAX_TEMPORARY_CONTEXT_CHARS,
     AiGenerationMessage,
     AiGenerationRequest,
     AiRecipeCandidate,
@@ -36,6 +37,7 @@ DEFAULT_CONVERSATION_TITLE = "新的对话"
 MAX_CONTEXT_MESSAGES = 20
 MAX_MEMORY_ITEMS = 20
 MAX_RECIPE_CANDIDATES = 5
+MAX_PROVIDER_CONTEXT_CHARS = MAX_TEMPORARY_CONTEXT_CHARS
 REDACTED_CURRENT_MESSAGE = "[用户消息含敏感身份信息，未提供给模型]"
 WHITESPACE_PATTERN = re.compile(r"\s+")
 
@@ -57,7 +59,10 @@ def _context_text(
     sections.append(
         "已发布候选酒谱："
         + (
-            "；".join(f"{recipe.id} {recipe.name}" for recipe in candidate_recipes)
+            "；".join(
+                f"{recipe.id} {recipe.name}：{recipe.description} {'、'.join(recipe.tags)}"
+                for recipe in candidate_recipes
+            )
             if candidate_recipes
             else "无"
         )
@@ -134,6 +139,106 @@ def _request(
     )
 
 
+def _fits_provider_budget(
+    *,
+    memories: list[str],
+    messages: list[AiGenerationMessage],
+    cellar_ingredient_ids: list[str],
+    candidate_recipes: list[AiRecipeCandidate],
+) -> bool:
+    return (
+        len(
+            _context_text(
+                memories=memories,
+                messages=messages,
+                cellar_ingredient_ids=cellar_ingredient_ids,
+                candidate_recipes=candidate_recipes,
+            )
+        )
+        <= MAX_PROVIDER_CONTEXT_CHARS
+    )
+
+
+def _fit_context(
+    *,
+    current_message: AiGenerationMessage,
+    memories: list[str],
+    history: list[AiGenerationMessage],
+    cellar_ingredient_ids: list[str],
+    candidate_recipes: list[AiRecipeCandidate],
+) -> tuple[
+    list[str],
+    list[AiGenerationMessage],
+    list[str],
+    list[AiRecipeCandidate],
+]:
+    selected_memories: list[str] = []
+    selected_history: list[AiGenerationMessage] = []
+    selected_cellar: list[str] = []
+    selected_recipes: list[AiRecipeCandidate] = []
+
+    for memory in memories:
+        candidate = [*selected_memories, memory]
+        if _fits_provider_budget(
+            memories=candidate,
+            messages=[*selected_history, current_message],
+            cellar_ingredient_ids=selected_cellar,
+            candidate_recipes=selected_recipes,
+        ):
+            selected_memories = candidate
+    for message in reversed(history):
+        candidate = [message, *selected_history]
+        if _fits_provider_budget(
+            memories=selected_memories,
+            messages=[*candidate, current_message],
+            cellar_ingredient_ids=selected_cellar,
+            candidate_recipes=selected_recipes,
+        ):
+            selected_history = candidate
+    for ingredient_id in cellar_ingredient_ids:
+        candidate = [*selected_cellar, ingredient_id]
+        if _fits_provider_budget(
+            memories=selected_memories,
+            messages=[*selected_history, current_message],
+            cellar_ingredient_ids=candidate,
+            candidate_recipes=selected_recipes,
+        ):
+            selected_cellar = candidate
+    for recipe in candidate_recipes:
+        candidate = [*selected_recipes, recipe]
+        if _fits_provider_budget(
+            memories=selected_memories,
+            messages=[*selected_history, current_message],
+            cellar_ingredient_ids=selected_cellar,
+            candidate_recipes=candidate,
+        ):
+            selected_recipes = candidate
+    return selected_memories, selected_history, selected_cellar, selected_recipes
+
+
+def _bounded_request(
+    *,
+    current_message: AiGenerationMessage,
+    memories: list[str],
+    history: list[AiGenerationMessage],
+    cellar_ingredient_ids: list[str],
+    candidate_recipes: list[AiRecipeCandidate],
+) -> AiGenerationRequest:
+    bounded_memories, bounded_history, bounded_cellar, bounded_recipes = _fit_context(
+        current_message=current_message,
+        memories=memories,
+        history=history,
+        cellar_ingredient_ids=cellar_ingredient_ids,
+        candidate_recipes=candidate_recipes,
+    )
+    return _request(
+        messages=[*bounded_history, current_message],
+        memories=bounded_memories,
+        cellar_ingredient_ids=bounded_cellar,
+        candidate_recipes=bounded_recipes,
+    )
+
+
 def build_normal_generation_request(
     session: Session,
     user: User,
@@ -144,17 +249,29 @@ def build_normal_generation_request(
 ) -> AiGenerationRequest:
     if conversation.user_id != user.id:
         raise ValueError("conversation does not belong to user")
+    current_message = AiGenerationMessage(role="user", content=_current_message(content, safety))
+    if safety.fixed_reply is not None:
+        return _bounded_request(
+            current_message=current_message,
+            memories=[],
+            history=[],
+            cellar_ingredient_ids=[],
+            candidate_recipes=[],
+        )
     memory_limit = min(settings.ai_memory_limit, MAX_MEMORY_ITEMS)
-    memory_updated_at = cast(ColumnElement[Any], AiMemory.updated_at)
-    memory_id = cast(ColumnElement[Any], AiMemory.id)
-    memories = list(
-        session.exec(
-            select(AiMemory.summary)
-            .where(AiMemory.user_id == user.id)
-            .order_by(memory_updated_at.desc(), memory_id)
-            .limit(memory_limit)
-        ).all()
-    )
+    memories: list[str] = []
+    if user.memory_enabled and safety.allow_memory:
+        memory_updated_at = cast(ColumnElement[Any], AiMemory.updated_at)
+        memory_id = cast(ColumnElement[Any], AiMemory.id)
+        memories = [
+            redact_private_identifiers(str(summary))
+            for summary in session.exec(
+                select(AiMemory.summary)
+                .where(AiMemory.user_id == user.id)
+                .order_by(memory_updated_at.desc(), memory_id)
+                .limit(memory_limit)
+            ).all()
+        ]
     message_limit = min(settings.ai_context_messages, MAX_CONTEXT_MESSAGES)
     message_created_at = cast(ColumnElement[Any], AiMessage.created_at)
     message_id = cast(ColumnElement[Any], AiMessage.id)
@@ -167,19 +284,19 @@ def build_normal_generation_request(
         .order_by(message_created_at.desc(), message_id.desc())
         .limit(message_limit)
     ).all()
-    messages = [
+    history = [
         AiGenerationMessage(
             role="user" if message.role.value == "USER" else "assistant",
             content=redact_private_identifiers(message.content),
         )
         for message in reversed(recent_messages)
     ]
-    messages.append(AiGenerationMessage(role="user", content=_current_message(content, safety)))
     cellar_ingredient_ids = _cellar_ingredient_ids(session, user)
     candidate_recipes = _candidate_recipes(session, safety.allow_recipes)
-    return _request(
-        messages=messages,
-        memories=[redact_private_identifiers(str(summary)) for summary in memories],
+    return _bounded_request(
+        current_message=current_message,
+        memories=memories,
+        history=history,
         cellar_ingredient_ids=cellar_ingredient_ids,
         candidate_recipes=candidate_recipes,
     )
@@ -193,36 +310,39 @@ def build_temporary_generation_request(
     safety: SafetyDecision,
     settings: Settings,
 ) -> AiGenerationRequest:
-    del settings
-    if len(temporary_context) > MAX_CONTEXT_MESSAGES:
-        raise ValueError("temporary context exceeds message budget")
-    character_count = sum(
-        len(message.role.value) + len(message.content) for message in temporary_context
-    )
-    if character_count > 12_000:
-        raise ValueError("temporary context exceeds character budget")
-    messages = [
+    current_message = AiGenerationMessage(role="user", content=_current_message(content, safety))
+    if safety.fixed_reply is not None:
+        return _bounded_request(
+            current_message=current_message,
+            memories=[],
+            history=[],
+            cellar_ingredient_ids=[],
+            candidate_recipes=[],
+        )
+    context_limit = min(settings.ai_context_messages, MAX_CONTEXT_MESSAGES)
+    history = [
         AiGenerationMessage(
             role="user" if message.role.value == "USER" else "assistant",
             content=redact_private_identifiers(message.content),
         )
-        for message in temporary_context
+        for message in temporary_context[-context_limit:]
     ]
-    messages.append(AiGenerationMessage(role="user", content=_current_message(content, safety)))
     cellar_ingredient_ids = _cellar_ingredient_ids(session, user)
     candidate_recipes = _candidate_recipes(session, safety.allow_recipes)
-    return _request(
-        messages=messages,
+    return _bounded_request(
+        current_message=current_message,
         memories=[],
+        history=history,
         cellar_ingredient_ids=cellar_ingredient_ids,
         candidate_recipes=candidate_recipes,
     )
 
 
 def derive_conversation_title(content: str) -> str:
-    if contains_private_identifiers(content):
+    sanitized = redact_private_identifiers(content)
+    if sanitized != content:
         return DEFAULT_CONVERSATION_TITLE
-    normalized = WHITESPACE_PATTERN.sub(" ", content).strip()
+    normalized = WHITESPACE_PATTERN.sub(" ", sanitized).strip()
     if not normalized:
         return DEFAULT_CONVERSATION_TITLE
     return normalized[:60] if normalized.isascii() else normalized[:30]

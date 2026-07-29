@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+from sqlalchemy import event
 from sqlmodel import Session
 
 from app.core.config import Settings
@@ -16,6 +17,7 @@ from app.db.models import (
     User,
 )
 from app.modules.ai.context import (
+    MAX_PROVIDER_CONTEXT_CHARS,
     PERSONA_PROMPT,
     build_normal_generation_request,
     build_temporary_generation_request,
@@ -173,6 +175,181 @@ def test_temporary_context_never_reads_normal_history_or_memories(
     ]
     assert "普通会话历史" not in request.context_text
     assert "希望先被倾听" not in request.context_text
+
+
+def test_memory_disabled_skips_ai_memories_query_entirely(database_session: Session) -> None:
+    user = persisted_user(database_session, "memory-disabled")
+    user.memory_enabled = False
+    conversation = AiConversation(user_id=user.id)
+    database_session.add(conversation)
+    database_session.flush()
+    statements: list[str] = []
+
+    def capture(_: object, __: object, statement: str, ___: object, ____: object, _____: object) -> None:
+        statements.append(statement)
+
+    connection = database_session.connection()
+    event.listen(connection, "before_cursor_execute", capture)
+    try:
+        request = build_normal_generation_request(
+            database_session,
+            user,
+            conversation,
+            "想聊聊",
+            classify_input("想聊聊", user),
+            settings(),
+        )
+    finally:
+        event.remove(connection, "before_cursor_execute", capture)
+
+    assert request.memories == []
+    assert not any("ai_memories" in statement for statement in statements)
+
+
+def test_context_budget_preserves_persona_current_and_recent_assistant_without_validation_error(
+    database_session: Session,
+) -> None:
+    user = persisted_user(database_session, "budget-normal")
+    conversation = AiConversation(user_id=user.id)
+    database_session.add(conversation)
+    database_session.flush()
+    database_session.add_all(
+        [
+            AiMessage(
+                user_id=user.id,
+                conversation_id=conversation.id,
+                role=AiMessageRole.USER,
+                content="旧消息" * 300,
+                created_at=datetime(2026, 7, 29, 8, tzinfo=UTC),
+            ),
+            AiMessage(
+                user_id=user.id,
+                conversation_id=conversation.id,
+                role=AiMessageRole.ASSISTANT,
+                content="最近助手回复" * 1_000,
+                created_at=datetime(2026, 7, 29, 9, tzinfo=UTC),
+            ),
+        ]
+    )
+    database_session.flush()
+
+    request = build_normal_generation_request(
+        database_session,
+        user,
+        conversation,
+        "当前消息" * 400,
+        classify_input("当前消息", user),
+        settings(),
+    )
+
+    assert len(request.context_text) <= MAX_PROVIDER_CONTEXT_CHARS
+    assert request.system_prompt in request.context_text
+    assert request.messages[-1].content == "当前消息" * 400
+    assert request.messages[-2].role == "assistant"
+    assert request.messages[-2].content == "最近助手回复" * 1_000
+
+
+def test_private_values_do_not_reach_history_current_generation_request_or_title(
+    database_session: Session,
+) -> None:
+    user = persisted_user(database_session, "private-context")
+    conversation = AiConversation(user_id=user.id)
+    database_session.add(conversation)
+    database_session.flush()
+    private_value = "alice@example.com，浙江省杭州市西湖区文三路138号1201室"
+    database_session.add(
+        AiMessage(
+            user_id=user.id,
+            conversation_id=conversation.id,
+            role=AiMessageRole.ASSISTANT,
+            content=f"你刚才写的是{private_value}",
+        )
+    )
+    database_session.flush()
+
+    history_request = build_normal_generation_request(
+        database_session,
+        user,
+        conversation,
+        "我们聊点别的",
+        classify_input("我们聊点别的", user),
+        settings(),
+    )
+    current_request = build_normal_generation_request(
+        database_session,
+        user,
+        conversation,
+        private_value,
+        classify_input(private_value, user),
+        settings(),
+    )
+
+    assert private_value not in history_request.context_text
+    assert private_value not in str(history_request.model_dump())
+    assert private_value not in current_request.context_text
+    assert derive_conversation_title(private_value) == "新的对话"
+
+
+def test_temporary_context_uses_shared_budget_and_keeps_newest_messages(
+    database_session: Session,
+) -> None:
+    user = persisted_user(database_session, "budget-temporary")
+    temporary_context = [
+        TemporaryContextMessage(role=AiMessageRole.USER, content=f"{i}" + "旧" * 1_999)
+        for i in range(6)
+    ]
+
+    request = build_temporary_generation_request(
+        database_session,
+        user,
+        "当前消息" * 400,
+        temporary_context,
+        classify_input("当前消息", user),
+        settings(),
+    )
+
+    assert len(request.context_text) <= MAX_PROVIDER_CONTEXT_CHARS
+    assert request.messages[-1].content == "当前消息" * 400
+    assert request.messages[-2].content == temporary_context[-1].content
+    assert temporary_context[0].content not in [message.content for message in request.messages]
+
+
+def test_context_budget_never_includes_partial_cellar_ids_or_recipe_candidates(
+    database_session: Session,
+) -> None:
+    user = persisted_user(database_session, "budget-candidates")
+    conversation = AiConversation(user_id=user.id)
+    database_session.add(conversation)
+    database_session.flush()
+    cellar_ids = [f"ingredient-{index}-" + "x" * 60 for index in range(30)]
+    database_session.add_all(
+        [CellarItem(user_id=user.id, ingredient_key=ingredient_id) for ingredient_id in cellar_ids]
+        + [
+            Recipe(
+                public_id=f"budget-recipe-{index}-{uuid4()}",
+                status=ContentStatus.PUBLISHED,
+                name=f"候选{index}",
+                english_name=f"Candidate {index}",
+                description="描述" * 1_000,
+                published_at=datetime(2026, 7, 29, 8, tzinfo=UTC),
+            )
+            for index in range(5)
+        ]
+    )
+    database_session.flush()
+
+    request = build_normal_generation_request(
+        database_session,
+        user,
+        conversation,
+        "当前消息" * 500,
+        classify_input("当前消息", user),
+        settings(),
+    )
+
+    assert len(request.context_text) <= MAX_PROVIDER_CONTEXT_CHARS
+    assert all(ingredient_id in cellar_ids for ingredient_id in request.cellar_ingredient_ids)
+    assert all(str(recipe.id) in request.context_text for recipe in request.candidate_recipes)
 
 
 def test_title_is_trimmed_single_line_bounded_and_never_repeats_private_identifiers() -> None:

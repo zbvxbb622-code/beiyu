@@ -6,6 +6,7 @@ from pydantic import ValidationError
 
 from app.db.models import AiMemoryCategory, AiMessageRole, AiSafetyLabel
 from app.modules.ai.schemas import (
+    AiGenerationMessage,
     AiMemoryResponse,
     AiMessageResponse,
     AiUsageResponse,
@@ -134,3 +135,13 @@ def test_contracts_reject_invalid_uuids_and_keep_existing_api_extra_policy() -> 
         "totalItems": 1,
         "totalPages": 1,
     }
+
+
+def test_generation_messages_apply_role_aware_persisted_message_limits() -> None:
+    assistant = AiGenerationMessage(role="assistant", content="a" * 8_000)
+
+    assert assistant.content == "a" * 8_000
+    with pytest.raises(ValidationError):
+        AiGenerationMessage(role="assistant", content="a" * 8_001)
+    with pytest.raises(ValidationError):
+        AiGenerationMessage(role="user", content="u" * 2_001)
