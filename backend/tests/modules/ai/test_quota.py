@@ -2,12 +2,13 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from datetime import UTC, date, datetime, timedelta
+from threading import Barrier
 from types import SimpleNamespace
 from typing import cast
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlmodel import Session, select
 
 from app.core.config import Settings
@@ -426,7 +427,7 @@ def test_failed_reservation_commit_does_not_leave_quota_or_request_half_state(
     user = persisted_user(database_session)
 
     assert_error(
-        "AI_REQUEST_CONFLICT",
+        "AI_CONVERSATION_NOT_FOUND",
         lambda: quota.reserve_request(
             database_session,
             user,
@@ -505,18 +506,35 @@ def test_rolling_minute_counts_the_exact_lower_boundary(
             reserved_count=0,
         )
     )
+    requests = [
+        AiRequest(
+            user_id=user.id,
+            client_message_id=uuid4(),
+            mode=AiChatMode.TEMPORARY,
+            status=AiRequestStatus.SUCCEEDED,
+            quota_date=quota_date(start),
+            created_at=start,
+            completed_at=start,
+        )
+        for _ in range(10)
+    ]
+    database_session.add_all(requests)
+    database_session.flush()
     database_session.add_all(
         [
-            AiRequest(
+            AiUsageLog(
+                request_id=request.id,
+                attempt_no=1,
                 user_id=user.id,
-                client_message_id=uuid4(),
                 mode=AiChatMode.TEMPORARY,
-                status=AiRequestStatus.SUCCEEDED,
-                quota_date=quota_date(start),
+                outcome="SUCCEEDED",
+                provider="development",
+                model="beiyu-development-v1",
+                prompt_version="v1",
+                latency_ms=0,
                 created_at=start,
-                completed_at=start,
             )
-            for _ in range(10)
+            for request in requests
         ]
     )
     database_session.flush()
@@ -645,21 +663,27 @@ def test_concurrent_first_reservations_create_one_quota_row_and_one_active_reque
         user_id = user.id
         setup.commit()
 
+    barrier = Barrier(2)
+
     def reserve_in_own_transaction() -> str:
         with Session(engine) as session:
+            session.connection().execute(text("SET LOCAL lock_timeout = '2s'"))
             user = session.get(User, user_id)
             assert user is not None
+            barrier.wait(timeout=5)
             try:
                 result = quota.reserve_request(
                     session, user, uuid4(), AiChatMode.TEMPORARY, None, ai_settings(), now
                 )
+                session.commit()
                 return result.disposition.value
             except AppError as error:
+                session.rollback()
                 return error.code
 
+    executor = ThreadPoolExecutor(max_workers=2)
     try:
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            outcomes = list(executor.map(lambda _: reserve_in_own_transaction(), range(2)))
+        outcomes = list(executor.map(lambda _: reserve_in_own_transaction(), range(2)))
         with Session(engine) as verify:
             quotas = verify.exec(
                 select(AiDailyQuota).where(AiDailyQuota.user_id == user_id)
@@ -669,6 +693,386 @@ def test_concurrent_first_reservations_create_one_quota_row_and_one_active_reque
         assert [(row.used_count, row.reserved_count) for row in quotas] == [(0, 1)]
         assert [request.status for request in requests] == [AiRequestStatus.RESERVED]
     finally:
+        executor.shutdown(wait=True, cancel_futures=True)
+        with Session(engine) as cleanup:
+            user = cleanup.get(User, user_id)
+            if user is not None:
+                cleanup.delete(user)
+                cleanup.commit()
+
+
+def test_reservation_rejects_dirty_caller_session_without_committing_its_work(
+    database_session: Session,
+) -> None:
+    user = persisted_user(database_session)
+    pending_user = User(
+        phone_hash=f"pending-{uuid4().hex}",
+        phone_masked="+86138****1000",
+    )
+    database_session.add(pending_user)
+
+    assert_error(
+        "AI_RESERVATION_TRANSACTION_DIRTY",
+        lambda: quota.reserve_request(
+            database_session,
+            user,
+            uuid4(),
+            AiChatMode.TEMPORARY,
+            None,
+            ai_settings(),
+            datetime(2026, 7, 29, 12, tzinfo=UTC),
+        ),
+    )
+
+    assert pending_user in database_session.new
+
+
+def test_reservation_is_invisible_until_its_caller_commits() -> None:
+    engine = get_engine()
+    now = datetime(2026, 7, 29, 12, tzinfo=UTC)
+    with Session(engine) as setup:
+        user = persisted_user(setup)
+        user_id = user.id
+        setup.commit()
+
+    try:
+        with Session(engine) as reserving:
+            user = reserving.get(User, user_id)
+            assert user is not None
+            result = quota.reserve_request(
+                reserving,
+                user,
+                uuid4(),
+                AiChatMode.TEMPORARY,
+                None,
+                ai_settings(),
+                now,
+            )
+            request_id = result.request.id
+            with Session(engine) as observer:
+                assert observer.exec(
+                    select(AiRequest).where(AiRequest.id == request_id)
+                ).first() is None
+
+            reserving.commit()
+
+            with Session(engine) as observer:
+                assert observer.exec(
+                    select(AiRequest).where(AiRequest.id == request_id)
+                ).first() is not None
+    finally:
+        with Session(engine) as cleanup:
+            user = cleanup.get(User, user_id)
+            if user is not None:
+                cleanup.delete(user)
+                cleanup.commit()
+
+
+def test_normal_completion_rejects_response_from_another_user_or_wrong_role(
+    database_session: Session,
+) -> None:
+    now = datetime(2026, 7, 29, 12, tzinfo=UTC)
+    user = persisted_user(database_session)
+    other_user = persisted_user(database_session)
+    conversation = AiConversation(user_id=user.id)
+    other_conversation = AiConversation(user_id=other_user.id)
+    database_session.add_all([conversation, other_conversation])
+    database_session.flush()
+    foreign_response = AiMessage(
+        conversation_id=other_conversation.id,
+        user_id=other_user.id,
+        role=AiMessageRole.ASSISTANT,
+        content="不属于当前请求",
+    )
+    user_message = AiMessage(
+        conversation_id=conversation.id,
+        user_id=user.id,
+        role=AiMessageRole.USER,
+        content="用户消息不能作为回复",
+    )
+    valid_response = AiMessage(
+        conversation_id=conversation.id,
+        user_id=user.id,
+        role=AiMessageRole.ASSISTANT,
+        content="合法回复",
+    )
+    database_session.add_all([foreign_response, user_message, valid_response])
+    database_session.flush()
+    reserved = quota.reserve_request(
+        database_session,
+        user,
+        uuid4(),
+        AiChatMode.NORMAL,
+        conversation.id,
+        ai_settings(),
+        now,
+    )
+
+    for response_id in (foreign_response.id, user_message.id):
+        assert_error(
+            "AI_REQUEST_RESPONSE_INVALID",
+            lambda response_id=response_id: quota.complete_reservation(
+                database_session,
+                reserved.request,
+                usage(response_message_id=response_id),
+                now,
+            ),
+        )
+        database_session.refresh(reserved.request)
+        assert reserved.request.status is AiRequestStatus.RESERVED
+
+    quota.complete_reservation(
+        database_session,
+        reserved.request,
+        usage(response_message_id=valid_response.id),
+        now,
+    )
+    database_session.refresh(reserved.request)
+    assert reserved.request.status is AiRequestStatus.SUCCEEDED
+
+
+def test_failed_retries_are_rate_limited_before_incrementing_attempt_count(
+    database_session: Session,
+) -> None:
+    user = persisted_user(database_session)
+    now = datetime(2026, 7, 29, 12, tzinfo=UTC)
+    client_message_id = uuid4()
+    settings = ai_settings(ai_requests_per_minute=10)
+
+    for second in range(10):
+        reserved = quota.reserve_request(
+            database_session,
+            user,
+            client_message_id,
+            AiChatMode.TEMPORARY,
+            None,
+            settings,
+            now + timedelta(seconds=second),
+        )
+        quota.fail_reservation(
+            database_session,
+            reserved.request,
+            "PROVIDER_TIMEOUT",
+            None,
+            now + timedelta(seconds=second),
+        )
+
+    assert_error(
+        "AI_RATE_LIMITED",
+        lambda: quota.reserve_request(
+            database_session,
+            user,
+            client_message_id,
+            AiChatMode.TEMPORARY,
+            None,
+            settings,
+            now + timedelta(seconds=10),
+        ),
+    )
+    request = database_session.exec(
+        select(AiRequest).where(AiRequest.user_id == user.id)
+    ).one()
+    assert request.attempt_count == 10
+
+
+def test_normal_completion_is_invisible_until_caller_commits_exchange_and_quota() -> None:
+    engine = get_engine()
+    now = datetime(2026, 7, 29, 12, tzinfo=UTC)
+    with Session(engine) as setup:
+        user = persisted_user(setup)
+        conversation = AiConversation(user_id=user.id)
+        setup.add(conversation)
+        setup.commit()
+        user_id = user.id
+        conversation_id = conversation.id
+    try:
+        with Session(engine) as reserving:
+            user = reserving.get(User, user_id)
+            assert user is not None
+            reserved = quota.reserve_request(
+                reserving,
+                user,
+                uuid4(),
+                AiChatMode.NORMAL,
+                conversation_id,
+                ai_settings(),
+                now,
+            )
+            reserving.commit()
+            request_id = reserved.request.id
+
+        with Session(engine) as completing:
+            request = completing.get(AiRequest, request_id)
+            assert request is not None
+            response = AiMessage(
+                conversation_id=conversation_id,
+                user_id=user_id,
+                role=AiMessageRole.ASSISTANT,
+                content="同一事务里的回复",
+            )
+            response_id = response.id
+            completing.add(response)
+            quota.complete_reservation(
+                completing,
+                request,
+                usage(response_message_id=response_id),
+                now,
+            )
+
+            with Session(engine) as observer:
+                stored_request = observer.get(AiRequest, request_id)
+                assert stored_request is not None
+                assert stored_request.status is AiRequestStatus.RESERVED
+                assert observer.get(AiMessage, response_id) is None
+
+            completing.commit()
+
+        with Session(engine) as observer:
+            stored_request = observer.get(AiRequest, request_id)
+            assert stored_request is not None
+            stored_quota = observer.exec(
+                select(AiDailyQuota).where(AiDailyQuota.user_id == user_id)
+            ).one()
+            assert stored_request.status is AiRequestStatus.SUCCEEDED
+            assert stored_request.response_message_id == response_id
+            assert observer.get(AiMessage, response_id) is not None
+            assert (stored_quota.used_count, stored_quota.reserved_count) == (1, 0)
+    finally:
+        with Session(engine) as cleanup:
+            user = cleanup.get(User, user_id)
+            if user is not None:
+                cleanup.delete(user)
+                cleanup.commit()
+
+
+def test_concurrent_used_forty_nine_reservations_accept_one_and_reject_one_quota() -> None:
+    engine = get_engine()
+    now = datetime(2026, 7, 29, 12, tzinfo=UTC)
+    with Session(engine) as setup:
+        user = persisted_user(setup)
+        setup.add(
+            AiDailyQuota(
+                user_id=user.id,
+                quota_date=quota_date(now),
+                free_limit=50,
+                used_count=49,
+                reserved_count=0,
+            )
+        )
+        setup.commit()
+        user_id = user.id
+    barrier = Barrier(2)
+
+    def reserve_in_own_transaction() -> str:
+        with Session(engine) as session:
+            session.connection().execute(text("SET LOCAL lock_timeout = '2s'"))
+            user = session.get(User, user_id)
+            assert user is not None
+            barrier.wait(timeout=5)
+            try:
+                result = quota.reserve_request(
+                    session, user, uuid4(), AiChatMode.TEMPORARY, None, ai_settings(), now
+                )
+                session.commit()
+                return result.disposition.value
+            except AppError as error:
+                session.rollback()
+                return error.code
+
+    executor = ThreadPoolExecutor(max_workers=2)
+    try:
+        outcomes = list(executor.map(lambda _: reserve_in_own_transaction(), range(2)))
+        with Session(engine) as verify:
+            stored_quota = verify.exec(
+                select(AiDailyQuota).where(AiDailyQuota.user_id == user_id)
+            ).one()
+            assert sorted(outcomes) == ["AI_DAILY_QUOTA_EXHAUSTED", "NEW"]
+            assert stored_quota.used_count + stored_quota.reserved_count == 50
+    finally:
+        executor.shutdown(wait=True, cancel_futures=True)
+        with Session(engine) as cleanup:
+            user = cleanup.get(User, user_id)
+            if user is not None:
+                cleanup.delete(user)
+                cleanup.commit()
+
+
+def test_concurrent_expiry_reclaim_and_completion_have_no_deadlock_or_double_release() -> None:
+    engine = get_engine()
+    start = datetime(2026, 7, 29, 12, tzinfo=UTC)
+    race_now = start + timedelta(seconds=121)
+    with Session(engine) as setup:
+        user = persisted_user(setup)
+        user_id = user.id
+        reserved = quota.reserve_request(
+            setup,
+            user,
+            uuid4(),
+            AiChatMode.TEMPORARY,
+            None,
+            ai_settings(),
+            start,
+        )
+        setup.commit()
+        request_id = reserved.request.id
+        request = setup.get(AiRequest, request_id)
+        assert request is not None
+        request.reservation_expires_at = race_now
+        setup.commit()
+    barrier = Barrier(2)
+
+    def complete_in_own_transaction() -> str:
+        with Session(engine) as session:
+            session.connection().execute(text("SET LOCAL lock_timeout = '2s'"))
+            request = session.get(AiRequest, request_id)
+            assert request is not None
+            barrier.wait(timeout=5)
+            try:
+                quota.complete_reservation(session, request, None, race_now)
+                session.commit()
+                return "SUCCEEDED"
+            except AppError as error:
+                session.rollback()
+                return error.code
+
+    def reclaim_in_own_transaction() -> str:
+        with Session(engine) as session:
+            session.connection().execute(text("SET LOCAL lock_timeout = '2s'"))
+            user = session.get(User, user_id)
+            assert user is not None
+            barrier.wait(timeout=5)
+            try:
+                result = quota.reserve_request(
+                    session,
+                    user,
+                    uuid4(),
+                    AiChatMode.TEMPORARY,
+                    None,
+                    ai_settings(),
+                    race_now,
+                )
+                session.commit()
+                return result.disposition.value
+            except AppError as error:
+                session.rollback()
+                return error.code
+
+    executor = ThreadPoolExecutor(max_workers=2)
+    try:
+        completion, reclaim = list(
+            executor.map(lambda action: action(), [complete_in_own_transaction, reclaim_in_own_transaction])
+        )
+        with Session(engine) as verify:
+            stored_quota = verify.exec(
+                select(AiDailyQuota).where(AiDailyQuota.user_id == user_id)
+            ).one()
+            assert completion in {"SUCCEEDED", "AI_REQUEST_NOT_ACTIVE"}
+            assert reclaim == "NEW"
+            assert stored_quota.reserved_count == 1
+            assert 0 <= stored_quota.used_count <= 1
+            assert stored_quota.used_count + stored_quota.reserved_count <= 50
+    finally:
+        executor.shutdown(wait=True, cancel_futures=True)
         with Session(engine) as cleanup:
             user = cleanup.get(User, user_id)
             if user is not None:

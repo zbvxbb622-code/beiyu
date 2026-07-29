@@ -53,9 +53,8 @@ def test_handled_error_response_includes_a_request_id(client: TestClient) -> Non
 
 
 def test_unhandled_error_response_includes_a_request_id() -> None:
-    response = TestClient(test_errors.app, raise_server_exceptions=False).get(
-        "/_test/errors/unhandled"
-    )
+    with TestClient(test_errors.app, raise_server_exceptions=False) as client:
+        response = client.get("/_test/errors/unhandled")
 
     assert response.status_code == 500
     assert response.json() == {

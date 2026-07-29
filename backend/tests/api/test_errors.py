@@ -61,9 +61,8 @@ def test_request_validation_uses_the_stable_error_envelope(client: TestClient) -
 
 
 def test_unhandled_errors_do_not_expose_internal_details() -> None:
-    response = TestClient(app, raise_server_exceptions=False).get(
-        "/_test/errors/unhandled"
-    )
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.get("/_test/errors/unhandled")
 
     assert response.status_code == 500
     assert response.json() == {
