@@ -381,30 +381,51 @@ def reserve_request(
     return ReservationResult(ReservationDisposition.NEW, request)
 
 
-def _lock_quota_then_request(session: Session, request: AiRequest) -> tuple[AiDailyQuota, AiRequest]:
-    quota = session.exec(
-        select(AiDailyQuota)
-        .where(
-            AiDailyQuota.user_id == request.user_id,
-            AiDailyQuota.quota_date == request.quota_date,
-        )
-        .with_for_update()
-    ).first()
-    if quota is None:
-        raise _app_error("AI_REQUEST_NOT_FOUND", "AI 请求不存在", 404)
-    locked_request = session.exec(
+def _request_lock_candidate(session: Session, request_id: UUID) -> AiRequest | None:
+    return session.exec(
         select(AiRequest)
-        .where(AiRequest.id == request.id)
-        .with_for_update()
+        .where(AiRequest.id == request_id)
         .execution_options(populate_existing=True)
     ).first()
-    if (
-        locked_request is None
-        or locked_request.user_id != request.user_id
-        or locked_request.quota_date != request.quota_date
-    ):
-        raise _app_error("AI_REQUEST_NOT_FOUND", "AI 请求不存在", 404)
-    return quota, locked_request
+
+
+def _lock_quota_then_request(
+    session: Session,
+    request_id: UUID,
+) -> tuple[AiDailyQuota, AiRequest]:
+    """Lock a request's current quota before its row, tolerating one move between days."""
+    for _ in range(2):
+        candidate = _request_lock_candidate(session, request_id)
+        if candidate is None:
+            raise _app_error("AI_REQUEST_NOT_FOUND", "AI 请求不存在", 404)
+        candidate_user_id = candidate.user_id
+        candidate_quota_date = candidate.quota_date
+        with session.begin_nested() as attempt:
+            quota = session.exec(
+                select(AiDailyQuota)
+                .where(
+                    AiDailyQuota.user_id == candidate_user_id,
+                    AiDailyQuota.quota_date == candidate_quota_date,
+                )
+                .with_for_update()
+            ).first()
+            if quota is None:
+                raise _app_error("AI_REQUEST_NOT_FOUND", "AI 请求不存在", 404)
+            locked_request = session.exec(
+                select(AiRequest)
+                .where(AiRequest.id == request_id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            ).first()
+            if (
+                locked_request is not None
+                and locked_request.user_id == candidate_user_id
+                and locked_request.quota_date == candidate_quota_date
+            ):
+                return quota, locked_request
+            # PostgreSQL releases locks acquired after this savepoint before retrying.
+            attempt.rollback()
+    raise _app_error("AI_REQUEST_CONFLICT", "AI 请求并发冲突，请重试", 409)
 
 
 def _validate_normal_response(
@@ -436,7 +457,7 @@ def complete_reservation(
     """Finish a reservation in the caller's transaction without committing it."""
     now = _utc_now(now)
     usage = _usage_or_default(usage, outcome="SUCCEEDED")
-    quota, locked_request = _lock_quota_then_request(session, request)
+    quota, locked_request = _lock_quota_then_request(session, request.id)
     if locked_request.status is AiRequestStatus.SUCCEEDED:
         return _snapshot_for_quota(quota, now)
     if locked_request.status is not AiRequestStatus.RESERVED:
@@ -476,7 +497,7 @@ def fail_reservation(
     """Fail a reservation in the caller's transaction without committing it."""
     now = _utc_now(now)
     usage = _usage_or_default(usage, outcome="FAILED")
-    quota, locked_request = _lock_quota_then_request(session, request)
+    quota, locked_request = _lock_quota_then_request(session, request.id)
     if locked_request.status in {AiRequestStatus.FAILED, AiRequestStatus.EXPIRED}:
         return
     if locked_request.status is AiRequestStatus.SUCCEEDED:

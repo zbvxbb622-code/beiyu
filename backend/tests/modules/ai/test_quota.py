@@ -655,6 +655,347 @@ def test_repeated_terminal_calls_are_idempotent_and_do_not_duplicate_usage(
     assert [log.attempt_no for log in logs] == [1]
 
 
+def test_stale_cross_day_normal_completion_charges_the_retried_request_quota() -> None:
+    engine = get_engine()
+    day_one = datetime(2026, 7, 29, 15, 59, tzinfo=UTC)
+    day_two = datetime(2026, 7, 29, 16, tzinfo=UTC)
+    client_message_id = uuid4()
+    user_id: UUID | None = None
+    stale_session = Session(engine, expire_on_commit=False)
+    try:
+        with Session(engine) as setup:
+            user = persisted_user(setup)
+            conversation = AiConversation(user_id=user.id)
+            setup.add(conversation)
+            setup.flush()
+            response = AiMessage(
+                conversation_id=conversation.id,
+                user_id=user.id,
+                role=AiMessageRole.ASSISTANT,
+                content="跨日重试后的回复",
+            )
+            setup.add(response)
+            setup.commit()
+            user_id = user.id
+            conversation_id = conversation.id
+            response_message_id = response.id
+
+        stale_user = stale_session.get(User, user_id)
+        assert stale_user is not None
+        first = quota.reserve_request(
+            stale_session,
+            stale_user,
+            client_message_id,
+            AiChatMode.NORMAL,
+            conversation_id,
+            ai_settings(),
+            day_one,
+        )
+        quota.fail_reservation(
+            stale_session,
+            first.request,
+            "PROVIDER_TIMEOUT",
+            usage(outcome="FAILED"),
+            day_one,
+        )
+        stale_session.commit()
+        stale_request = first.request
+        assert stale_request.quota_date == quota_date(day_one)
+
+        with Session(engine) as retry_session:
+            retry_user = retry_session.get(User, user_id)
+            assert retry_user is not None
+            retry = quota.reserve_request(
+                retry_session,
+                retry_user,
+                client_message_id,
+                AiChatMode.NORMAL,
+                conversation_id,
+                ai_settings(),
+                day_two,
+            )
+            retry_session.commit()
+            assert retry.request.quota_date == quota_date(day_two)
+
+        with Session(engine) as finalize_session:
+            snapshot = quota.complete_reservation(
+                finalize_session,
+                stale_request,
+                usage(response_message_id=response_message_id),
+                day_two,
+            )
+            finalize_session.commit()
+
+        with Session(engine) as verify:
+            quotas = {
+                row.quota_date: row
+                for row in verify.exec(
+                    select(AiDailyQuota).where(AiDailyQuota.user_id == user_id)
+                ).all()
+            }
+            request = verify.exec(
+                select(AiRequest).where(
+                    AiRequest.user_id == user_id,
+                    AiRequest.client_message_id == client_message_id,
+                )
+            ).one()
+            logs = verify.exec(
+                select(AiUsageLog)
+                .where(AiUsageLog.request_id == request.id)
+                .order_by("attempt_no")
+            ).all()
+
+        assert (quotas[quota_date(day_one)].used_count, quotas[quota_date(day_one)].reserved_count) == (
+            0,
+            0,
+        )
+        assert (quotas[quota_date(day_two)].used_count, quotas[quota_date(day_two)].reserved_count) == (
+            1,
+            0,
+        )
+        assert (request.status, request.quota_date, request.attempt_count) == (
+            AiRequestStatus.SUCCEEDED,
+            quota_date(day_two),
+            2,
+        )
+        assert [(log.attempt_no, log.outcome) for log in logs] == [
+            (1, "FAILED"),
+            (2, "SUCCEEDED"),
+        ]
+        assert snapshot.messages_used_today == 1
+    finally:
+        stale_session.close()
+        if user_id is not None:
+            with Session(engine) as cleanup:
+                user = cleanup.get(User, user_id)
+                if user is not None:
+                    cleanup.delete(user)
+                    cleanup.commit()
+
+
+def test_stale_cross_day_failure_releases_the_retried_request_quota() -> None:
+    engine = get_engine()
+    day_one = datetime(2026, 7, 29, 15, 59, tzinfo=UTC)
+    day_two = datetime(2026, 7, 29, 16, tzinfo=UTC)
+    client_message_id = uuid4()
+    user_id: UUID | None = None
+    stale_session = Session(engine, expire_on_commit=False)
+    try:
+        with Session(engine) as setup:
+            user = persisted_user(setup)
+            setup.commit()
+            user_id = user.id
+
+        stale_user = stale_session.get(User, user_id)
+        assert stale_user is not None
+        first = quota.reserve_request(
+            stale_session,
+            stale_user,
+            client_message_id,
+            AiChatMode.TEMPORARY,
+            None,
+            ai_settings(),
+            day_one,
+        )
+        quota.fail_reservation(
+            stale_session,
+            first.request,
+            "PROVIDER_TIMEOUT",
+            usage(outcome="FAILED"),
+            day_one,
+        )
+        stale_session.commit()
+        stale_request = first.request
+        assert stale_request.quota_date == quota_date(day_one)
+
+        with Session(engine) as retry_session:
+            retry_user = retry_session.get(User, user_id)
+            assert retry_user is not None
+            retry = quota.reserve_request(
+                retry_session,
+                retry_user,
+                client_message_id,
+                AiChatMode.TEMPORARY,
+                None,
+                ai_settings(),
+                day_two,
+            )
+            retry_session.commit()
+            assert retry.request.quota_date == quota_date(day_two)
+
+        with Session(engine) as finalize_session:
+            quota.fail_reservation(
+                finalize_session,
+                stale_request,
+                "PROVIDER_UNAVAILABLE",
+                usage(outcome="FAILED"),
+                day_two,
+            )
+            finalize_session.commit()
+
+        with Session(engine) as verify:
+            quotas = {
+                row.quota_date: row
+                for row in verify.exec(
+                    select(AiDailyQuota).where(AiDailyQuota.user_id == user_id)
+                ).all()
+            }
+            request = verify.exec(
+                select(AiRequest).where(
+                    AiRequest.user_id == user_id,
+                    AiRequest.client_message_id == client_message_id,
+                )
+            ).one()
+            logs = verify.exec(
+                select(AiUsageLog)
+                .where(AiUsageLog.request_id == request.id)
+                .order_by("attempt_no")
+            ).all()
+
+        assert (quotas[quota_date(day_one)].used_count, quotas[quota_date(day_one)].reserved_count) == (
+            0,
+            0,
+        )
+        assert (quotas[quota_date(day_two)].used_count, quotas[quota_date(day_two)].reserved_count) == (
+            0,
+            0,
+        )
+        assert (request.status, request.quota_date, request.attempt_count) == (
+            AiRequestStatus.FAILED,
+            quota_date(day_two),
+            2,
+        )
+        assert [(log.attempt_no, log.outcome) for log in logs] == [
+            (1, "FAILED"),
+            (2, "FAILED"),
+        ]
+    finally:
+        stale_session.close()
+        if user_id is not None:
+            with Session(engine) as cleanup:
+                user = cleanup.get(User, user_id)
+                if user is not None:
+                    cleanup.delete(user)
+                    cleanup.commit()
+
+
+def test_finalizer_revalidates_when_a_retry_moves_the_request_to_the_next_day(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    engine = get_engine()
+    day_one = datetime(2026, 7, 29, 15, 59, tzinfo=UTC)
+    day_two = datetime(2026, 7, 29, 16, tzinfo=UTC)
+    client_message_id = uuid4()
+    user_id: UUID | None = None
+    stale_session = Session(engine, expire_on_commit=False)
+    try:
+        with Session(engine) as setup:
+            user = persisted_user(setup)
+            setup.commit()
+            user_id = user.id
+
+        stale_user = stale_session.get(User, user_id)
+        assert stale_user is not None
+        first = quota.reserve_request(
+            stale_session,
+            stale_user,
+            client_message_id,
+            AiChatMode.TEMPORARY,
+            None,
+            ai_settings(),
+            day_one,
+        )
+        quota.fail_reservation(
+            stale_session,
+            first.request,
+            "PROVIDER_TIMEOUT",
+            usage(outcome="FAILED"),
+            day_one,
+        )
+        stale_session.commit()
+
+        original_candidate = quota._request_lock_candidate
+        candidate_reads = 0
+
+        def retry_after_first_candidate(session: Session, request_id: UUID) -> AiRequest | None:
+            nonlocal candidate_reads
+            candidate = original_candidate(session, request_id)
+            candidate_reads += 1
+            if candidate_reads == 1:
+                with Session(engine) as retry_session:
+                    retry_user = retry_session.get(User, user_id)
+                    assert retry_user is not None
+                    quota.reserve_request(
+                        retry_session,
+                        retry_user,
+                        client_message_id,
+                        AiChatMode.TEMPORARY,
+                        None,
+                        ai_settings(),
+                        day_two,
+                    )
+                    retry_session.commit()
+            return candidate
+
+        monkeypatch.setattr(quota, "_request_lock_candidate", retry_after_first_candidate)
+
+        with Session(engine) as finalize_session:
+            quota.fail_reservation(
+                finalize_session,
+                first.request,
+                "PROVIDER_UNAVAILABLE",
+                usage(outcome="FAILED"),
+                day_two,
+            )
+            finalize_session.commit()
+
+        with Session(engine) as verify:
+            quotas = {
+                row.quota_date: row
+                for row in verify.exec(
+                    select(AiDailyQuota).where(AiDailyQuota.user_id == user_id)
+                ).all()
+            }
+            request = verify.exec(
+                select(AiRequest).where(
+                    AiRequest.user_id == user_id,
+                    AiRequest.client_message_id == client_message_id,
+                )
+            ).one()
+            logs = verify.exec(
+                select(AiUsageLog)
+                .where(AiUsageLog.request_id == request.id)
+                .order_by("attempt_no")
+            ).all()
+
+        assert candidate_reads == 2
+        assert (quotas[quota_date(day_one)].used_count, quotas[quota_date(day_one)].reserved_count) == (
+            0,
+            0,
+        )
+        assert (quotas[quota_date(day_two)].used_count, quotas[quota_date(day_two)].reserved_count) == (
+            0,
+            0,
+        )
+        assert (request.status, request.quota_date, request.attempt_count) == (
+            AiRequestStatus.FAILED,
+            quota_date(day_two),
+            2,
+        )
+        assert [(log.attempt_no, log.outcome) for log in logs] == [
+            (1, "FAILED"),
+            (2, "FAILED"),
+        ]
+    finally:
+        stale_session.close()
+        if user_id is not None:
+            with Session(engine) as cleanup:
+                user = cleanup.get(User, user_id)
+                if user is not None:
+                    cleanup.delete(user)
+                    cleanup.commit()
+
+
 def test_concurrent_first_reservations_create_one_quota_row_and_one_active_request() -> None:
     engine = get_engine()
     now = datetime(2026, 7, 29, 12, tzinfo=UTC)
