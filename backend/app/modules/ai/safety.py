@@ -265,11 +265,24 @@ def _has_uncovered_token(
 
 
 def _alcohol_relief_features(clause: str) -> tuple[bool, bool, bool]:
-    return (
-        _has_uncovered_token(clause, ALCOHOL_TOKENS, ALCOHOL_DISCOURAGEMENT_PATTERN),
-        _has_uncovered_token(clause, ALCOHOL_RELIEF_TOKENS, RELIEF_NEGATION_PATTERN),
-        _contains_any(clause, EMOTIONAL_DISTRESS_TOKENS),
+    has_alcohol = _has_uncovered_token(
+        clause,
+        ALCOHOL_TOKENS,
+        ALCOHOL_DISCOURAGEMENT_PATTERN,
     )
+    has_positive_relief = _has_uncovered_token(
+        clause,
+        ALCOHOL_RELIEF_TOKENS,
+        RELIEF_NEGATION_PATTERN,
+    )
+    relation_is_safe = ALCOHOL_DISCOURAGEMENT_PATTERN.search(clause) or (
+        _contains_any(clause, ALCOHOL_TOKENS)
+        and RELIEF_NEGATION_PATTERN.search(clause)
+        and not has_positive_relief
+    )
+    if relation_is_safe:
+        return False, False, False
+    return has_alcohol, has_positive_relief, _contains_any(clause, EMOTIONAL_DISTRESS_TOKENS)
 
 
 def _is_unsafe_alcohol_relief(reply: str) -> bool:

@@ -457,9 +457,13 @@ def test_diagnosis_negation_only_covers_its_adjacent_diagnosis_span(
         ("喝一杯，能缓解焦虑。", True),
         ("用酒精的话，可能让你忘掉痛苦。", True),
         ("不要难过，喝一杯能让你好受。", True),
+        ("喝酒不能缓解焦虑，但再喝一杯能忘掉痛苦", True),
         ("不要喝酒，这不能缓解焦虑。", False),
         ("不建议用酒精来缓解焦虑。", False),
         ("喝一杯，并不能解决难过。", False),
+        ("喝酒不能缓解焦虑，但和朋友聊聊会让你好受些。", False),
+        ("不要喝酒麻痹痛苦，和朋友聊会好受", False),
+        ("喝酒并不能解决失眠，规律作息会好受", False),
     ],
 )
 def test_alcohol_relief_detection_combines_only_adjacent_unnegated_subclauses(

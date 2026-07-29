@@ -387,3 +387,56 @@ All checks passed!
 .venv/bin/ty check
 All checks passed!
 ```
+
+## Review Round 5 / 5
+
+### Important Fix
+
+Alcohol-as-treatment review now preserves each subclause's relationship before
+combining adjacent subclauses. A subclause that explicitly discourages alcohol,
+or contains alcohol with only negated relief claims, contributes no alcohol,
+relief, or emotional-distress features to the next window. This keeps complete
+discouragement and negation statements safe without allowing an adjacent
+supportive clause such as talking with friends or following a regular sleep
+schedule to complete a false unsafe combination.
+
+Positive treatment relationships still cross one comma boundary, so
+`喝一杯，能缓解焦虑` and `用酒精的话，可能让你忘掉痛苦` remain blocked. A later
+independent positive relationship also remains blocked after an earlier
+negation, as in `喝酒不能缓解焦虑，但再喝一杯能忘掉痛苦`.
+
+The regression matrix exercises `review_output` end to end. Every unsafe result
+still uses `OUTPUT_REPLACED_REPLY`, sets `OUTPUT_REPLACED`, and clears recipe
+IDs and memory candidates. Existing diagnosis, dependency, crisis, privacy, and
+input-classification coverage remains unchanged.
+
+### RED / GREEN
+
+```text
+RED (relationship attribution matrix)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest tests/modules/ai/test_safety.py -q
+3 failed, 72 passed in 0.14s
+
+GREEN (safety)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest tests/modules/ai/test_safety.py -q
+75 passed in 0.08s
+
+GREEN (Task 9)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest tests/modules/ai/test_schemas.py \
+  tests/modules/ai/test_safety.py tests/modules/ai/test_context.py -q
+90 passed in 0.23s
+
+GREEN (full suite; natural exit)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest -q
+309 passed in 14.52s
+
+.venv/bin/ruff check .
+All checks passed!
+
+.venv/bin/ty check
+All checks passed!
+```
