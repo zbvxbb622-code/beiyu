@@ -17,6 +17,7 @@ from app.db.models import (
     Recipe,
     RecipeIngredient,
 )
+from app.db.models.accounts import utc_now
 
 
 def column[FieldType](value: FieldType) -> InstrumentedAttribute[FieldType]:
@@ -155,9 +156,16 @@ def get_recipe_public_id(
 
 
 def list_active_banners(session: Session) -> Sequence[HomeBanner]:
+    now = utc_now()
+    starts_at = column(HomeBanner.starts_at)
+    ends_at = column(HomeBanner.ends_at)
     return session.exec(
         select(HomeBanner)
-        .where(HomeBanner.status == ContentStatus.PUBLISHED)
+        .where(
+            HomeBanner.status == ContentStatus.PUBLISHED,
+            or_(starts_at.is_(None), starts_at <= now),
+            or_(ends_at.is_(None), ends_at > now),
+        )
         .order_by(
             column(HomeBanner.sort_order).asc(),
             column(HomeBanner.public_id).asc(),

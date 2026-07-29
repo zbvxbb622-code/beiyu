@@ -1,7 +1,10 @@
+from datetime import timedelta
+
 from sqlmodel import Session, select
 from starlette.testclient import TestClient
 
-from app.db.models import ContentStatus, Recipe
+from app.db.models import ContentStatus, HomeBanner, Recipe
+from app.db.models.accounts import utc_now
 from app.modules.content.seed import seed_content
 
 
@@ -83,6 +86,33 @@ def test_home_preserves_banner_and_shortcut_order(
         "shared-cellar",
     ]
     assert payload["banners"][0]["targetRoute"] == "/ai"
+
+
+def test_home_only_returns_banners_inside_their_schedule(
+    database_client: TestClient,
+    database_session: Session,
+) -> None:
+    seed_content(database_session)
+    now = utc_now()
+    expired = database_session.exec(
+        select(HomeBanner).where(HomeBanner.public_id == "welcome-bar")
+    ).one()
+    expired.ends_at = now - timedelta(minutes=1)
+    upcoming = database_session.exec(
+        select(HomeBanner).where(HomeBanner.public_id == "spark-night")
+    ).one()
+    upcoming.starts_at = now + timedelta(minutes=1)
+    database_session.add(expired)
+    database_session.add(upcoming)
+    database_session.commit()
+
+    response = database_client.get("/api/v1/home")
+
+    assert response.status_code == 200
+    assert [item["id"] for item in response.json()["banners"]] == [
+        "classic-counter",
+        "neon-party",
+    ]
 
 
 def test_ingredient_bar_and_knowledge_endpoints_map_editorial_fields(

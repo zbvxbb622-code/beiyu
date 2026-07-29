@@ -1,9 +1,24 @@
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
+from urllib.parse import urlsplit
 
-from pydantic import Field, field_validator
+from pydantic import AfterValidator, Field, StringConstraints, field_validator
 
 from app.schemas.base import ApiModel
+
+
+def _validate_http_url(value: str) -> str:
+    parsed = urlsplit(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("image URL must use HTTP or HTTPS")
+    return value
+
+
+ImageUrl = Annotated[
+    str,
+    StringConstraints(max_length=2048),
+    AfterValidator(_validate_http_url),
+]
 
 
 class PaginationResponse(ApiModel):
@@ -174,7 +189,7 @@ class RecipeCreate(ApiModel):
     ingredients: list[RecipeIngredientWrite] = Field(min_length=1, max_length=50)
     steps: list[str] = Field(min_length=1, max_length=30)
     image_key: str | None = Field(default=None, max_length=80)
-    image_url: str | None = Field(default=None, max_length=2048)
+    image_url: ImageUrl | None = None
     difficulty: str = Field(pattern=r"^(入门|进阶|专业)$")
     prep_minutes: int = Field(ge=0, le=1440)
 
@@ -203,7 +218,7 @@ class RecipePatch(ApiModel):
     )
     steps: list[str] | None = Field(default=None, min_length=1, max_length=30)
     image_key: str | None = Field(default=None, max_length=80)
-    image_url: str | None = Field(default=None, max_length=2048)
+    image_url: ImageUrl | None = None
     difficulty: str | None = Field(default=None, pattern=r"^(入门|进阶|专业)$")
     prep_minutes: int | None = Field(default=None, ge=0, le=1440)
 

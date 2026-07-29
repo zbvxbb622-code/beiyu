@@ -4,7 +4,11 @@ from typing import Literal
 from pydantic import Field
 
 from app.db.models import IngredientCategory
-from app.modules.content.schemas import BarMenuItemResponse, BarReviewResponse
+from app.modules.content.schemas import (
+    BarMenuItemResponse,
+    BarReviewResponse,
+    ImageUrl,
+)
 from app.schemas.base import ApiModel
 
 
@@ -14,7 +18,7 @@ class IngredientCreate(ApiModel):
     category: IngredientCategory
     description: str | None = Field(default=None, max_length=500)
     image_key: str | None = Field(default=None, max_length=80)
-    image_url: str | None = Field(default=None, max_length=2048)
+    image_url: ImageUrl | None = None
 
 
 class IngredientPatch(ApiModel):
@@ -23,7 +27,7 @@ class IngredientPatch(ApiModel):
     category: IngredientCategory | None = None
     description: str | None = Field(default=None, max_length=500)
     image_key: str | None = Field(default=None, max_length=80)
-    image_url: str | None = Field(default=None, max_length=2048)
+    image_url: ImageUrl | None = None
 
 
 class AdminIngredientResponse(ApiModel):
@@ -45,7 +49,7 @@ class BarCreate(ApiModel):
     public_id: str = Field(alias="id", min_length=1, max_length=120)
     name: str = Field(min_length=1, max_length=120)
     image_key: str | None = Field(default=None, max_length=80)
-    image_url: str | None = Field(default=None, max_length=2048)
+    image_url: ImageUrl | None = None
     rating: float = Field(ge=0, le=5)
     review_count: int = Field(ge=0)
     average_spend: int = Field(ge=0)
@@ -69,7 +73,7 @@ class BarPatch(ApiModel):
     expected_revision: int = Field(ge=1)
     name: str | None = Field(default=None, min_length=1, max_length=120)
     image_key: str | None = Field(default=None, max_length=80)
-    image_url: str | None = Field(default=None, max_length=2048)
+    image_url: ImageUrl | None = None
     rating: float | None = Field(default=None, ge=0, le=5)
     review_count: int | None = Field(default=None, ge=0)
     average_spend: int | None = Field(default=None, ge=0)
@@ -104,7 +108,7 @@ class KnowledgeCreate(ApiModel):
     name: str = Field(min_length=1, max_length=120)
     english_name: str = Field(min_length=1, max_length=160)
     image_key: str | None = Field(default=None, max_length=80)
-    image_url: str | None = Field(default=None, max_length=2048)
+    image_url: ImageUrl | None = None
     era: str = Field(min_length=1, max_length=240)
     meaning: str = Field(min_length=1, max_length=500)
     story: str = Field(min_length=1, max_length=6000)
@@ -117,7 +121,7 @@ class KnowledgePatch(ApiModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     english_name: str | None = Field(default=None, min_length=1, max_length=160)
     image_key: str | None = Field(default=None, max_length=80)
-    image_url: str | None = Field(default=None, max_length=2048)
+    image_url: ImageUrl | None = None
     era: str | None = Field(default=None, min_length=1, max_length=240)
     meaning: str | None = Field(default=None, min_length=1, max_length=500)
     story: str | None = Field(default=None, min_length=1, max_length=6000)
@@ -149,7 +153,7 @@ class BannerCreate(ApiModel):
         "/cellar",
     ]
     image_key: str | None = Field(default=None, max_length=80)
-    image_url: str | None = Field(default=None, max_length=2048)
+    image_url: ImageUrl | None = None
     sort_order: int = Field(ge=0)
     starts_at: datetime | None = None
     ends_at: datetime | None = None
@@ -171,7 +175,7 @@ class BannerPatch(ApiModel):
         "/cellar",
     ] | None = None
     image_key: str | None = Field(default=None, max_length=80)
-    image_url: str | None = Field(default=None, max_length=2048)
+    image_url: ImageUrl | None = None
     sort_order: int | None = Field(default=None, ge=0)
     starts_at: datetime | None = None
     ends_at: datetime | None = None

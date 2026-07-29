@@ -10,9 +10,10 @@ import {
   View,
 } from 'react-native';
 
+import { ContentImage } from '@/components/content/ContentImage';
 import { TopBar } from '@/components/mixology/TopBar';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
-import { getContentImageSource, getImageAsset } from '@/data/imageAssets';
+import { getImageAsset } from '@/data/imageAssets';
 import { useContent } from '@/state/ContentState';
 import { useMixology } from '@/state/MixologyState';
 import { colors, radii } from '@/styles/mixologyTheme';
@@ -50,10 +51,10 @@ export default function BarDetailScreen() {
         {lastRefreshError ? (
           <Text style={styles.refreshNotice}>{lastRefreshError}</Text>
         ) : null}
-        <Image
+        <ContentImage
           testID="bar-detail-hero"
-          source={getContentImageSource(venue.imageKey, venue.imageUrl)}
-          defaultSource={getImageAsset(venue.imageKey)}
+          imageKey={venue.imageKey}
+          imageUrl={venue.imageUrl}
           resizeMode="cover"
           style={styles.hero}
         />

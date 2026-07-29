@@ -41,6 +41,14 @@ describe('content schemas', () => {
     expect(() => contentSnapshotSchema.parse(invalid)).toThrow();
   });
 
+  it('rejects a non-http image URL', () => {
+    const invalid = clone(bundledContent) as Record<string, unknown>;
+    const recipes = invalid.recipes as Record<string, unknown>[];
+    recipes[0].imageUrl = 'file:///private/image.jpg';
+
+    expect(() => contentSnapshotSchema.parse(invalid)).toThrow();
+  });
+
   it('rejects cache entries from an incompatible schema version', () => {
     expect(() =>
       contentCacheSchema.parse({

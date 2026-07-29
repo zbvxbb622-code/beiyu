@@ -266,6 +266,20 @@ def _payload_fields(
     return fields
 
 
+def _validate_resource(*, config: ResourceConfig, record: Any) -> None:
+    if (
+        config is BANNER_CONFIG
+        and record.starts_at is not None
+        and record.ends_at is not None
+        and record.ends_at <= record.starts_at
+    ):
+        raise AppError(
+            code="INVALID_BANNER_SCHEDULE",
+            message="横幅结束时间必须晚于开始时间",
+            status_code=422,
+        )
+
+
 def _response(
     session: Session,
     *,
@@ -346,6 +360,7 @@ def create_resource(
             exclude_unset=False,
         ),
     )
+    _validate_resource(config=config, record=record)
     session.add(record)
     _add_version(
         session,
@@ -384,6 +399,7 @@ def patch_resource(
                 status_code=422,
             )
         setattr(record, field, value)
+    _validate_resource(config=config, record=record)
     record.status = ContentStatus.DRAFT
     record.published_at = None
     record.revision += 1
@@ -508,6 +524,7 @@ def rollback_resource(
     )
     for field, value in fields.items():
         setattr(record, field, value)
+    _validate_resource(config=config, record=record)
     record.status = ContentStatus.DRAFT
     record.published_at = None
     record.revision += 1

@@ -70,7 +70,3 @@ export const imageAssetKeys = Object.keys(imageAssets);
 export function getImageAsset(imageKey: string) {
   return imageAssets[imageKey] ?? imageAssets.homeHero;
 }
-
-export function getContentImageSource(imageKey: string, imageUrl?: string | null) {
-  return imageUrl ? { uri: imageUrl } : getImageAsset(imageKey);
-}

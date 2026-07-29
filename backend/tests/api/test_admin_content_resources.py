@@ -1,7 +1,10 @@
+from datetime import timedelta
+
 import pytest
 from sqlmodel import Session
 from starlette.testclient import TestClient
 
+from app.db.models.accounts import utc_now
 from app.modules.content.seed import seed_content
 from tests.api.test_admin_content_lifecycle import editor_headers
 
@@ -184,3 +187,78 @@ def test_admin_non_recipe_versions_and_rollback(
     assert rollback.json()["name"] == "接骨木气泡水"
     assert rollback.json()["status"] == "DRAFT"
     assert rollback.json()["revision"] == 3
+
+
+def test_admin_rejects_invalid_banner_schedule(
+    database_client: TestClient,
+    database_session: Session,
+) -> None:
+    headers = editor_headers(database_client, database_session)
+    payload = {
+        **RESOURCE_CASES[3][1],
+        "id": "invalid-schedule",
+        "startsAt": "2026-08-02T00:00:00Z",
+        "endsAt": "2026-08-01T00:00:00Z",
+    }
+
+    response = database_client.post(
+        "/api/v1/admin/banners",
+        headers=headers,
+        json=payload,
+    )
+
+    assert response.status_code == 422
+
+
+def test_admin_can_publish_a_banner_with_a_valid_schedule(
+    database_client: TestClient,
+    database_session: Session,
+) -> None:
+    headers = editor_headers(database_client, database_session)
+    now = utc_now()
+    payload = {
+        **RESOURCE_CASES[3][1],
+        "id": "valid-schedule",
+        "startsAt": (now - timedelta(days=1)).isoformat(),
+        "endsAt": (now + timedelta(days=1)).isoformat(),
+    }
+
+    created = database_client.post(
+        "/api/v1/admin/banners",
+        headers=headers,
+        json=payload,
+    )
+    assert created.status_code == 201, created.text
+
+    published = database_client.post(
+        "/api/v1/admin/banners/valid-schedule/publish",
+        headers=headers,
+        json={"expectedRevision": 1},
+    )
+
+    assert published.status_code == 200, published.text
+    assert public_contains(
+        database_client,
+        "banners",
+        "valid-schedule",
+    )
+
+
+def test_admin_rejects_non_http_image_url(
+    database_client: TestClient,
+    database_session: Session,
+) -> None:
+    headers = editor_headers(database_client, database_session)
+    payload = {
+        **RESOURCE_CASES[0][1],
+        "id": "unsafe-image-url",
+        "imageUrl": "file:///private/image.jpg",
+    }
+
+    response = database_client.post(
+        "/api/v1/admin/ingredients",
+        headers=headers,
+        json=payload,
+    )
+
+    assert response.status_code == 422

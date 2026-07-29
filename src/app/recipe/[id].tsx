@@ -2,7 +2,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
 import { Clock, Martini } from 'lucide-react-native';
 import {
-  ImageBackground,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -10,9 +9,9 @@ import {
   View,
 } from 'react-native';
 
+import { ContentImageBackground } from '@/components/content/ContentImage';
 import { TopBar } from '@/components/mixology/TopBar';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
-import { getContentImageSource, getImageAsset } from '@/data/imageAssets';
 import { useContent } from '@/state/ContentState';
 import { colors, gradients, radii } from '@/styles/mixologyTheme';
 
@@ -48,9 +47,9 @@ export default function RecipeDetailScreen() {
         {lastRefreshError ? (
           <Text style={styles.refreshNotice}>{lastRefreshError}</Text>
         ) : null}
-        <ImageBackground
-          source={getContentImageSource(recipe.imageKey, recipe.imageUrl)}
-          defaultSource={getImageAsset(recipe.imageKey)}
+        <ContentImageBackground
+          imageKey={recipe.imageKey}
+          imageUrl={recipe.imageUrl}
           resizeMode="cover"
           style={styles.hero}
           imageStyle={styles.heroImage}>
@@ -58,7 +57,7 @@ export default function RecipeDetailScreen() {
             <Text style={styles.title}>{recipe.name}</Text>
             <Text style={styles.script}>{recipe.englishName}</Text>
           </LinearGradient>
-        </ImageBackground>
+        </ContentImageBackground>
         <View style={styles.copy}>
           <Text style={styles.description}>{recipe.description}</Text>
           <View style={styles.metaRow}>

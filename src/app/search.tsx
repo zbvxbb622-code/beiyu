@@ -2,7 +2,6 @@ import { type Href, useRouter } from 'expo-router';
 import { Clock, Search as SearchIcon, X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import {
-  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -12,9 +11,9 @@ import {
   View,
 } from 'react-native';
 
+import { ContentImage } from '@/components/content/ContentImage';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
 import { TopBar } from '@/components/mixology/TopBar';
-import { getContentImageSource, getImageAsset } from '@/data/imageAssets';
 import { searchAll } from '@/services/searchService';
 import { useContent } from '@/state/ContentState';
 import { useMixology } from '@/state/MixologyState';
@@ -118,9 +117,9 @@ export default function SearchScreen() {
         ) : (
           results.map((result) => (
             <Pressable key={`${result.type}-${result.id}`} onPress={() => handleResultPress(result)} style={styles.resultRow}>
-              <Image
-                source={getContentImageSource(result.imageKey, result.imageUrl)}
-                defaultSource={getImageAsset(result.imageKey)}
+              <ContentImage
+                imageKey={result.imageKey}
+                imageUrl={result.imageUrl}
                 style={styles.resultImage}
               />
               <View style={styles.resultCopy}>

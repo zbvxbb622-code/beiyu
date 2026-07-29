@@ -1,8 +1,8 @@
 import { useRouter } from 'expo-router';
 import { ChevronRight, Clock } from 'lucide-react-native';
-import { Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
-import { getContentImageSource, getImageAsset } from '@/data/imageAssets';
+import { ContentImage } from '@/components/content/ContentImage';
 import { colors, radii } from '@/styles/mixologyTheme';
 import type { CocktailRecipe } from '@/types/mixology';
 
@@ -20,10 +20,10 @@ export function RecipeEditorialRow({ recipe }: { recipe: CocktailRecipe }) {
       onPress={() => router.push({ pathname: '/recipe/[id]', params: { id: recipe.id } })}
       style={({ pressed }) => [styles.root, pressed ? styles.pressed : null]}>
       <View style={styles.row}>
-        <Image
+        <ContentImage
           testID="recipe-card-image"
-          source={getContentImageSource(recipe.imageKey, recipe.imageUrl)}
-          defaultSource={getImageAsset(recipe.imageKey)}
+          imageKey={recipe.imageKey}
+          imageUrl={recipe.imageUrl}
           resizeMode="cover"
           style={[styles.thumb, compact ? styles.thumbCompact : null]}
         />

@@ -13,7 +13,14 @@ export const appContentRouteSchema = z.enum([
 
 const imageFields = {
   imageKey: z.string().min(1),
-  imageUrl: z.string().url().nullable().optional(),
+  imageUrl: z
+    .string()
+    .url()
+    .refine((value) => /^https?:\/\//i.test(value), {
+      message: 'imageUrl must use HTTP or HTTPS',
+    })
+    .nullable()
+    .optional(),
 };
 
 export const ingredientSchema = z.object({

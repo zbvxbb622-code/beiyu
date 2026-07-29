@@ -2,7 +2,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { type Href, useRouter } from 'expo-router';
 import { BookOpen, ChevronRight, Quote } from 'lucide-react-native';
 import {
-  ImageBackground,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -11,9 +10,9 @@ import {
   View,
 } from 'react-native';
 
+import { ContentImageBackground } from '@/components/content/ContentImage';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
 import { TopBar } from '@/components/mixology/TopBar';
-import { getContentImageSource, getImageAsset } from '@/data/imageAssets';
 import { useContent } from '@/state/ContentState';
 import { colors, gradients, radii, spacing } from '@/styles/mixologyTheme';
 
@@ -45,9 +44,9 @@ export default function DrinkKnowledgeScreen() {
 
         {entries.map((entry) => (
           <View key={entry.id} style={styles.card} testID="knowledge-card">
-            <ImageBackground
-              source={getContentImageSource(entry.imageKey, entry.imageUrl)}
-              defaultSource={getImageAsset(entry.imageKey)}
+            <ContentImageBackground
+              imageKey={entry.imageKey}
+              imageUrl={entry.imageUrl}
               resizeMode="cover"
               style={styles.cover}
               imageStyle={styles.coverRadius}
@@ -61,7 +60,7 @@ export default function DrinkKnowledgeScreen() {
                   <Text style={styles.englishName}>{entry.englishName}</Text>
                 </View>
               </LinearGradient>
-            </ImageBackground>
+            </ContentImageBackground>
 
             <View style={styles.body}>
               <View style={styles.meaningRow}>
