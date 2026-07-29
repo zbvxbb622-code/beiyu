@@ -119,6 +119,21 @@ export const bootstrapResponseSchema = z.object({
   featureFlags: featureFlagsSchema,
 });
 
+export const smsCodeResponseSchema = z.object({
+  expiresIn: z.number().int(),
+  retryAfter: z.number().int(),
+});
+
+export const ageConfirmationResponseSchema = z.object({
+  ageConfirmed: z.literal(true),
+  confirmedAt: z.string().datetime(),
+});
+
+export const profileResponseSchema = profileSchema;
+export const privacySettingsResponseSchema = privacySettingsSchema;
+export const cellarItemResponseSchema = cellarItemSchema;
+export const cellarListResponseSchema = z.object({ items: z.array(cellarItemSchema) });
+
 export type DeviceInput = z.infer<typeof deviceInputSchema>;
 export type LoginResponse = z.infer<typeof loginResponseSchema>;
 export type TokenResponse = z.infer<typeof tokenResponseSchema>;
