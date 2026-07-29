@@ -66,4 +66,5 @@ def test_migrations_upgrade_to_head_and_downgrade_to_base() -> None:
             ).scalars()
             assert list(remaining_enum_types) == []
     finally:
+        command.upgrade(config, "head")
         engine.dispose()

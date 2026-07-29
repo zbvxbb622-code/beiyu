@@ -69,6 +69,21 @@ def test_custom_name_deduplicates_normalized_value(
     assert duplicate.json()["error"]["code"] == "CELLAR_ITEM_EXISTS"
 
 
+def test_cellar_rejects_blank_identity(
+    database_client: TestClient,
+) -> None:
+    login = create_login(database_client)
+
+    response = database_client.post(
+        "/api/v1/cellar/items",
+        headers=bearer(login["accessToken"]),
+        json={"customName": "   "},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
 def test_unknown_item_returns_scoped_not_found(
     database_client: TestClient,
 ) -> None:

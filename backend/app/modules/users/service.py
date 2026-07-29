@@ -1,3 +1,4 @@
+import uuid
 from typing import Any, cast
 
 from sqlalchemy.orm import InstrumentedAttribute
@@ -252,6 +253,7 @@ def delete_account(*, session: Session, user: User) -> None:
     now = utc_now()
     profile = get_user_profile(session, user)
     user.status = UserStatus.DELETED
+    user.phone_hash = f"deleted:{uuid.uuid4().hex}"
     user.phone_masked = "已注销"
     user.memory_enabled = False
     user.deleted_at = now

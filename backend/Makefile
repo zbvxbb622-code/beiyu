@@ -11,6 +11,7 @@ validate-test-database:
 	$(UV) run python scripts/validate_test_database_url.py "$(TEST_DATABASE_URL)"
 
 test: validate-test-database
+	BEIYU_DATABASE_URL=$(TEST_DATABASE_URL) $(UV) run alembic upgrade head
 	BEIYU_DATABASE_URL=$(TEST_DATABASE_URL) $(UV) run pytest
 
 lint:

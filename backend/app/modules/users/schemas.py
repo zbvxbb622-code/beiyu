@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from app.db.models import DevicePlatform
 from app.modules.auth.schemas import AuthenticatedUser
@@ -37,6 +37,16 @@ class UserProfilePatch(ApiModel):
     show_zodiac: bool | None = None
     occupation: str | None = Field(default=None, max_length=80)
     school: str | None = Field(default=None, max_length=120)
+
+    @model_validator(mode="after")
+    def required_display_fields_cannot_be_null(self) -> "UserProfilePatch":
+        required_fields = {"nickname", "avatar_key", "signature", "city"}
+        if any(
+            field_name in self.model_fields_set and getattr(self, field_name) is None
+            for field_name in required_fields
+        ):
+            raise ValueError("required profile fields cannot be null")
+        return self
 
     @field_validator("birthday")
     @classmethod

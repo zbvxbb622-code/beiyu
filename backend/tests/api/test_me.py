@@ -1,4 +1,3 @@
-
 from sqlmodel import Session, select
 from starlette.testclient import TestClient
 
@@ -56,6 +55,21 @@ def test_profile_rejects_frontend_overflow(
         "/api/v1/me/profile",
         headers=bearer(login["accessToken"]),
         json={"nickname": "超" * 17},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_profile_rejects_null_for_required_display_fields(
+    database_client: TestClient,
+) -> None:
+    login = create_login(database_client)
+
+    response = database_client.patch(
+        "/api/v1/me/profile",
+        headers=bearer(login["accessToken"]),
+        json={"nickname": None},
     )
 
     assert response.status_code == 422
@@ -122,6 +136,7 @@ def test_delete_account_anonymizes_profile_and_revokes_access(
 ) -> None:
     login = create_login(database_client)
     headers = bearer(login["accessToken"])
+    original_phone_hash = database_session.exec(select(User)).one().phone_hash
 
     response = database_client.request(
         "DELETE",
@@ -136,6 +151,8 @@ def test_delete_account_anonymizes_profile_and_revokes_access(
     assert user.status is UserStatus.DELETED
     assert user.deleted_at is not None
     assert user.anonymized_at is not None
+    assert user.phone_hash != original_phone_hash
+    assert user.phone_hash.startswith("deleted:")
     assert profile.nickname == "已注销用户"
     assert profile.birthday is None
     assert (

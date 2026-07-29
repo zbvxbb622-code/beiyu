@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func
 from sqlmodel import Session, select
@@ -72,6 +72,27 @@ def test_request_sms_code_rate_limits_same_phone(
 
     assert response.status_code == 429
     assert response.json()["error"]["code"] == "SMS_CODE_TOO_FREQUENT"
+
+
+def test_new_sms_code_consumes_earlier_active_code(
+    database_client: TestClient,
+    database_session: Session,
+) -> None:
+    request_code(database_client)
+    first = database_session.exec(select(SmsCode)).one()
+    first.created_at = datetime.now(UTC) - timedelta(seconds=61)
+    database_session.add(first)
+    database_session.commit()
+
+    request_code(database_client)
+
+    codes = sorted(
+        database_session.exec(select(SmsCode)).all(),
+        key=lambda sms_code: sms_code.created_at,
+    )
+    assert len(codes) == 2
+    assert codes[0].consumed_at is not None
+    assert codes[1].consumed_at is None
 
 
 def test_first_login_creates_account_profile_device_and_session(

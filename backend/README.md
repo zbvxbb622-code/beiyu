@@ -1,10 +1,16 @@
 # Beiyu API
 
-Stage 0 is the API foundation for Beiyu. It provides operational health
-endpoints, a PostgreSQL-backed readiness check, Alembic migrations, structured
-request logs, and repeatable local quality commands. It deliberately contains
-no authentication, user or business tables, Redis runtime, OSS, SMS, AI,
-moderation, or other product integrations.
+Stage 1 is the locally runnable private-data backend for Beiyu. It includes
+phone OTP login, rotating access and refresh sessions, device management,
+profile and privacy settings, age confirmation, startup bootstrap, local-data
+sync, and private cellar CRUD. PostgreSQL persistence, Alembic migrations,
+structured request logs, health checks, and repeatable quality commands are
+included.
+
+Real SMS, media upload, legal-name verification, AI chat, community features,
+and cloud infrastructure are intentionally not active yet. Their boundaries
+remain explicit so later providers can be added without changing the mobile
+contracts delivered in this stage.
 
 ## Prerequisites
 
@@ -53,6 +59,11 @@ Copy `.env.example` to `.env` for development. The supported values for
 - `prod` has the same generated-secret requirement and must receive production
   infrastructure URLs through its deployment environment.
 
+`BEIYU_SMS_PROVIDER=development` is accepted only in `dev`. It uses the fixed
+local verification code `123456` and makes no network request. Staging and
+production reject this provider at startup. A production SMS adapter and its
+cloud credentials must be configured before either environment can start.
+
 Do not commit `.env` files or real secrets. `BEIYU_DATABASE_URL` must use a
 PostgreSQL URL such as
 `postgresql+psycopg://beiyu:beiyu@localhost:5432/beiyu` for local development.
@@ -98,12 +109,35 @@ make migrate
 - Readiness: `http://localhost:8000/health/ready`
 - Versioned API root: `http://localhost:8000/api/v1`
 
+## Local Stage 1 Flow
+
+With the API running, request a local login code:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/sms-codes \
+  -H 'Content-Type: application/json' \
+  -d '{"phone":"13800138000","scene":"LOGIN","installationId":"local-device-001"}'
+```
+
+Log in with development code `123456`:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"phone":"13800138000","code":"123456","device":{"installationId":"local-device-001","platform":"IOS","deviceName":"Local iPhone","appVersion":"1.0.0"}}'
+```
+
+Use the returned access token as `Authorization: Bearer <token>` for `/me`,
+`/auth/devices`, and `/cellar` endpoints. Refresh tokens are opaque, stored
+only as hashes, rotate on every refresh, and expire after 90 days by default.
+Phone numbers and OTP values are never stored in plaintext.
+
 The API namespace is `/api/v1`; liveness and readiness remain unversioned for
 operational tooling.
 
 ## OpenAPI Contract Snapshot
 
-`openapi.json` is the committed Stage 0 contract snapshot for frontend review.
+`openapi.json` is the committed Stage 1 contract snapshot for frontend review.
 Regenerate it from the running application schema after an intentional public
 API change, then review its diff before committing:
 
@@ -115,6 +149,7 @@ BEIYU_SECRET_KEY=change-me \
 uv run python scripts/generate_openapi.py
 ```
 
-The Stage 0 snapshot contains only `/api/v1`, `/health/live`, and
-`/health/ready`. Review it for unexpected paths and for accidental exposure of
-configuration, secrets, or internal error details.
+The snapshot contains health, authentication, device, profile, privacy,
+bootstrap, local-sync, and private-cellar endpoints. Review every change for
+unexpected paths and accidental exposure of configuration, hashes, secrets,
+tokens, or internal error details.

@@ -104,7 +104,6 @@ def issue_sms_code(
             or_(
                 _column(SmsCode.phone_hash) == stored_phone_hash,
                 _column(SmsCode.device_hash) == stored_device_hash,
-                _column(SmsCode.ip_address) == ip_address,
             ),
         )
         .order_by(_column(SmsCode.created_at).desc())
@@ -127,6 +126,18 @@ def issue_sms_code(
         ).one()
         if count >= maximum:
             _raise_sms_rate_limit(settings.otp_retry_after_seconds)
+
+    active_codes = session.exec(
+        select(SmsCode).where(
+            SmsCode.phone_hash == stored_phone_hash,
+            SmsCode.scene == scene,
+            _column(SmsCode.consumed_at).is_(None),
+            SmsCode.expires_at > now,
+        )
+    ).all()
+    for active_code in active_codes:
+        active_code.consumed_at = now
+        session.add(active_code)
 
     code = provider.create_code()
     sms_code = SmsCode(
