@@ -288,6 +288,30 @@ def test_normalize_sql_accepts_check_wrapper_without_whitespace() -> None:
     assert normalize_sql("CHECK(amount   >=  1)") == "amount >= 1"
 
 
+def test_normalize_sql_does_not_open_dollar_quote_inside_identifier() -> None:
+    assert normalize_sql("foo$tag$   = 1") == "foo$tag$ = 1"
+
+
+@pytest.mark.parametrize(
+    ("expression", "expected"),
+    [
+        ("$tag$a  b$tag$   = 1", "$tag$a  b$tag$ = 1"),
+        ("$$a  b$$   = 1", "$$a  b$$ = 1"),
+        ("($tag$a  b$tag$)   = 1", "($tag$a  b$tag$) = 1"),
+    ],
+)
+def test_normalize_sql_preserves_dollar_quote_content_at_valid_boundaries(
+    expression: str, expected: str
+) -> None:
+    assert normalize_sql(expression) == expected
+
+
+def test_normalize_sql_preserves_unclosed_dollar_quote_without_looping() -> None:
+    expression = "$tag$a  b   = 1"
+
+    assert normalize_sql(expression) == expression
+
+
 def normalize_sql(value: str | None) -> str | None:
     if value is None:
         return None
@@ -379,7 +403,9 @@ def quoted_or_commented_end(value: str, start: int) -> int | None:
                 index += 1
         return len(value)
 
-    if character == "$":
+    if character == "$" and (
+        start == 0 or not is_identifier_character(value[start - 1])
+    ):
         delimiter_match = re.match(r"\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$", value[start:])
         if delimiter_match is not None:
             delimiter = delimiter_match.group()
