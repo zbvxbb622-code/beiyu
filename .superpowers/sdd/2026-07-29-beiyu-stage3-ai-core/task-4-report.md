@@ -91,3 +91,26 @@ git diff --check: passed
 ### 修复提交
 
 `0cdfa3c148196977f6e93bd50f5bbae5ea3ecd83` (`fix: harden mobile auth session recovery`)
+
+## Fix Round 2/5
+
+### 补强内容
+
+- 增加登录后 bootstrap 失败且 SecureStore 清理也失败的行为测试：对外仍抛出同一个初始化错误、Provider 保持 `signedOut`、内存 token 已清除，且清理拒绝不会形成未处理错误。
+- 登录页卸载测试现在先让短信请求成功并显示 `retryAfter` 倒计时，再真实卸载、推进 fake timer、完成登录 Promise；验证既不产生卸载后状态更新警告，也不会触发 `router.replace` 或 `router.push`。
+- 警告捕获遍历每个 console 调用的全部参数，并在每个测试结束后恢复 spies 和真实 timers。
+
+### RED 与 GREEN
+
+先添加上述行为测试。初版卸载测试使用 `rerender(<></>)`，在当前测试渲染器中不能可靠代表卸载，因而错误地观察到导航；改为在 `act` 中执行真实 `unmount()` 后，既覆盖实际生命周期，也确认现有 mounted guard 已满足要求。本轮未发现需要保留的生产代码改动。
+
+```text
+Focused tests: 4 suites passed, 27 tests passed
+npm run lint: passed
+npm run typecheck: passed
+git diff --check: passed
+```
+
+### 修复提交
+
+`935f149e7f5a0168ee12e9f80696f32b156c5870` (`test: cover auth cleanup and login unmount`)
