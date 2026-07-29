@@ -76,7 +76,7 @@ AI_COLUMN_MANIFEST: dict[str, dict[str, tuple[str, bool, str | None]]] = {
     "ai_conversations": {
         "id": ("uuid", False, None),
         "user_id": ("uuid", False, None),
-        "title": ("varchar(80)", False, "'新的对话'"),
+        "title": ("varchar(80)", False, "'新的对话'::character varying"),
         "last_message_at": ("timestamptz", True, None),
         "created_at": ("timestamptz", False, None),
         "updated_at": ("timestamptz", False, None),
@@ -87,8 +87,8 @@ AI_COLUMN_MANIFEST: dict[str, dict[str, tuple[str, bool, str | None]]] = {
         "user_id": ("uuid", False, None),
         "role": ("ai_message_role", False, None),
         "content": ("text", False, None),
-        "recipe_ids": ("jsonb", False, "'[]'"),
-        "safety_label": ("ai_safety_label", False, "'safe'"),
+        "recipe_ids": ("jsonb", False, "'[]'::jsonb"),
+        "safety_label": ("ai_safety_label", False, "'SAFE'::ai_safety_label"),
         "created_at": ("timestamptz", False, None),
     },
     "ai_requests": {
@@ -97,7 +97,7 @@ AI_COLUMN_MANIFEST: dict[str, dict[str, tuple[str, bool, str | None]]] = {
         "conversation_id": ("uuid", True, None),
         "client_message_id": ("uuid", False, None),
         "mode": ("ai_chat_mode", False, None),
-        "status": ("ai_request_status", False, "'reserved'"),
+        "status": ("ai_request_status", False, "'RESERVED'::ai_request_status"),
         "attempt_count": ("integer", False, "1"),
         "quota_date": ("date", False, None),
         "reservation_expires_at": ("timestamptz", True, None),
@@ -161,49 +161,49 @@ AI_COLUMN_MANIFEST: dict[str, dict[str, tuple[str, bool, str | None]]] = {
 }
 
 AI_FOREIGN_KEY_MANIFEST = {
-    "ai_conversations": {("user_id", "users", "CASCADE")},
+    "ai_conversations": {(("user_id",), "public", "users", ("id",), "CASCADE")},
     "ai_messages": {
-        ("conversation_id", "ai_conversations", "CASCADE"),
-        ("user_id", "users", "CASCADE"),
+        (("conversation_id",), "public", "ai_conversations", ("id",), "CASCADE"),
+        (("user_id",), "public", "users", ("id",), "CASCADE"),
     },
     "ai_requests": {
-        ("user_id", "users", "CASCADE"),
-        ("conversation_id", "ai_conversations", "SET NULL"),
-        ("response_message_id", "ai_messages", "SET NULL"),
+        (("user_id",), "public", "users", ("id",), "CASCADE"),
+        (("conversation_id",), "public", "ai_conversations", ("id",), "SET NULL"),
+        (("response_message_id",), "public", "ai_messages", ("id",), "SET NULL"),
     },
-    "ai_daily_quotas": {("user_id", "users", "CASCADE")},
+    "ai_daily_quotas": {(("user_id",), "public", "users", ("id",), "CASCADE")},
     "ai_usage_logs": {
-        ("request_id", "ai_requests", "CASCADE"),
-        ("user_id", "users", "CASCADE"),
-        ("conversation_id", "ai_conversations", "SET NULL"),
+        (("request_id",), "public", "ai_requests", ("id",), "CASCADE"),
+        (("user_id",), "public", "users", ("id",), "CASCADE"),
+        (("conversation_id",), "public", "ai_conversations", ("id",), "SET NULL"),
     },
-    "ai_memories": {("user_id", "users", "CASCADE")},
+    "ai_memories": {(("user_id",), "public", "users", ("id",), "CASCADE")},
     "ai_memory_sources": {
-        ("memory_id", "ai_memories", "CASCADE"),
-        ("conversation_id", "ai_conversations", "CASCADE"),
-        ("source_message_id", "ai_messages", "CASCADE"),
+        (("memory_id",), "public", "ai_memories", ("id",), "CASCADE"),
+        (("conversation_id",), "public", "ai_conversations", ("id",), "CASCADE"),
+        (("source_message_id",), "public", "ai_messages", ("id",), "CASCADE"),
     },
-    "ai_memory_tombstones": {("user_id", "users", "CASCADE")},
+    "ai_memory_tombstones": {(("user_id",), "public", "users", ("id",), "CASCADE")},
 }
 
 AI_CHECK_MANIFEST = {
     "ai_conversations": {},
     "ai_messages": {},
     "ai_requests": {
-        "ck_ai_requests_temporary_without_messages": "mode!='temporary'orconversation_idisnullandresponse_message_idisnull",
-        "ck_ai_requests_attempt_count": "attempt_count>=1",
+        "ck_ai_requests_temporary_without_messages": "(mode <> 'TEMPORARY'::ai_chat_mode) OR ((conversation_id IS NULL) AND (response_message_id IS NULL))",
+        "ck_ai_requests_attempt_count": "attempt_count >= 1",
     },
     "ai_daily_quotas": {
-        "ck_ai_daily_quotas_used_count": "used_count>=0",
-        "ck_ai_daily_quotas_reserved_count": "reserved_count>=0",
-        "ck_ai_daily_quotas_within_limit": "used_count+reserved_count<=free_limit",
+        "ck_ai_daily_quotas_used_count": "used_count >= 0",
+        "ck_ai_daily_quotas_reserved_count": "reserved_count >= 0",
+        "ck_ai_daily_quotas_within_limit": "(used_count + reserved_count) <= free_limit",
     },
     "ai_usage_logs": {
-        "ck_ai_usage_logs_attempt_no": "attempt_no>=1",
-        "ck_ai_usage_logs_latency_ms": "latency_ms>=0",
-        "ck_ai_usage_logs_input_tokens": "input_tokensisnullorinput_tokens>=0",
-        "ck_ai_usage_logs_output_tokens": "output_tokensisnulloroutput_tokens>=0",
-        "ck_ai_usage_logs_cost_estimate": "cost_estimateisnullorcost_estimate>=0",
+        "ck_ai_usage_logs_attempt_no": "attempt_no >= 1",
+        "ck_ai_usage_logs_latency_ms": "latency_ms >= 0",
+        "ck_ai_usage_logs_input_tokens": "(input_tokens IS NULL) OR (input_tokens >= 0)",
+        "ck_ai_usage_logs_output_tokens": "(output_tokens IS NULL) OR (output_tokens >= 0)",
+        "ck_ai_usage_logs_cost_estimate": "(cost_estimate IS NULL) OR (cost_estimate >= (0)::numeric)",
     },
     "ai_memories": {},
     "ai_memory_sources": {},
@@ -223,28 +223,61 @@ AI_UNIQUE_MANIFEST = {
 
 AI_INDEX_MANIFEST = {
     "ix_ai_conversations_user_last_message": (
-        "user_id,last_message_atdesc,iddesc",
+        "user_id, last_message_at DESC, id DESC",
         ("uuid_ops", "timestamptz_ops", "uuid_ops"),
     ),
     "ix_ai_messages_conversation_created": (
-        "conversation_id,created_at,id",
+        "conversation_id, created_at, id",
         ("uuid_ops", "timestamptz_ops", "uuid_ops"),
     ),
     "ix_ai_messages_user_created": (
-        "user_id,created_atdesc",
+        "user_id, created_at DESC",
         ("uuid_ops", "timestamptz_ops"),
     ),
 }
 
 
+@pytest.mark.parametrize(
+    ("left", "right"),
+    [
+        ("(a AND b) OR c", "a AND (b OR c)"),
+        ("(a OR b) AND c", "a OR (b AND c)"),
+    ],
+)
+def test_normalize_sql_preserves_logical_grouping(left: str, right: str) -> None:
+    assert normalize_sql(left) != normalize_sql(right)
+
+
 def normalize_sql(value: str | None) -> str | None:
     if value is None:
         return None
-    normalized = re.sub(r"\s+", "", value.lower())
-    normalized = re.sub(r"::[a-z_][a-z_0-9]*", "", normalized)
-    normalized = normalized.removeprefix("check")
-    normalized = normalized.replace("<>", "!=")
-    return normalized.replace("(", "").replace(")", "")
+    normalized = re.sub(r'"([^"]+)"', r"\1", value)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    if normalized.startswith("CHECK"):
+        normalized = normalized.removeprefix("CHECK").strip()
+    return strip_outer_parentheses(normalized)
+
+
+def strip_outer_parentheses(value: str) -> str:
+    result = value
+    while result.startswith("(") and result.endswith(")"):
+        depth = 0
+        quote_open = False
+        encloses_entire_expression = True
+        for index, character in enumerate(result):
+            if character == "'":
+                quote_open = not quote_open
+            elif not quote_open and character == "(":
+                depth += 1
+            elif not quote_open and character == ")":
+                depth -= 1
+                if depth == 0 and index != len(result) - 1:
+                    encloses_entire_expression = False
+                    break
+        if not encloses_entire_expression:
+            break
+        result = result[1:-1].strip()
+    return result
 
 
 def assert_ai_core_design_manifest(connection: Any) -> None:
@@ -283,26 +316,52 @@ def assert_ai_core_design_manifest(connection: Any) -> None:
 
     foreign_key_rows = connection.execute(
         text(
-            "SELECT source.relname AS table_name, source_column.attname AS column_name, "
-            "target.relname AS target_table, con.confdeltype "
+            "SELECT source.relname AS table_name, "
+            "array_agg(source_column.attname ORDER BY key_pair.ordinality) AS source_columns, "
+            "target_namespace.nspname AS target_schema, target.relname AS target_table, "
+            "array_agg(target_column.attname ORDER BY key_pair.ordinality) AS target_columns, "
+            "con.confdeltype "
             "FROM pg_constraint AS con "
             "JOIN pg_class AS source ON source.oid = con.conrelid "
             "JOIN pg_class AS target ON target.oid = con.confrelid "
+            "JOIN pg_namespace AS target_namespace ON target_namespace.oid = target.relnamespace "
+            "CROSS JOIN LATERAL unnest(con.conkey, con.confkey) "
+            "WITH ORDINALITY AS key_pair(source_attribute_number, target_attribute_number, ordinality) "
             "JOIN pg_attribute AS source_column "
             "ON source_column.attrelid = source.oid "
-            "AND source_column.attnum = con.conkey[1] "
+            "AND source_column.attnum = key_pair.source_attribute_number "
+            "JOIN pg_attribute AS target_column "
+            "ON target_column.attrelid = target.oid "
+            "AND target_column.attnum = key_pair.target_attribute_number "
             "WHERE con.contype = 'f' "
-            "AND source.relname = ANY(:table_names)"
+            "AND source.relname = ANY(:table_names) "
+            "GROUP BY source.relname, target_namespace.nspname, target.relname, con.confdeltype"
         ),
         {"table_names": list(AI_FOREIGN_KEY_MANIFEST)},
     )
     delete_actions = {"a": "NO ACTION", "c": "CASCADE", "n": "SET NULL"}
-    actual_foreign_keys: dict[str, set[tuple[str, str, str]]] = {
+    actual_foreign_keys: dict[
+        str,
+        set[tuple[tuple[str, ...], str, str, tuple[str, ...], str]],
+    ] = {
         table_name: set() for table_name in AI_FOREIGN_KEY_MANIFEST
     }
-    for table_name, column_name, target_table, delete_action in foreign_key_rows:
+    for (
+        table_name,
+        source_columns,
+        target_schema,
+        target_table,
+        target_columns,
+        delete_action,
+    ) in foreign_key_rows:
         actual_foreign_keys[str(table_name)].add(
-            (str(column_name), str(target_table), delete_actions[str(delete_action)])
+            (
+                tuple(source_columns),
+                str(target_schema),
+                str(target_table),
+                tuple(target_columns),
+                delete_actions[str(delete_action)],
+            )
         )
     assert actual_foreign_keys == AI_FOREIGN_KEY_MANIFEST
 
