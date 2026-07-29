@@ -6,6 +6,8 @@ import {
   createAuthenticatedClient,
   type FetchLike,
 } from '@/services/api/authenticatedClient';
+import { AuthRepository } from '@/services/auth/authRepository';
+import { tokenStore } from '@/services/auth/tokenStore';
 
 const responseSchema = z.object({ value: z.string() });
 
@@ -54,6 +56,94 @@ function createClient(
 }
 
 describe('authenticated client', () => {
+  it('does not commit a same-generation refresh response when its token replacement loses the race', async () => {
+    const delayedRefresh = deferred<Response>();
+    const identity = { generation: 7, refreshToken: 'older-refresh' };
+    let accessToken = 'older-access';
+    const onUnauthorized = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const fetchMock = jest.fn<FetchLike>(async (input) => {
+      const path = new URL(input.toString()).pathname;
+      if (path === '/protected') return jsonResponse({ error: { code: 'AUTH_EXPIRED', message: 'Expired', details: {} } }, 401);
+      if (path === '/auth/refresh') return delayedRefresh.promise;
+      throw new Error(`Unexpected ${path}`);
+    });
+    let repository!: AuthRepository;
+    const client = createAuthenticatedClient({
+      apiBaseUrl: 'https://api.example.test',
+      fetch: fetchMock,
+      getAccessToken: () => accessToken,
+      getAuthIdentity: () => identity,
+      isAuthIdentityCurrent: () => true,
+      refresh: async () => {
+        const tokens = await repository.refresh(identity.refreshToken);
+        accessToken = tokens.accessToken;
+      },
+      onUnauthorized,
+      timeoutMs: 25,
+    });
+    repository = new AuthRepository({
+      apiBaseUrl: 'https://api.example.test',
+      fetch: fetchMock,
+      timeoutMs: 25,
+      authenticatedClient: client,
+    });
+    await tokenStore.setRefreshToken(identity.refreshToken);
+
+    const request = client.request('/protected', {}, responseSchema);
+    await tokenStore.replaceRefreshToken(identity.refreshToken, 'newer-refresh');
+    accessToken = 'newer-access';
+    delayedRefresh.resolve(jsonResponse({ accessToken: 'older-late-access', refreshToken: 'older-late-refresh', expiresIn: 900, refreshExpiresIn: 2_592_000 }));
+
+    await expect(request).rejects.toMatchObject({ code: 'stale-session', status: 401 });
+    expect(accessToken).toBe('newer-access');
+    await expect(tokenStore.getRefreshToken()).resolves.toBe('newer-refresh');
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it('commits a same-generation refresh response when conditional replacement succeeds', async () => {
+    const identity = { generation: 7, refreshToken: 'current-refresh' };
+    let accessToken = 'older-access';
+    let protectedCalls = 0;
+    const fetchMock = jest.fn<FetchLike>(async (input) => {
+      const path = new URL(input.toString()).pathname;
+      if (path === '/protected') {
+        protectedCalls += 1;
+        return protectedCalls === 1
+          ? jsonResponse({ error: { code: 'AUTH_EXPIRED', message: 'Expired', details: {} } }, 401)
+          : jsonResponse({ value: 'fresh' });
+      }
+      if (path === '/auth/refresh') {
+        return jsonResponse({ accessToken: 'fresh-access', refreshToken: 'fresh-refresh', expiresIn: 900, refreshExpiresIn: 2_592_000 });
+      }
+      throw new Error(`Unexpected ${path}`);
+    });
+    let repository!: AuthRepository;
+    const client = createAuthenticatedClient({
+      apiBaseUrl: 'https://api.example.test',
+      fetch: fetchMock,
+      getAccessToken: () => accessToken,
+      getAuthIdentity: () => identity,
+      isAuthIdentityCurrent: () => true,
+      refresh: async () => {
+        const tokens = await repository.refresh(identity.refreshToken);
+        accessToken = tokens.accessToken;
+      },
+      onUnauthorized: async () => undefined,
+      timeoutMs: 25,
+    });
+    repository = new AuthRepository({
+      apiBaseUrl: 'https://api.example.test',
+      fetch: fetchMock,
+      timeoutMs: 25,
+      authenticatedClient: client,
+    });
+    await tokenStore.setRefreshToken(identity.refreshToken);
+
+    await expect(client.request('/protected', {}, responseSchema)).resolves.toEqual({ value: 'fresh' });
+    expect(accessToken).toBe('fresh-access');
+    await expect(tokenStore.getRefreshToken()).resolves.toBe('fresh-refresh');
+  });
+
   it('coalesces concurrent 401 refreshes and retries each request once', async () => {
     const refreshGate = deferred<void>();
     const refresh = jest.fn(() => refreshGate.promise);

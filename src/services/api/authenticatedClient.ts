@@ -171,6 +171,10 @@ export function createAuthenticatedClient(
     return new ApiError('stale-session', 401, {});
   }
 
+  function isStaleSessionError(error: unknown) {
+    return error instanceof ApiError && error.code === 'stale-session';
+  }
+
   async function cleanUpUnauthorized(identity: unknown): Promise<void> {
     if (!identityIsCurrent(identity)) return;
     try {
@@ -210,7 +214,9 @@ export function createAuthenticatedClient(
     try {
       await refreshAccessToken(identity);
     } catch (error) {
-      await cleanUpUnauthorized(identity);
+      if (!isStaleSessionError(error)) {
+        await cleanUpUnauthorized(identity);
+      }
       throw toApiError(error, 'refresh-failed', 401);
     }
 

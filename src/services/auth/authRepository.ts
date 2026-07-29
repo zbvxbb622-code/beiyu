@@ -95,13 +95,18 @@ export class AuthRepository {
     if (expectedRefreshToken === undefined) {
       await tokenStore.setRefreshToken(response.refreshToken);
     } else {
-      await tokenStore.replaceRefreshToken(refreshToken, response.refreshToken);
+      const replaced = await tokenStore.replaceRefreshToken(refreshToken, response.refreshToken);
+      if (!replaced) {
+        throw new ApiError('stale-session', 401, {});
+      }
     }
     return response;
   }
 
-  async logout(): Promise<void> {
-    const refreshToken = await tokenStore.getRefreshToken();
+  async logout(expectedRefreshToken?: string | null): Promise<void> {
+    const refreshToken = expectedRefreshToken === undefined
+      ? await tokenStore.getRefreshToken()
+      : expectedRefreshToken;
     try {
       await this.options.authenticatedClient.request(
         '/auth/logout',

@@ -671,6 +671,9 @@ describe('AuthProvider', () => {
     });
     jest.spyOn(global, 'fetch').mockImplementation(fetchMock as typeof fetch);
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const logoutSpy = jest.spyOn(AuthRepository.prototype, 'logout');
+    let logoutA: Promise<void> | undefined;
+    let logoutSettled = false;
 
     try {
       await tokenStore.setRefreshToken('a-refresh');
@@ -678,23 +681,29 @@ describe('AuthProvider', () => {
       const screen = await render(<AuthProvider><SessionProbe onReady={(value) => { auth = value; }} /></AuthProvider>);
       await screen.findByText(`signedIn:A:${a.user.id}`);
 
-      let logoutA!: Promise<void>;
       await act(async () => {
         logoutA = auth!.logout();
         await Promise.resolve();
       });
       await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/auth/logout'), expect.anything()));
+      expect(logoutSpy).toHaveBeenCalledWith('a-refresh-rotated');
       await act(async () => { await auth!.login('13900000000', '123456'); });
       await act(async () => {
         delayedLogout.reject(new Error('network unavailable'));
         await logoutA;
       });
+      logoutSettled = true;
 
       expect(screen.getByText(`signedIn:B:${b.user.id}`)).toBeTruthy();
       await expect(tokenStore.getRefreshToken()).resolves.toBe('b-refresh');
       expect(consoleError).not.toHaveBeenCalled();
     } finally {
+      if (logoutA && !logoutSettled) {
+        delayedLogout.reject(new Error('test cleanup'));
+        await logoutA;
+      }
       consoleError.mockRestore();
+      logoutSpy.mockRestore();
       if (previousApiBaseUrl === undefined) delete process.env.EXPO_PUBLIC_API_BASE_URL;
       else process.env.EXPO_PUBLIC_API_BASE_URL = previousApiBaseUrl;
     }

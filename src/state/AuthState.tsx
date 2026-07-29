@@ -311,9 +311,10 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
   );
 
   const logout = useCallback(async () => {
+    const refreshToken = refreshTokenRef.current;
     const cleanup = clearSession();
     try {
-      await activeRuntime.repository.logout();
+      await activeRuntime.repository.logout(refreshToken);
     } catch {
       // Local revocation is authoritative even if the logout request cannot reach the server.
     } finally {
