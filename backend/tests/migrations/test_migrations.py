@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import make_url
 
 
-def test_migrations_upgrade_to_head_and_downgrade_to_base() -> None:
+def test_migrations_upgrade_ai_core_from_0003_and_downgrade() -> None:
     database_url = os.environ["BEIYU_DATABASE_URL"]
     url = make_url(database_url)
     assert url.get_backend_name() == "postgresql", "Migration tests require PostgreSQL"
@@ -18,6 +18,7 @@ def test_migrations_upgrade_to_head_and_downgrade_to_base() -> None:
     engine = create_engine(database_url)
 
     try:
+        command.upgrade(config, "20260729_0003")
         command.upgrade(config, "head")
         try:
             inspector = inspect(engine)
@@ -38,6 +39,14 @@ def test_migrations_upgrade_to_head_and_downgrade_to_base() -> None:
                 "user_devices",
                 "user_profiles",
                 "users",
+                "ai_conversations",
+                "ai_messages",
+                "ai_requests",
+                "ai_daily_quotas",
+                "ai_usage_logs",
+                "ai_memories",
+                "ai_memory_sources",
+                "ai_memory_tombstones",
             } <= set(inspector.get_table_names())
             columns = inspector.get_columns("system_metadata")
             assert {column["name"] for column in columns} == {"key", "value"}
@@ -48,38 +57,42 @@ def test_migrations_upgrade_to_head_and_downgrade_to_base() -> None:
                 revision = connection.execute(
                     text("SELECT version_num FROM alembic_version")
                 ).scalar_one()
-            assert revision == "20260729_0003"
+            assert revision == "20260729_0004"
         finally:
-            command.downgrade(config, "base")
+            command.downgrade(config, "20260729_0003")
 
         inspector = inspect(engine)
-        assert "system_metadata" not in inspector.get_table_names()
+        assert not {
+            "ai_conversations",
+            "ai_messages",
+            "ai_requests",
+            "ai_daily_quotas",
+            "ai_usage_logs",
+            "ai_memories",
+            "ai_memory_sources",
+            "ai_memory_tombstones",
+        } & set(inspector.get_table_names())
         with engine.connect() as connection:
             revisions = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalars()
-            assert list(revisions) == []
-            remaining_enum_types = connection.execute(
+            assert list(revisions) == ["20260729_0003"]
+            remaining_ai_enum_types = connection.execute(
                 text(
                     "SELECT typname FROM pg_type "
                     "WHERE typname = ANY(:enum_names) ORDER BY typname"
                 ),
                 {
                     "enum_names": [
-                        "cellar_item_source",
-                        "content_action",
-                        "content_status",
-                        "content_type",
-                        "device_platform",
-                        "ingredient_category",
-                        "membership_level",
-                        "sms_scene",
-                        "user_role",
-                        "user_status",
+                        "ai_chat_mode",
+                        "ai_memory_category",
+                        "ai_message_role",
+                        "ai_request_status",
+                        "ai_safety_label",
                     ]
                 },
             ).scalars()
-            assert list(remaining_enum_types) == []
+            assert list(remaining_ai_enum_types) == []
     finally:
         command.upgrade(config, "head")
         engine.dispose()
