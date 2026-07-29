@@ -2,10 +2,11 @@ import { act, render } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { Text } from 'react-native';
 
-import { AuthProvider, createAuthRuntime, useAuth, type AuthRuntime } from '@/state/AuthState';
+import { AuthProvider, createAuthRuntime, loadLocalSyncInput, useAuth, type AuthRuntime } from '@/state/AuthState';
 import { AuthRepository, type LocalSyncInput } from '@/services/auth/authRepository';
 import type { DeviceInput } from '@/services/auth/authSchemas';
 import { tokenStore } from '@/services/auth/tokenStore';
+import { defaultUserProfile, loadAuthenticatedState, saveAuthenticatedState } from '@/services/storageService';
 
 const bootstrap = {
   user: {
@@ -113,6 +114,30 @@ function AuthProbe({ onReady }: { onReady: (auth: ReturnType<typeof useAuth>) =>
 describe('AuthProvider', () => {
   beforeEach(() => {
     jest.restoreAllMocks();
+  });
+
+  it('does not include a previous account mirror when syncing a new account', async () => {
+    const previousUserId = '5364864c-3a48-4ca8-90b7-04f049b3227b';
+    await saveAuthenticatedState({
+      userId: previousUserId,
+      localState: { ageVerified: true, cellarIngredientIds: ['gin'], privacySettings: { localOnlyMode: false, analyticsOptIn: true, syncWhenLoggedIn: true } },
+      userProfile: { ...defaultUserProfile, nickname: 'A 的资料' },
+      accountSecurity: (await loadAuthenticatedState(previousUserId)).accountSecurity,
+    });
+    const runtime = createRuntime({}, true);
+    runtime.loadLocalSyncInput = loadLocalSyncInput;
+    jest.spyOn(tokenStore, 'getRefreshToken').mockResolvedValue(null);
+    let auth: ReturnType<typeof useAuth> | undefined;
+    const screen = await render(<AuthProvider runtime={runtime}><AuthProbe onReady={(value) => { auth = value; }} /></AuthProvider>);
+    await screen.findByText('signedOut');
+
+    await act(async () => { await auth?.login('13800000000', '123456'); });
+
+    expect(runtime.repository.syncLocalState).toHaveBeenCalledWith(expect.objectContaining({
+      ageVerified: false,
+      cellarIngredientIds: [],
+      profile: expect.objectContaining({ nickname: '游客调酒师' }),
+    }));
   });
 
   it('restores a stored session, keeps the access token in memory, and bootstraps the account', async () => {

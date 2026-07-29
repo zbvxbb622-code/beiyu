@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import {
   clearInteractionState,
@@ -9,18 +9,12 @@ import {
 } from '@/services/interactionService';
 import {
   clearLocalState,
-  defaultAccountSecurity,
+  anonymousAccountSecurity,
   defaultLocalState,
   defaultUserProfile,
-  loadAccountSecurity,
-  loadLocalState,
-  loadUserProfile,
-  saveAccountSecurity,
-  saveAgeVerified,
+  loadGuestState,
   saveAuthenticatedState,
-  saveCellarIngredientIds,
-  savePrivacySettings,
-  saveUserProfile,
+  saveGuestState,
 } from '@/services/storageService';
 import type { BootstrapResponse } from '@/services/auth/authSchemas';
 import { useAuth } from '@/state/AuthState';
@@ -103,54 +97,107 @@ function cellarIngredientIdsFromBootstrap(response: BootstrapResponse): string[]
 }
 
 export function MixologyProvider({ children }: { children: ReactNode }) {
-  const { bootstrapData, repository, status } = useAuth();
+  const { bootstrapData, repository, session, status } = useAuth();
   const [isHydrated, setIsHydrated] = useState(false);
   const [localState, setLocalState] = useState<LocalState>(defaultLocalState);
   const [interactionState, setInteractionState] = useState<LocalInteractionState>(defaultInteractionState);
   const [userProfile, setUserProfile] = useState<UserProfile>(defaultUserProfile);
-  const [accountSecurity, setAccountSecurity] = useState<AccountSecurity>(defaultAccountSecurity);
+  const [accountSecurity, setAccountSecurity] = useState<AccountSecurity>(anonymousAccountSecurity);
   const interactionStateRef = useRef<LocalInteractionState>(defaultInteractionState);
   const localStateRef = useRef<LocalState>(defaultLocalState);
   const userProfileRef = useRef<UserProfile>(defaultUserProfile);
+  const accountSecurityRef = useRef<AccountSecurity>(anonymousAccountSecurity);
   const cellarIngredientIdsRef = useRef<string[]>(defaultLocalState.cellarIngredientIds);
   const cellarMutationVersionRef = useRef(0);
   const cellarMutationQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const profileMutationVersionRef = useRef(0);
+  const privacyMutationVersionRef = useRef(0);
+  const authRef = useRef({ status, session, bootstrapData });
+
+  useLayoutEffect(() => {
+    authRef.current = { status, session, bootstrapData };
+  }, [bootstrapData, session, status]);
 
   useEffect(() => {
     let isMounted = true;
-
-    Promise.all([
-      loadLocalState(),
-      loadInteractionState(),
-      loadUserProfile(),
-      loadAccountSecurity(),
-    ])
-      .then(([storedLocalState, storedInteractionState, storedUserProfile, storedAccountSecurity]) => {
-        if (isMounted) {
-          localStateRef.current = storedLocalState;
-          cellarIngredientIdsRef.current = storedLocalState.cellarIngredientIds;
-          userProfileRef.current = storedUserProfile;
-          setLocalState(storedLocalState);
-          interactionStateRef.current = storedInteractionState;
-          setInteractionState(storedInteractionState);
-          setUserProfile(storedUserProfile);
-          setAccountSecurity(storedAccountSecurity);
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsHydrated(true);
-        }
-      });
+    loadInteractionState().then((storedInteractionState) => {
+      if (!isMounted) return;
+      interactionStateRef.current = storedInteractionState;
+      setInteractionState(storedInteractionState);
+    }).finally(() => {
+      if (isMounted) setIsHydrated(true);
+    });
 
     return () => {
       isMounted = false;
     };
   }, []);
 
+  const sessionGeneration = session?.generation ?? 0;
+  const sessionUserId = session?.userId ?? bootstrapData?.user.id ?? null;
+
+  const resetAccountState = useCallback(() => {
+    localStateRef.current = defaultLocalState;
+    userProfileRef.current = defaultUserProfile;
+    accountSecurityRef.current = anonymousAccountSecurity;
+    cellarIngredientIdsRef.current = [];
+    cellarMutationVersionRef.current += 1;
+    cellarMutationQueueRef.current = Promise.resolve();
+    setLocalState(defaultLocalState);
+    setUserProfile(defaultUserProfile);
+    setAccountSecurity(anonymousAccountSecurity);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    // Session boundaries must synchronously hide the previous account before loading the next scope.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    resetAccountState();
+    if (status !== 'signedOut') return () => { cancelled = true; };
+
+    void loadGuestState().then(({ localState: guestState, userProfile: guestProfile }) => {
+      if (cancelled || authRef.current.status !== 'signedOut') return;
+      localStateRef.current = guestState;
+      userProfileRef.current = guestProfile;
+      cellarIngredientIdsRef.current = guestState.cellarIngredientIds;
+      setLocalState(guestState);
+      setUserProfile(guestProfile);
+    });
+    return () => { cancelled = true; };
+  }, [resetAccountState, sessionGeneration, sessionUserId, status]);
+
+  const captureSession = useCallback(() => {
+    const auth = authRef.current;
+    if (auth.status !== 'signedIn') return null;
+    return {
+      userId: auth.session?.userId ?? auth.bootstrapData?.user.id ?? '__test-session__',
+      generation: auth.session?.generation ?? 0,
+    };
+  }, []);
+
+  const isSessionActive = useCallback((expected: { userId: string; generation: number }) => {
+    const active = captureSession();
+    return active?.userId === expected.userId && active.generation === expected.generation;
+  }, [captureSession]);
+
+  const saveCurrentAccountState = useCallback(async (expected: { userId: string; generation: number }) => {
+    if (!isSessionActive(expected)) return;
+    await saveAuthenticatedState({
+      userId: expected.userId,
+      localState: localStateRef.current,
+      userProfile: userProfileRef.current,
+      accountSecurity: accountSecurityRef.current,
+    });
+  }, [isSessionActive]);
+
   const applyBootstrap = useCallback(async (response: BootstrapResponse) => {
-    const currentBootstrapUserId = bootstrapData?.user.id;
-    if (currentBootstrapUserId && (status !== 'signedIn' || currentBootstrapUserId !== response.user.id)) {
+    const auth = authRef.current;
+    const requiresSessionGuard = auth.session !== undefined;
+    const expected = {
+      userId: response.user.id,
+      generation: auth.session?.generation ?? 0,
+    };
+    if (requiresSessionGuard && (!isSessionActive(expected) || auth.session?.userId !== response.user.id)) {
       return;
     }
 
@@ -161,61 +208,80 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
     };
     const nextProfile: UserProfile = response.profile;
     const nextAccountSecurity = accountSecurityFromBootstrap(response);
+    if (requiresSessionGuard && !isSessionActive(expected)) return;
     await saveAuthenticatedState({
+      userId: response.user.id,
       localState: nextLocalState,
       userProfile: nextProfile,
       accountSecurity: nextAccountSecurity,
     });
-
-    if (currentBootstrapUserId && (status !== 'signedIn' || bootstrapData?.user.id !== response.user.id)) {
+    if (requiresSessionGuard && !isSessionActive(expected)) {
       return;
     }
 
     localStateRef.current = nextLocalState;
     cellarIngredientIdsRef.current = nextLocalState.cellarIngredientIds;
     userProfileRef.current = nextProfile;
+    accountSecurityRef.current = nextAccountSecurity;
     setLocalState(nextLocalState);
     setUserProfile(nextProfile);
     setAccountSecurity(nextAccountSecurity);
-  }, [bootstrapData, status]);
+  }, [isSessionActive]);
 
   const updateUserProfile = useCallback(
     async (patch: Partial<UserProfile>) => {
-      const next = status === 'signedIn'
-        ? await repository.patchProfile(patch)
-        : { ...userProfileRef.current, ...patch };
+      const expected = captureSession();
+      if (!expected) {
+        const next = { ...userProfileRef.current, ...patch };
+        userProfileRef.current = next;
+        setUserProfile(next);
+        await saveGuestState(localStateRef.current, next);
+        return;
+      }
+      const mutationVersion = ++profileMutationVersionRef.current;
+      const next = await repository.patchProfile(patch);
+      if (!isSessionActive(expected) || mutationVersion !== profileMutationVersionRef.current) return;
       userProfileRef.current = next;
       setUserProfile(next);
-      await saveUserProfile(next);
+      await saveCurrentAccountState(expected);
     },
-    [repository, status]
+    [captureSession, isSessionActive, repository, saveCurrentAccountState]
   );
 
   const verifyAge = useCallback(async () => {
-    if (status === 'signedIn') {
+    const expected = captureSession();
+    if (expected) {
       await repository.confirmAge();
+      if (!isSessionActive(expected)) return;
     }
     const next = { ...localStateRef.current, ageVerified: true };
     localStateRef.current = next;
     setLocalState(next);
-    await saveAgeVerified(true);
-  }, [repository, status]);
+    if (expected) {
+      await saveCurrentAccountState(expected);
+    } else {
+      await saveGuestState(next, userProfileRef.current);
+    }
+  }, [captureSession, isSessionActive, repository, saveCurrentAccountState]);
 
   const setCellarIngredientIds = useCallback(async (ingredientIds: string[]) => {
     const uniqueIds = Array.from(new Set(ingredientIds));
-    if (status !== 'signedIn') {
+    const expected = captureSession();
+    if (!expected) {
       const next = { ...localStateRef.current, cellarIngredientIds: uniqueIds };
       localStateRef.current = next;
       cellarIngredientIdsRef.current = uniqueIds;
       setLocalState(next);
-      await saveCellarIngredientIds(uniqueIds);
+      await saveGuestState(next, userProfileRef.current);
       return;
     }
 
     cellarIngredientIdsRef.current = uniqueIds;
     const mutationVersion = ++cellarMutationVersionRef.current;
     const mutation = cellarMutationQueueRef.current.then(async () => {
+      if (!isSessionActive(expected)) return;
       const response = await repository.batchCellarItems(uniqueIds);
+      if (!isSessionActive(expected) || mutationVersion !== cellarMutationVersionRef.current) return;
       const serverIngredientIds = Array.from(new Set(
         response.items.flatMap((item) => item.ingredientId ? [item.ingredientId] : [])
       ));
@@ -225,15 +291,15 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
         cellarIngredientIdsRef.current = serverIngredientIds;
       }
       setLocalState(next);
-      await saveCellarIngredientIds(serverIngredientIds);
+      await saveCurrentAccountState(expected);
     });
     cellarMutationQueueRef.current = mutation.catch(() => {
-      if (mutationVersion === cellarMutationVersionRef.current) {
+      if (isSessionActive(expected) && mutationVersion === cellarMutationVersionRef.current) {
         cellarIngredientIdsRef.current = localStateRef.current.cellarIngredientIds;
       }
     });
     await mutation;
-  }, [repository, status]);
+  }, [captureSession, isSessionActive, repository, saveCurrentAccountState]);
 
   const toggleCellarIngredient = useCallback(
     async (ingredientId: string) => {
@@ -249,14 +315,22 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
   );
 
   const updatePrivacySettings = useCallback(async (privacySettings: PrivacySettings) => {
-    const nextPrivacySettings = status === 'signedIn'
-      ? await repository.patchPrivacy(privacySettings)
-      : privacySettings;
+    const expected = captureSession();
+    if (!expected) {
+      const next = { ...localStateRef.current, privacySettings };
+      localStateRef.current = next;
+      setLocalState(next);
+      await saveGuestState(next, userProfileRef.current);
+      return;
+    }
+    const mutationVersion = ++privacyMutationVersionRef.current;
+    const nextPrivacySettings = await repository.patchPrivacy(privacySettings);
+    if (!isSessionActive(expected) || mutationVersion !== privacyMutationVersionRef.current) return;
     const next = { ...localStateRef.current, privacySettings: nextPrivacySettings };
     localStateRef.current = next;
     setLocalState(next);
-    await savePrivacySettings(nextPrivacySettings);
-  }, [repository, status]);
+    await saveCurrentAccountState(expected);
+  }, [captureSession, isSessionActive, repository, saveCurrentAccountState]);
 
   const updateInteractions = useCallback(async (updater: (state: LocalInteractionState) => LocalInteractionState) => {
     const nextState = updater(interactionStateRef.current);
@@ -411,105 +485,96 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
     interactionStateRef.current = defaultInteractionState;
     setInteractionState(defaultInteractionState);
     setUserProfile(defaultUserProfile);
+    setAccountSecurity(anonymousAccountSecurity);
+    await saveGuestState(defaultLocalState, defaultUserProfile);
   }, []);
 
   const logout = useCallback(async () => {
-    const next = { ...localStateRef.current, ageVerified: false };
-    localStateRef.current = next;
-    setLocalState(next);
-    await saveAgeVerified(false);
-  }, []);
+    resetAccountState();
+  }, [resetAccountState]);
+
+  const commitAccountSecurity = useCallback(async (next: AccountSecurity) => {
+    const expected = captureSession();
+    if (!expected || !isSessionActive(expected)) return;
+    accountSecurityRef.current = next;
+    setAccountSecurity(next);
+    await saveCurrentAccountState(expected);
+  }, [captureSession, isSessionActive, saveCurrentAccountState]);
 
   const updateAccountSecurity = useCallback(
     async (patch: Partial<AccountSecurity>) => {
-      const next = { ...accountSecurity, ...patch };
-      setAccountSecurity(next);
-      await saveAccountSecurity(next);
+      await commitAccountSecurity({ ...accountSecurityRef.current, ...patch });
     },
-    [accountSecurity]
+    [commitAccountSecurity]
   );
 
   const bindWechat = useCallback(async () => {
     const next: AccountSecurity = {
-      ...accountSecurity,
+      ...accountSecurityRef.current,
       wechatBound: true,
       wechatAccount: 'wxid_7f3a9c2b',
     };
-    setAccountSecurity(next);
-    await saveAccountSecurity(next);
-  }, [accountSecurity]);
+    await commitAccountSecurity(next);
+  }, [commitAccountSecurity]);
 
   const unbindWechat = useCallback(async () => {
     const next: AccountSecurity = {
-      ...accountSecurity,
+      ...accountSecurityRef.current,
       wechatBound: false,
       wechatAccount: '',
     };
-    setAccountSecurity(next);
-    await saveAccountSecurity(next);
-  }, [accountSecurity]);
+    await commitAccountSecurity(next);
+  }, [commitAccountSecurity]);
 
   const setPassword = useCallback(async () => {
-    const next: AccountSecurity = { ...accountSecurity, passwordSet: true };
-    setAccountSecurity(next);
-    await saveAccountSecurity(next);
-  }, [accountSecurity]);
+    await commitAccountSecurity({ ...accountSecurityRef.current, passwordSet: true });
+  }, [commitAccountSecurity]);
 
   const setPhone = useCallback(
     async (phone: string) => {
-      const next: AccountSecurity = { ...accountSecurity, phone, phoneVerified: true };
-      setAccountSecurity(next);
-      await saveAccountSecurity(next);
+      await commitAccountSecurity({ ...accountSecurityRef.current, phone, phoneVerified: true });
     },
-    [accountSecurity]
+    [commitAccountSecurity]
   );
 
   const verifyRealname = useCallback(
     async (name: string) => {
       const next: AccountSecurity = {
-        ...accountSecurity,
+        ...accountSecurityRef.current,
         realnameVerified: true,
         realnameName: name,
       };
-      setAccountSecurity(next);
-      await saveAccountSecurity(next);
+      await commitAccountSecurity(next);
     },
-    [accountSecurity]
+    [commitAccountSecurity]
   );
 
   const verifyOfficial = useCallback(
     async (officialType: string) => {
       const next: AccountSecurity = {
-        ...accountSecurity,
+        ...accountSecurityRef.current,
         officialVerified: true,
         officialType,
       };
-      setAccountSecurity(next);
-      await saveAccountSecurity(next);
+      await commitAccountSecurity(next);
     },
-    [accountSecurity]
+    [commitAccountSecurity]
   );
 
   const removeDevice = useCallback(
     async (deviceId: string) => {
       const next: AccountSecurity = {
-        ...accountSecurity,
-        devices: accountSecurity.devices.filter((device) => device.id !== deviceId),
+        ...accountSecurityRef.current,
+        devices: accountSecurityRef.current.devices.filter((device) => device.id !== deviceId),
       };
-      setAccountSecurity(next);
-      await saveAccountSecurity(next);
+      await commitAccountSecurity(next);
     },
-    [accountSecurity]
+    [commitAccountSecurity]
   );
 
   const deleteAccount = useCallback(async () => {
-    setAccountSecurity(defaultAccountSecurity);
-    await saveAccountSecurity(defaultAccountSecurity);
-    const next = { ...localStateRef.current, ageVerified: false };
-    localStateRef.current = next;
-    setLocalState(next);
-    await saveAgeVerified(false);
-  }, []);
+    resetAccountState();
+  }, [resetAccountState]);
 
   const value = useMemo(
     () => ({

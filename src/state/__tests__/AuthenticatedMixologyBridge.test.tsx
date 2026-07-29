@@ -9,7 +9,7 @@ import { MixologyProvider, useMixology } from '@/state/MixologyState';
 import type { BootstrapResponse } from '@/services/auth/authSchemas';
 
 const mockRepository = {};
-let mockAuthSnapshot: { status: 'signedOut' | 'signedIn'; bootstrapData: BootstrapResponse | null; repository: typeof mockRepository };
+let mockAuthSnapshot: { status: 'signedOut' | 'signedIn'; bootstrapData: BootstrapResponse | null; session: { userId: string | null; generation: number }; repository: typeof mockRepository };
 let refreshBridge: (() => void) | null = null;
 
 jest.mock('@/state/AuthState', () => ({
@@ -44,7 +44,7 @@ function Harness({ children, onReady }: { children: ReactNode; onReady: (refresh
 describe('AuthenticatedMixologyBridge', () => {
   beforeEach(async () => {
     await AsyncStorage.clear();
-    mockAuthSnapshot = { status: 'signedOut', bootstrapData: null, repository: mockRepository };
+    mockAuthSnapshot = { status: 'signedOut', bootstrapData: null, session: { userId: null, generation: 0 }, repository: mockRepository };
     refreshBridge = null;
   });
 
@@ -55,19 +55,19 @@ describe('AuthenticatedMixologyBridge', () => {
 
     await waitFor(() => expect(screen.getByText('游客调酒师')).toBeTruthy());
     await waitFor(() => expect(refreshBridge).not.toBeNull());
-    mockAuthSnapshot = { status: 'signedIn', bootstrapData: first, repository: mockRepository };
+    mockAuthSnapshot = { status: 'signedIn', bootstrapData: first, session: { userId: first.user.id, generation: 1 }, repository: mockRepository };
     await act(async () => { refreshBridge!(); });
     await screen.findByText('第一位杯友');
 
-    mockAuthSnapshot = { status: 'signedOut', bootstrapData: second, repository: mockRepository };
+    mockAuthSnapshot = { status: 'signedOut', bootstrapData: second, session: { userId: null, generation: 2 }, repository: mockRepository };
     await act(async () => { refreshBridge!(); });
     expect(screen.queryByText('第二位杯友')).toBeNull();
 
-    mockAuthSnapshot = { status: 'signedIn', bootstrapData: second, repository: mockRepository };
+    mockAuthSnapshot = { status: 'signedIn', bootstrapData: second, session: { userId: second.user.id, generation: 3 }, repository: mockRepository };
     await act(async () => { refreshBridge!(); });
     await screen.findByText('第二位杯友');
 
-    mockAuthSnapshot = { status: 'signedIn', bootstrapData: { ...first, profile: { ...first.profile, nickname: '陈旧数据' } }, repository: mockRepository };
+    mockAuthSnapshot = { status: 'signedIn', bootstrapData: { ...first, profile: { ...first.profile, nickname: '陈旧数据' } }, session: { userId: second.user.id, generation: 3 }, repository: mockRepository };
     await act(async () => { refreshBridge!(); });
     expect(screen.queryByText('陈旧数据')).toBeNull();
     expect(screen.getByText('第二位杯友')).toBeTruthy();

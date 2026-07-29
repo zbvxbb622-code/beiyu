@@ -4,7 +4,7 @@ import { useAuth } from '@/state/AuthState';
 import { useMixology } from '@/state/MixologyState';
 
 export function AuthenticatedMixologyBridge({ children }: { children: ReactNode }) {
-  const { bootstrapData, status } = useAuth();
+  const { bootstrapData, session, status } = useAuth();
   const { applyBootstrap, isHydrated } = useMixology();
   const appliedUserIdsRef = useRef(new Set<string>());
 
@@ -13,14 +13,14 @@ export function AuthenticatedMixologyBridge({ children }: { children: ReactNode 
       return;
     }
 
-    const userId = bootstrapData.user.id;
-    if (appliedUserIdsRef.current.has(userId)) {
+    const bootstrapKey = `${session?.generation ?? 0}:${bootstrapData.user.id}`;
+    if (appliedUserIdsRef.current.has(bootstrapKey)) {
       return;
     }
 
-    appliedUserIdsRef.current.add(userId);
+    appliedUserIdsRef.current.add(bootstrapKey);
     void applyBootstrap(bootstrapData);
-  }, [applyBootstrap, bootstrapData, isHydrated, status]);
+  }, [applyBootstrap, bootstrapData, isHydrated, session?.generation, status]);
 
   return <>{children}</>;
 }

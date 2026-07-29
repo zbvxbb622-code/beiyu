@@ -6,7 +6,7 @@ import { Text } from 'react-native';
 
 import type { BootstrapResponse } from '@/services/auth/authSchemas';
 import type { AuthRepository } from '@/services/auth/authRepository';
-import { loadAccountSecurity, loadLocalState, loadUserProfile } from '@/services/storageService';
+import { loadAuthenticatedState, loadLocalState, loadUserProfile } from '@/services/storageService';
 import { MixologyProvider, useMixology } from '@/state/MixologyState';
 
 type MixologyValue = ReturnType<typeof useMixology>;
@@ -192,13 +192,11 @@ describe('MixologyProvider', () => {
         isCurrent: true,
       }],
     });
-    await expect(loadUserProfile()).resolves.toEqual(bootstrap.profile);
-    await expect(loadLocalState()).resolves.toEqual({
-      ageVerified: true,
-      cellarIngredientIds: ['gin'],
-      privacySettings: bootstrap.privacy,
+    await expect(loadAuthenticatedState(bootstrap.user.id)).resolves.toEqual({
+      userProfile: bootstrap.profile,
+      localState: { ageVerified: true, cellarIngredientIds: ['gin'], privacySettings: bootstrap.privacy },
+      accountSecurity: currentValue?.accountSecurity,
     });
-    await expect(loadAccountSecurity()).resolves.toEqual(currentValue?.accountSecurity);
   });
 
   it('keeps the saved profile snapshot unchanged when the remote patch rejects', async () => {

@@ -1,5 +1,6 @@
 import { Boxes, CircleCheckBig } from 'lucide-react-native';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
 
 import { IngredientChip } from '@/components/mixology/IngredientChip';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
@@ -25,6 +26,16 @@ export default function CellarIngredientsScreen() {
   const { snapshot, isRefreshing, lastRefreshError, refresh } = useContent();
   const ingredients = snapshot.ingredients;
   const selectedCount = localState.cellarIngredientIds.length;
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  const handleToggle = async (ingredientId: string) => {
+    setSyncError(null);
+    try {
+      await toggleCellarIngredient(ingredientId);
+    } catch {
+      setSyncError('同步失败，请重试');
+    }
+  };
 
   return (
     <ScreenShell>
@@ -42,6 +53,7 @@ export default function CellarIngredientsScreen() {
         {lastRefreshError ? (
           <Text style={styles.refreshNotice}>{lastRefreshError}</Text>
         ) : null}
+        {syncError ? <Text style={styles.syncNotice}>{syncError}</Text> : null}
         <View style={styles.summary}>
           <Boxes color={colors.pink} size={28} />
           <View style={styles.summaryCopy}>
@@ -65,7 +77,7 @@ export default function CellarIngredientsScreen() {
                     key={ingredient.id}
                     label={ingredient.name}
                     selected={localState.cellarIngredientIds.includes(ingredient.id)}
-                    onPress={() => toggleCellarIngredient(ingredient.id)}
+                    onPress={() => void handleToggle(ingredient.id)}
                   />
                 ))}
               </View>
@@ -83,6 +95,12 @@ const styles = StyleSheet.create({
   },
   refreshNotice: {
     color: colors.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  syncNotice: {
+    color: colors.pink,
     fontSize: 12,
     textAlign: 'center',
     marginTop: 8,

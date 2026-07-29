@@ -5,9 +5,10 @@ import { AuthRepository, type LocalSyncInput } from '@/services/auth/authReposit
 import type { BootstrapResponse, DeviceInput } from '@/services/auth/authSchemas';
 import { getDeviceIdentity } from '@/services/auth/deviceIdentity';
 import { tokenStore } from '@/services/auth/tokenStore';
-import { loadLocalState, loadUserProfile } from '@/services/storageService';
+import { loadGuestState } from '@/services/storageService';
 
 export type AuthStatus = 'restoring' | 'signedOut' | 'signedIn';
+export type AuthSession = { userId: string | null; generation: number };
 
 export type AuthRuntime = {
   repository: AuthRepository;
@@ -20,6 +21,7 @@ export type AuthRuntime = {
 
 type AuthContextValue = {
   status: AuthStatus;
+  session: AuthSession;
   repository: AuthRepository;
   bootstrapData: BootstrapResponse | null;
   requestSmsCode: (phone: string) => Promise<{ expiresIn: number; retryAfter: number }>;
@@ -31,8 +33,8 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-async function loadLocalSyncInput(): Promise<LocalSyncInput> {
-  const [localState, profile] = await Promise.all([loadLocalState(), loadUserProfile()]);
+export async function loadLocalSyncInput(): Promise<LocalSyncInput> {
+  const { localState, userProfile: profile } = await loadGuestState();
   return {
     ageVerified: localState.ageVerified,
     profile,
@@ -90,6 +92,7 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
   const activeRuntime = runtime ?? defaultRuntime;
   const [status, setStatus] = useState<AuthStatus>('restoring');
   const [bootstrapData, setBootstrapData] = useState<BootstrapResponse | null>(null);
+  const [session, setSession] = useState<AuthSession>({ userId: null, generation: 0 });
   const isMountedRef = useRef(true);
 
   const setIfMounted = useCallback((callback: () => void) => {
@@ -108,6 +111,7 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
     setIfMounted(() => {
       setBootstrapData(null);
       setStatus('signedOut');
+      setSession((current) => ({ userId: null, generation: current.generation + 1 }));
     });
   }, [activeRuntime, setIfMounted]);
 
@@ -116,6 +120,7 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
     setIfMounted(() => {
       setBootstrapData(data);
       setStatus('signedIn');
+      setSession((current) => ({ userId: data.user.id, generation: current.generation + 1 }));
     });
     return data;
   }, [activeRuntime, setIfMounted]);
@@ -203,6 +208,7 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
   const value = useMemo<AuthContextValue>(
     () => ({
       status,
+      session,
       repository: activeRuntime.repository,
       bootstrapData,
       requestSmsCode,
@@ -211,7 +217,7 @@ export function AuthProvider({ children, runtime }: { children: ReactNode; runti
       bootstrap,
       logout,
     }),
-    [activeRuntime, bootstrap, bootstrapData, login, logout, requestSmsCode, status]
+    [activeRuntime, bootstrap, bootstrapData, login, logout, requestSmsCode, session, status]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
