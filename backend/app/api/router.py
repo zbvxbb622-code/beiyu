@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 from app.api.routes.auth import router as auth_router
 from app.api.routes.cellar import router as cellar_router
+from app.api.routes.content import router as content_router
 from app.api.routes.me import router as me_router
 
 
@@ -22,3 +23,4 @@ def api_root() -> ApiRootResponse:
 api_router.include_router(auth_router)
 api_router.include_router(me_router)
 api_router.include_router(cellar_router)
+api_router.include_router(content_router)

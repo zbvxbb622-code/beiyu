@@ -241,6 +241,230 @@
         "title": "AuthenticatedUser",
         "type": "object"
       },
+      "BarListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BarResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationResponse"
+          }
+        },
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "title": "BarListResponse",
+        "type": "object"
+      },
+      "BarMenuItemResponse": {
+        "properties": {
+          "badge": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Badge"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "title": "Imagekey",
+            "type": "string"
+          },
+          "likes": {
+            "minimum": 0.0,
+            "title": "Likes",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "imageKey",
+          "likes"
+        ],
+        "title": "BarMenuItemResponse",
+        "type": "object"
+      },
+      "BarResponse": {
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "averageSpend": {
+            "title": "Averagespend",
+            "type": "integer"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "distanceLabel": {
+            "title": "Distancelabel",
+            "type": "string"
+          },
+          "environmentScore": {
+            "title": "Environmentscore",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "title": "Imagekey",
+            "type": "string"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "menu": {
+            "items": {
+              "$ref": "#/components/schemas/BarMenuItemResponse"
+            },
+            "title": "Menu",
+            "type": "array"
+          },
+          "metroHint": {
+            "title": "Metrohint",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "openHours": {
+            "title": "Openhours",
+            "type": "string"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "rating": {
+            "title": "Rating",
+            "type": "number"
+          },
+          "reviewCount": {
+            "title": "Reviewcount",
+            "type": "integer"
+          },
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/BarReviewResponse"
+            },
+            "title": "Reviews",
+            "type": "array"
+          },
+          "serviceScore": {
+            "title": "Servicescore",
+            "type": "number"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "tasteScore": {
+            "title": "Tastescore",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "imageKey",
+          "rating",
+          "reviewCount",
+          "averageSpend",
+          "distanceLabel",
+          "metroHint",
+          "address",
+          "openHours",
+          "description",
+          "tags",
+          "tasteScore",
+          "environmentScore",
+          "serviceScore",
+          "phone",
+          "menu",
+          "reviews"
+        ],
+        "title": "BarResponse",
+        "type": "object"
+      },
+      "BarReviewResponse": {
+        "properties": {
+          "authorAvatarKey": {
+            "title": "Authoravatarkey",
+            "type": "string"
+          },
+          "authorName": {
+            "title": "Authorname",
+            "type": "string"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKeys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Imagekeys",
+            "type": "array"
+          },
+          "likes": {
+            "minimum": 0.0,
+            "title": "Likes",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "authorName",
+          "authorAvatarKey",
+          "text",
+          "date",
+          "likes"
+        ],
+        "title": "BarReviewResponse",
+        "type": "object"
+      },
       "BootstrapResponse": {
         "properties": {
           "accountSecurity": {
@@ -482,6 +706,34 @@
         "title": "CellarListResponse",
         "type": "object"
       },
+      "CocktailIngredientResponse": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category",
+          "amount"
+        ],
+        "title": "CocktailIngredientResponse",
+        "type": "object"
+      },
       "DeleteAccountRequest": {
         "properties": {
           "confirmation": {
@@ -634,6 +886,274 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HeroSlideResponse": {
+        "properties": {
+          "brand": {
+            "title": "Brand",
+            "type": "string"
+          },
+          "ctaLabel": {
+            "title": "Ctalabel",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "title": "Imagekey",
+            "type": "string"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "scriptLabel": {
+            "title": "Scriptlabel",
+            "type": "string"
+          },
+          "subtitle": {
+            "title": "Subtitle",
+            "type": "string"
+          },
+          "targetRoute": {
+            "title": "Targetroute",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "brand",
+          "title",
+          "subtitle",
+          "scriptLabel",
+          "ctaLabel",
+          "imageKey",
+          "targetRoute"
+        ],
+        "title": "HeroSlideResponse",
+        "type": "object"
+      },
+      "HomeResponse": {
+        "properties": {
+          "banners": {
+            "items": {
+              "$ref": "#/components/schemas/HeroSlideResponse"
+            },
+            "title": "Banners",
+            "type": "array"
+          },
+          "featuredBars": {
+            "items": {
+              "$ref": "#/components/schemas/BarResponse"
+            },
+            "title": "Featuredbars",
+            "type": "array"
+          },
+          "featuredRecipes": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeResponse"
+            },
+            "title": "Featuredrecipes",
+            "type": "array"
+          },
+          "shortcuts": {
+            "items": {
+              "$ref": "#/components/schemas/HomeShortcutResponse"
+            },
+            "title": "Shortcuts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "banners",
+          "shortcuts",
+          "featuredRecipes",
+          "featuredBars"
+        ],
+        "title": "HomeResponse",
+        "type": "object"
+      },
+      "HomeShortcutResponse": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "icon": {
+            "title": "Icon",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "route": {
+            "title": "Route",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "icon",
+          "route"
+        ],
+        "title": "HomeShortcutResponse",
+        "type": "object"
+      },
+      "IngredientListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IngredientResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationResponse"
+          }
+        },
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "title": "IngredientListResponse",
+        "type": "object"
+      },
+      "IngredientResponse": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category"
+        ],
+        "title": "IngredientResponse",
+        "type": "object"
+      },
+      "KnowledgeListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationResponse"
+          }
+        },
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "title": "KnowledgeListResponse",
+        "type": "object"
+      },
+      "KnowledgeResponse": {
+        "properties": {
+          "englishName": {
+            "title": "Englishname",
+            "type": "string"
+          },
+          "era": {
+            "title": "Era",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "title": "Imagekey",
+            "type": "string"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "meaning": {
+            "title": "Meaning",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "recipeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipeid"
+          },
+          "story": {
+            "title": "Story",
+            "type": "string"
+          },
+          "symbols": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Symbols",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "englishName",
+          "imageKey",
+          "era",
+          "meaning",
+          "story",
+          "symbols"
+        ],
+        "title": "KnowledgeResponse",
+        "type": "object"
+      },
       "LivenessResponse": {
         "properties": {
           "service": {
@@ -770,6 +1290,34 @@
         "title": "MembershipLevel",
         "type": "string"
       },
+      "PaginationResponse": {
+        "properties": {
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "pageSize": {
+            "title": "Pagesize",
+            "type": "integer"
+          },
+          "totalItems": {
+            "title": "Totalitems",
+            "type": "integer"
+          },
+          "totalPages": {
+            "title": "Totalpages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page",
+          "pageSize",
+          "totalItems",
+          "totalPages"
+        ],
+        "title": "PaginationResponse",
+        "type": "object"
+      },
       "PrivacySettingsPatch": {
         "properties": {
           "analyticsOptIn": {
@@ -862,6 +1410,104 @@
         "title": "ReadinessResponse",
         "type": "object"
       },
+      "RecipeListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationResponse"
+          }
+        },
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "title": "RecipeListResponse",
+        "type": "object"
+      },
+      "RecipeResponse": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "difficulty": {
+            "title": "Difficulty",
+            "type": "string"
+          },
+          "englishName": {
+            "title": "Englishname",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "title": "Imagekey",
+            "type": "string"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "ingredients": {
+            "items": {
+              "$ref": "#/components/schemas/CocktailIngredientResponse"
+            },
+            "title": "Ingredients",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "prepMinutes": {
+            "title": "Prepminutes",
+            "type": "integer"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "englishName",
+          "description",
+          "tags",
+          "ingredients",
+          "steps",
+          "imageKey",
+          "difficulty",
+          "prepMinutes"
+        ],
+        "title": "RecipeResponse",
+        "type": "object"
+      },
       "RefreshRequest": {
         "properties": {
           "refreshToken": {
@@ -875,6 +1521,70 @@
           "refreshToken"
         ],
         "title": "RefreshRequest",
+        "type": "object"
+      },
+      "SearchListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SearchResultResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationResponse"
+          }
+        },
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "title": "SearchListResponse",
+        "type": "object"
+      },
+      "SearchResultResponse": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "title": "Imagekey",
+            "type": "string"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "subtitle": {
+            "title": "Subtitle",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "title",
+          "subtitle",
+          "imageKey"
+        ],
+        "title": "SearchResultResponse",
         "type": "object"
       },
       "SmsCodeAccepted": {
@@ -1571,6 +2281,106 @@
         ]
       }
     },
+    "/api/v1/bars": {
+      "get": {
+        "operationId": "bars_api_v1_bars_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Pagesize",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BarListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bars",
+        "tags": [
+          "api",
+          "content"
+        ]
+      }
+    },
+    "/api/v1/bars/{public_id}": {
+      "get": {
+        "operationId": "bar_detail_api_v1_bars__public_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BarResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bar Detail",
+        "tags": [
+          "api",
+          "content"
+        ]
+      }
+    },
     "/api/v1/cellar/items": {
       "get": {
         "operationId": "items_api_v1_cellar_items_get",
@@ -1816,6 +2626,185 @@
         "tags": [
           "api",
           "cellar"
+        ]
+      }
+    },
+    "/api/v1/home": {
+      "get": {
+        "operationId": "home_api_v1_home_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Home",
+        "tags": [
+          "api",
+          "content"
+        ]
+      }
+    },
+    "/api/v1/ingredients": {
+      "get": {
+        "operationId": "ingredients_api_v1_ingredients_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Pagesize",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngredientListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingredients",
+        "tags": [
+          "api",
+          "content"
+        ]
+      }
+    },
+    "/api/v1/knowledge": {
+      "get": {
+        "operationId": "knowledge_api_v1_knowledge_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Pagesize",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Knowledge",
+        "tags": [
+          "api",
+          "content"
+        ]
+      }
+    },
+    "/api/v1/knowledge/{public_id}": {
+      "get": {
+        "operationId": "knowledge_detail_api_v1_knowledge__public_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Knowledge Detail",
+        "tags": [
+          "api",
+          "content"
         ]
       }
     },
@@ -2106,6 +3095,174 @@
         "tags": [
           "api",
           "me"
+        ]
+      }
+    },
+    "/api/v1/recipes": {
+      "get": {
+        "operationId": "recipes_api_v1_recipes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Pagesize",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecipeListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recipes",
+        "tags": [
+          "api",
+          "content"
+        ]
+      }
+    },
+    "/api/v1/recipes/{public_id}": {
+      "get": {
+        "operationId": "recipe_detail_api_v1_recipes__public_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "title": "Public Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecipeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recipe Detail",
+        "tags": [
+          "api",
+          "content"
+        ]
+      }
+    },
+    "/api/v1/search": {
+      "get": {
+        "operationId": "search_api_v1_search_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Pagesize",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search",
+        "tags": [
+          "api",
+          "content"
         ]
       }
     },
