@@ -1,4 +1,7 @@
-from pydantic import Field
+from datetime import datetime
+from typing import Any
+
+from pydantic import Field, field_validator
 
 from app.schemas.base import ApiModel
 
@@ -146,3 +149,92 @@ class SearchResultResponse(ApiModel):
 class SearchListResponse(ApiModel):
     items: list[SearchResultResponse]
     pagination: PaginationResponse
+
+
+class AdminRecipeResponse(RecipeResponse):
+    status: str
+    revision: int
+
+
+class AdminRecipeListResponse(ApiModel):
+    items: list[AdminRecipeResponse]
+
+
+class RecipeIngredientWrite(ApiModel):
+    id: str = Field(min_length=1, max_length=120)
+    amount: str = Field(min_length=1, max_length=80)
+
+
+class RecipeCreate(ApiModel):
+    public_id: str = Field(alias="id", min_length=1, max_length=120)
+    name: str = Field(min_length=1, max_length=120)
+    english_name: str = Field(min_length=1, max_length=160)
+    description: str = Field(min_length=1, max_length=2000)
+    tags: list[str] = Field(max_length=30)
+    ingredients: list[RecipeIngredientWrite] = Field(min_length=1, max_length=50)
+    steps: list[str] = Field(min_length=1, max_length=30)
+    image_key: str | None = Field(default=None, max_length=80)
+    image_url: str | None = Field(default=None, max_length=2048)
+    difficulty: str = Field(pattern=r"^(入门|进阶|专业)$")
+    prep_minutes: int = Field(ge=0, le=1440)
+
+    @field_validator("ingredients")
+    @classmethod
+    def ingredients_are_unique(
+        cls,
+        ingredients: list[RecipeIngredientWrite],
+    ) -> list[RecipeIngredientWrite]:
+        ids = [item.id for item in ingredients]
+        if len(ids) != len(set(ids)):
+            raise ValueError("recipe ingredients must be unique")
+        return ingredients
+
+
+class RecipePatch(ApiModel):
+    expected_revision: int = Field(ge=1)
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    english_name: str | None = Field(default=None, min_length=1, max_length=160)
+    description: str | None = Field(default=None, min_length=1, max_length=2000)
+    tags: list[str] | None = Field(default=None, max_length=30)
+    ingredients: list[RecipeIngredientWrite] | None = Field(
+        default=None,
+        min_length=1,
+        max_length=50,
+    )
+    steps: list[str] | None = Field(default=None, min_length=1, max_length=30)
+    image_key: str | None = Field(default=None, max_length=80)
+    image_url: str | None = Field(default=None, max_length=2048)
+    difficulty: str | None = Field(default=None, pattern=r"^(入门|进阶|专业)$")
+    prep_minutes: int | None = Field(default=None, ge=0, le=1440)
+
+    @field_validator("ingredients")
+    @classmethod
+    def patch_ingredients_are_unique(
+        cls,
+        ingredients: list[RecipeIngredientWrite] | None,
+    ) -> list[RecipeIngredientWrite] | None:
+        if ingredients is None:
+            return None
+        ids = [item.id for item in ingredients]
+        if len(ids) != len(set(ids)):
+            raise ValueError("recipe ingredients must be unique")
+        return ingredients
+
+
+class RevisionRequest(ApiModel):
+    expected_revision: int = Field(ge=1)
+
+
+class RollbackRequest(RevisionRequest):
+    version_no: int = Field(ge=1)
+
+
+class ContentVersionResponse(ApiModel):
+    version_no: int
+    action: str
+    snapshot: dict[str, Any]
+    created_at: datetime
+
+
+class ContentVersionListResponse(ApiModel):
+    items: list[ContentVersionResponse]
