@@ -109,6 +109,22 @@ describe('AuthRepository', () => {
     expect(clearRefreshToken).toHaveBeenCalledTimes(1);
   });
 
+  it('sends a single-field cellar patch without clearing the other editable field', async () => {
+    const request = jest.fn(async () => undefined) as unknown as AuthenticatedClient['request'];
+    const repository = createRepository(jest.fn<FetchLike>(), { request });
+
+    await repository.patchCellarItem('cellar-item-id', { note: 'Keep chilled' });
+
+    expect(request).toHaveBeenCalledWith(
+      '/cellar/items/cellar-item-id',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ note: 'Keep chilled' }),
+      }),
+      expect.anything()
+    );
+  });
+
   it('stores login refresh tokens from the raw typed login response', async () => {
     const setRefreshToken = jest.spyOn(tokenStore, 'setRefreshToken').mockResolvedValue();
     const fetchMock = jest.fn<FetchLike>().mockResolvedValue(jsonResponse(validLoginResponse));

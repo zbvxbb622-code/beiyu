@@ -48,7 +48,7 @@ export type CellarItemInput = Pick<
   'ingredientId' | 'customName' | 'amountLabel' | 'note'
 >;
 
-export type CellarItemPatch = Pick<CellarItemInput, 'amountLabel' | 'note'>;
+export type CellarItemPatch = Partial<Pick<CellarItemInput, 'amountLabel' | 'note'>>;
 
 function jsonRequest(method: string, body: unknown): RequestInit {
   return {

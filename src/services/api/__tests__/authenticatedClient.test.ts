@@ -84,6 +84,50 @@ describe('authenticated client', () => {
     expect(onUnauthorized).not.toHaveBeenCalled();
   });
 
+  it('retries a delayed old-token 401 without starting a second refresh', async () => {
+    const delayedOldTokenResponse = deferred<Response>();
+    let accessToken = 'stale-access-token';
+    let oldTokenRequests = 0;
+    const refresh = jest.fn(async () => {
+      accessToken = 'fresh-access-token';
+    });
+    const fetchMock = jest.fn<FetchLike>(async (_input, init) => {
+      const authorization = new Headers(init?.headers).get('Authorization');
+      if (authorization === 'Bearer stale-access-token') {
+        oldTokenRequests += 1;
+        if (oldTokenRequests === 1) {
+          return jsonResponse({ error: { code: 'AUTH_EXPIRED', message: 'Expired', details: {} } }, 401);
+        }
+        return delayedOldTokenResponse.promise;
+      }
+      return jsonResponse({ value: 'fresh' });
+    });
+    const client = createAuthenticatedClient({
+      apiBaseUrl: 'https://api.example.test/api/v1',
+      fetch: fetchMock,
+      getAccessToken: () => accessToken,
+      refresh,
+      onUnauthorized: async () => undefined,
+      timeoutMs: 25,
+    });
+
+    const first = client.request('/me/bootstrap', {}, responseSchema);
+    const second = client.request('/cellar/items', {}, responseSchema);
+
+    while (refresh.mock.calls.length === 0) {
+      await Promise.resolve();
+    }
+    await expect(first).resolves.toEqual({ value: 'fresh' });
+
+    delayedOldTokenResponse.resolve(
+      jsonResponse({ error: { code: 'AUTH_EXPIRED', message: 'Expired', details: {} } }, 401)
+    );
+
+    await expect(second).resolves.toEqual({ value: 'fresh' });
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
   it('cleans up after a retried request is still unauthorized without leaking request data', async () => {
     const fetchMock = jest
       .fn<FetchLike>()

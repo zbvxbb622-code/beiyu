@@ -46,3 +46,27 @@ Added a schema-validated raw request helper, a refresh-coalescing authenticated 
 ## Concerns
 
 None.
+
+## Fix Round 1/5
+
+### Changes
+
+- Captured each authenticated request's access token and, when a delayed 401 belongs to an already-replaced token, retried once with the current token instead of starting a second refresh.
+- Made `CellarItemPatch.amountLabel` and `CellarItemPatch.note` optional so callers can send a single-field PATCH without clearing the other field.
+
+### RED
+
+- `npm test -- --runInBand src/services/api/__tests__/authenticatedClient.test.ts src/services/auth/__tests__/authRepository.test.ts`
+  - 1 failed suite and 1 passed suite; 1 failed and 12 passed tests. The delayed old-token 401 test observed 2 refresh calls instead of 1.
+- `npm run typecheck`
+  - Failed with 1 error: a `{ note: string }` argument was rejected because `amountLabel` was required by `CellarItemPatch`.
+
+### GREEN
+
+- `npm test -- --runInBand src/services/api/__tests__/authenticatedClient.test.ts src/services/auth/__tests__/authRepository.test.ts && npm run lint && npm run typecheck`
+  - 2 passed suites, 13 passed tests, 0 failures; lint and typecheck exited 0.
+
+### Verification
+
+- The delayed-response regression proves concurrent old-token requests invoke exactly one refresh and issue four total fetches.
+- The cellar regression proves a note-only PATCH sends only `{ "note": "Keep chilled" }`.

@@ -171,7 +171,8 @@ export function createAuthenticatedClient(
     schema: Schema,
     retried = false
   ): Promise<z.output<Schema>> {
-    const response = await fetchWithTimeout(options, path, init, options.getAccessToken());
+    const accessToken = options.getAccessToken();
+    const response = await fetchWithTimeout(options, path, init, accessToken);
 
     if (response.status !== 401) {
       return parseResponse(response, schema);
@@ -180,6 +181,10 @@ export function createAuthenticatedClient(
     if (retried) {
       await cleanUpUnauthorized();
       throw await apiErrorFrom(response);
+    }
+
+    if (accessToken !== options.getAccessToken()) {
+      return request(path, init, schema, true);
     }
 
     try {
