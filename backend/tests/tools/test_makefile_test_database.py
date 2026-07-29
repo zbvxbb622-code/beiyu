@@ -4,7 +4,13 @@ import sys
 from pathlib import Path
 
 BACKEND_DIRECTORY = Path(__file__).resolve().parents[2]
-VALID_TEST_DATABASE_URL = "postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test"
+DEFAULT_TEST_DATABASE_URL = "postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test"
+configured_database_url = os.environ.get("BEIYU_DATABASE_URL", "")
+VALID_TEST_DATABASE_URL = (
+    configured_database_url
+    if configured_database_url.rsplit("/", maxsplit=1)[-1].endswith("_test")
+    else DEFAULT_TEST_DATABASE_URL
+)
 NON_TEST_DATABASE_URL = VALID_TEST_DATABASE_URL.removesuffix("_test")
 
 
