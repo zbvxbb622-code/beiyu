@@ -15,6 +15,17 @@ import {
   type TemporaryMessageRequest,
 } from '@/services/ai/aiSchemas';
 
+export type {
+  AiMemoryResponse,
+  AiMessageResponse,
+  AiUsageResponse,
+  ConversationResponse,
+  ConversationListResponse,
+  MemoryListResponse,
+  SendMessageResponse,
+  TemporaryMessageResponse,
+} from '@/services/ai/aiSchemas';
+
 type AiRepositoryOptions = {
   authenticatedClient: AuthenticatedClient;
 };
