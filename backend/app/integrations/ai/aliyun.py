@@ -3,11 +3,11 @@ import logging
 import time
 from collections.abc import Mapping
 from typing import Any, cast
-from urllib.parse import urlparse
 
 import httpx
 from pydantic import SecretStr, ValidationError
 
+from app.core.config import canonical_aliyun_base_url
 from app.integrations.ai.base import (
     AiProviderInvalidResponse,
     AiProviderTimeout,
@@ -83,19 +83,7 @@ class AliyunAiProvider:
 
     @staticmethod
     def _chat_completions_url(base_url: str) -> str:
-        normalized_base_url = base_url.rstrip("/")
-        parsed = urlparse(normalized_base_url)
-        if parsed.scheme != "https" or not parsed.netloc:
-            raise ValueError("Aliyun AI base URL must use HTTPS")
-        if parsed.username is not None or parsed.password is not None:
-            raise ValueError("Aliyun AI base URL must not include credentials")
-        if parsed.query or parsed.fragment:
-            raise ValueError("Aliyun AI base URL must not include a query or fragment")
-        if any(part in {"", ".", ".."} for part in parsed.path.split("/")[1:]):
-            raise ValueError("Aliyun AI base URL path is invalid")
-        if parsed.path.rstrip("/").endswith("/chat/completions"):
-            raise ValueError("Aliyun AI base URL must not include the chat completions base endpoint")
-        return normalized_base_url + "/chat/completions"
+        return canonical_aliyun_base_url(base_url).rstrip("/") + "/chat/completions"
 
     def _parse_response(self, response: httpx.Response) -> AiGenerationResult:
         try:
@@ -111,8 +99,9 @@ class AliyunAiProvider:
                 **self._usage(payload),
             )
             return AiGenerationResult.model_validate(result_payload)
-        except (json.JSONDecodeError, KeyError, TypeError, ValidationError, ValueError) as exc:
-            raise AiProviderInvalidResponse("AI provider returned an invalid response") from exc
+        except (json.JSONDecodeError, KeyError, TypeError, ValidationError, ValueError):
+            pass
+        raise AiProviderInvalidResponse("AI provider returned an invalid response")
 
     @staticmethod
     def _choice_content(payload: object) -> str | Mapping[str, object]:

@@ -1,6 +1,7 @@
 import json
 import logging
-from collections.abc import Callable
+import traceback
+from collections.abc import Callable, Generator
 from uuid import uuid4
 
 import httpx
@@ -17,6 +18,7 @@ from app.integrations.ai import (
     AliyunAiProvider,
     DevelopmentAiProvider,
     get_ai_provider,
+    get_ai_provider_dependency,
 )
 from app.integrations.ai.development import (
     DEVELOPMENT_TIMEOUT_TRIGGER,
@@ -80,6 +82,28 @@ def completion_response(*, content: object) -> httpx.Response:
 
 def mock_client(handler: Callable[[httpx.Request], httpx.Response]) -> httpx.Client:
     return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def exception_surface(exception: BaseException) -> str:
+    seen: set[int] = set()
+    parts: list[str] = []
+
+    def visit(current: BaseException | None) -> None:
+        if current is None or id(current) in seen:
+            return
+        seen.add(id(current))
+        parts.extend(
+            (
+                str(current),
+                repr(current),
+                "".join(traceback.format_exception(current)),
+            )
+        )
+        visit(current.__cause__)
+        visit(current.__context__)
+
+    visit(exception)
+    return "\n".join(parts)
 
 
 def test_development_provider_is_byte_for_byte_deterministic() -> None:
@@ -281,6 +305,41 @@ def test_aliyun_provider_rejects_invalid_compatible_response(response: httpx.Res
     assert PRIVATE_INPUT not in str(exc_info.value)
 
 
+def test_aliyun_invalid_response_does_not_retain_malicious_response_in_exception_graph(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    malicious_value = f"{PRIVATE_INPUT}::{API_KEY}"
+    response = completion_response(
+        content=json.dumps(
+            {
+                "replyText": "看起来正常",
+                "recipeIds": [{"untrusted": malicious_value}],
+            }
+        )
+    )
+    caplog.set_level(logging.INFO)
+
+    with mock_client(lambda _: response) as client:
+        provider = AliyunAiProvider(
+            base_url=BASE_URL,
+            api_key=SecretStr(API_KEY),
+            model=MODEL,
+            client=client,
+        )
+        with pytest.raises(AiProviderInvalidResponse) as exc_info:
+            provider.generate(generation_request(PRIVATE_INPUT))
+
+    surface = exception_surface(exc_info.value)
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__context__ is None
+    assert malicious_value not in surface
+    assert API_KEY not in surface
+    assert PRIVATE_INPUT not in surface
+    assert malicious_value not in caplog.text
+    assert API_KEY not in caplog.text
+    assert PRIVATE_INPUT not in caplog.text
+
+
 def test_aliyun_provider_maps_connect_and_read_timeouts() -> None:
     def handler(_: httpx.Request) -> httpx.Response:
         raise httpx.ReadTimeout("upstream did not respond")
@@ -311,13 +370,53 @@ def test_aliyun_provider_rejects_non_https_and_path_confusion() -> None:
             model=MODEL,
             client=mock_client(lambda _: completion_response(content="{}")),
         )
-    with pytest.raises(ValueError, match="base endpoint"):
+    with pytest.raises(ValueError, match="compatible-mode"):
         AliyunAiProvider(
             base_url="https://example.test/compatible-mode/v1/chat/completions",
             api_key=SecretStr(API_KEY),
             model=MODEL,
             client=mock_client(lambda _: completion_response(content="{}")),
         )
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "https://evil.example/compatible-mode/v1",
+        "https://dashscope.aliyuncs.com.evil/compatible-mode/v1",
+        "https://dashscope.aliyuncs.com/compatible-mode/%2e%2e/v1",
+        "https://dashscope.aliyuncs.com/compatible-mode%2fv1",
+        "https://api@dashscope.aliyuncs.com/compatible-mode/v1",
+        "https://dashscope.aliyuncs.com:8443/compatible-mode/v1",
+        "https://dashscope.aliyuncs.com/compatible-mode/v1/extra",
+    ],
+)
+def test_aliyun_provider_rejects_untrusted_base_urls_before_sending_key(base_url: str) -> None:
+    received: list[httpx.Request] = []
+
+    with mock_client(lambda request: received.append(request) or completion_response(content="{}")) as client:
+        with pytest.raises(ValueError):
+            AliyunAiProvider(
+                base_url=base_url,
+                api_key=SecretStr(API_KEY),
+                model=MODEL,
+                client=client,
+            )
+
+    assert received == []
+
+
+def test_aliyun_provider_canonicalizes_an_official_workspace_base_url() -> None:
+    provider = AliyunAiProvider(
+        base_url="https://WORKSPACE-42.cn-beijing.maas.aliyuncs.com:443/compatible-mode/v1/",
+        api_key=SecretStr(API_KEY),
+        model=MODEL,
+        client=mock_client(lambda _: completion_response(content="{}")),
+    )
+
+    assert provider._url == (
+        "https://workspace-42.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/chat/completions"
+    )
 
 
 def test_aliyun_logs_only_operational_metadata(
@@ -416,3 +515,70 @@ def test_aliyun_trigger_text_is_sent_to_transport_not_interpreted_locally() -> N
 
     assert len(received) == 1
     assert result.reply_text == "transport called"
+
+
+def test_aliyun_owned_client_closes_after_dependency_request_and_is_idempotent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    created: list[httpx.Client] = []
+    real_client = httpx.Client
+
+    def client_factory(*, timeout: float) -> httpx.Client:
+        client = real_client(
+            timeout=timeout,
+            transport=httpx.MockTransport(
+                lambda _: completion_response(content='{"replyText":"closed"}')
+            ),
+        )
+        created.append(client)
+        return client
+
+    monkeypatch.setattr("app.integrations.ai.aliyun.httpx.Client", client_factory)
+    dependency = get_ai_provider_dependency(settings(provider=AiProviderName.ALIYUN))
+    assert isinstance(dependency, Generator)
+
+    provider = next(dependency)
+    assert provider.generate(generation_request()).reply_text == "closed"
+    dependency.close()
+    dependency.close()
+
+    assert len(created) == 1
+    assert created[0].is_closed
+
+
+def test_aliyun_owned_client_closes_after_dependency_exception(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    created: list[httpx.Client] = []
+    real_client = httpx.Client
+
+    def client_factory(*, timeout: float) -> httpx.Client:
+        client = real_client(
+            timeout=timeout,
+            transport=httpx.MockTransport(lambda _: completion_response(content="not-json")),
+        )
+        created.append(client)
+        return client
+
+    monkeypatch.setattr("app.integrations.ai.aliyun.httpx.Client", client_factory)
+    dependency = get_ai_provider_dependency(settings(provider=AiProviderName.ALIYUN))
+    provider = next(dependency)
+
+    with pytest.raises(AiProviderInvalidResponse):
+        provider.generate(generation_request())
+    dependency.close()
+
+    assert len(created) == 1
+    assert created[0].is_closed
+
+
+def test_injected_client_remains_caller_owned_and_development_has_no_resource() -> None:
+    injected = mock_client(lambda _: completion_response(content='{"replyText":"caller owns"}'))
+    provider = get_ai_provider(settings(provider=AiProviderName.ALIYUN), client=injected)
+
+    assert isinstance(provider, AliyunAiProvider)
+    provider.close()
+    provider.close()
+    assert not injected.is_closed
+    assert not hasattr(get_ai_provider(settings(), client=injected), "close")
+    injected.close()

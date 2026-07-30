@@ -92,6 +92,43 @@ def test_non_dev_accepts_independent_aliyun_secrets() -> None:
     assert isinstance(settings.ai_api_key, SecretStr)
 
 
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "https://evil.example/compatible-mode/v1",
+        "https://dashscope.aliyuncs.com.evil/compatible-mode/v1",
+        "https://dashscope.aliyuncs.com/compatible-mode/%2e%2e/v1",
+        "https://dashscope.aliyuncs.com/compatible-mode%2fv1",
+        "https://api@dashscope.aliyuncs.com/compatible-mode/v1",
+        "https://dashscope.aliyuncs.com:8443/compatible-mode/v1",
+        "https://dashscope.aliyuncs.com/compatible-mode/v1/extra",
+    ],
+)
+def test_aliyun_settings_reject_untrusted_or_ambiguous_base_urls(base_url: str) -> None:
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(
+            database_url="postgresql+psycopg://user:pass@db/beiyu",
+            ai_provider=AiProvider.ALIYUN,
+            ai_model="qwen-plus",
+            ai_base_url=base_url,
+            ai_api_key=SecretStr("provider-key"),
+        )
+
+    assert "provider-key" not in str(exc_info.value)
+
+
+def test_aliyun_settings_canonicalize_official_workspace_base_url() -> None:
+    settings = Settings(
+        database_url="postgresql+psycopg://user:pass@db/beiyu",
+        ai_provider=AiProvider.ALIYUN,
+        ai_model="qwen-plus",
+        ai_base_url="https://WORKSPACE-42.cn-beijing.maas.aliyuncs.com:443/compatible-mode/v1/",
+        ai_api_key=SecretStr("provider-key"),
+    )
+
+    assert settings.ai_base_url == "https://workspace-42.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+
+
 def test_ai_model_and_api_key_strip_surrounding_whitespace() -> None:
     settings = Settings(
         environment=Environment.PROD,

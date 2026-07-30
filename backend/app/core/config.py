@@ -1,3 +1,4 @@
+import re
 from enum import StrEnum
 from functools import lru_cache
 from urllib.parse import urlparse
@@ -15,6 +16,47 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 MIN_SECRET_KEY_LENGTH = 32
 DEVELOPMENT_AI_MODEL = "beiyu-development-v1"
 DEVELOPMENT_MEMORY_HMAC_KEY = "beiyu-development-memory-hmac-key"
+DASHSCOPE_CHINA_HOST = "dashscope.aliyuncs.com"
+DASHSCOPE_BEIJING_WORKSPACE_SUFFIX = ".cn-beijing.maas.aliyuncs.com"
+DASHSCOPE_COMPATIBLE_MODE_PATH = "/compatible-mode/v1"
+WORKSPACE_LABEL_PATTERN = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?")
+
+
+def canonical_aliyun_base_url(base_url: str) -> str:
+    """Accept only documented DashScope China compatible-mode origins."""
+    parsed = urlparse(base_url)
+    if parsed.scheme != "https" or not parsed.netloc:
+        raise ValueError("Aliyun AI base URL must use HTTPS")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError("Aliyun AI base URL must not include credentials")
+    if parsed.query or parsed.fragment or parsed.params:
+        raise ValueError("Aliyun AI base URL must not include a query, fragment, or parameters")
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError("Aliyun AI base URL port is invalid") from exc
+    if port not in (None, 443):
+        raise ValueError("Aliyun AI base URL must use the default HTTPS port")
+    hostname = parsed.hostname
+    if hostname is None:
+        raise ValueError("Aliyun AI base URL host is invalid")
+    try:
+        canonical_host = hostname.encode("idna").decode("ascii").lower()
+    except UnicodeError as exc:
+        raise ValueError("Aliyun AI base URL host is invalid") from exc
+    path = parsed.path
+    if "%2f" in path.lower() or "%2e" in path.lower():
+        raise ValueError("Aliyun AI base URL path must not be percent encoded")
+    if path.rstrip("/") != DASHSCOPE_COMPATIBLE_MODE_PATH:
+        raise ValueError("Aliyun AI base URL must use the compatible-mode v1 path")
+    if canonical_host != DASHSCOPE_CHINA_HOST:
+        workspace = canonical_host.removesuffix(DASHSCOPE_BEIJING_WORKSPACE_SUFFIX)
+        if (
+            workspace == canonical_host
+            or not WORKSPACE_LABEL_PATTERN.fullmatch(workspace)
+        ):
+            raise ValueError("Aliyun AI base URL host is not an approved DashScope origin")
+    return f"https://{canonical_host}{DASHSCOPE_COMPATIBLE_MODE_PATH}"
 
 
 class Environment(StrEnum):
@@ -121,9 +163,9 @@ class Settings(BaseSettings):
         ):
             raise ValueError("development AI provider is only allowed in dev")
         if self.ai_provider is AiProvider.ALIYUN:
-            parsed_base_url = urlparse(self.ai_base_url or "")
-            if parsed_base_url.scheme != "https" or not parsed_base_url.netloc:
+            if self.ai_base_url is None:
                 raise ValueError("aliyun AI provider requires an HTTPS base URL")
+            self.ai_base_url = canonical_aliyun_base_url(self.ai_base_url)
             if self.ai_api_key is None or not self.ai_api_key.get_secret_value():
                 raise ValueError("aliyun AI provider requires an API key")
             if self.ai_model == DEVELOPMENT_AI_MODEL:
