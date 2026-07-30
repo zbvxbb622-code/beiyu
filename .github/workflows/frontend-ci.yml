@@ -1,0 +1,45 @@
+name: Frontend CI
+
+on:
+  push:
+    paths:
+      - "src/**"
+      - "assets/**"
+      - "package.json"
+      - "package-lock.json"
+      - "app.json"
+      - "babel.config.js"
+      - "eslint.config.js"
+      - "jest.setup.ts"
+      - "metro.config.js"
+      - "tailwind.config.js"
+      - "tsconfig.json"
+      - ".github/workflows/frontend-ci.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "assets/**"
+      - "package.json"
+      - "package-lock.json"
+      - "app.json"
+      - "babel.config.js"
+      - "eslint.config.js"
+      - "jest.setup.ts"
+      - "metro.config.js"
+      - "tailwind.config.js"
+      - "tsconfig.json"
+      - ".github/workflows/frontend-ci.yml"
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test -- --runInBand

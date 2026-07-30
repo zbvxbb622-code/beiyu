@@ -205,6 +205,12 @@ unavailable errors release the reserved quota.
 
 The complete local AI walkthrough is in
 [`docs/backend-stage3-ai-local-demo.md`](../docs/backend-stage3-ai-local-demo.md).
+It also includes the Stage 3 end-to-end local acceptance checklist, Expo
+`EXPO_PUBLIC_API_BASE_URL` startup examples, privacy and persistence smoke
+queries, quota boundary setup, provider-timeout checks, and safety fixtures.
+Frontend changes are guarded separately by
+`.github/workflows/frontend-ci.yml`, which runs `npm ci`, lint, type checking,
+and Jest in band on mobile frontend path changes.
 
 ## OpenAPI Contract Snapshot
 
