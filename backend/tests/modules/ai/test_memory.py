@@ -31,7 +31,11 @@ from app.modules.ai.memory import (
     remove_conversation_memory_sources,
     set_memory_enabled,
 )
-from app.modules.ai.safety import SAFE_DECISION, SafetyDecision
+from app.modules.ai.safety import (
+    SAFE_DECISION,
+    SafetyDecision,
+    contains_medical_memory_detail,
+)
 from app.modules.ai.schemas import AiMemoryCandidate, MemoryChangeAction
 
 
@@ -741,6 +745,45 @@ def test_server_rejects_medical_candidate_even_when_provider_marks_it_non_sensit
     assert database_session.exec(
         select(AiMemory).where(AiMemory.user_id == user.id)
     ).all() == []
+
+
+@pytest.mark.parametrize(
+    ("content", "key", "summary"),
+    [
+        ("我喜欢低糖饮品，但感到抑郁。", "taste:low-sugar", "偏好低糖饮品"),
+        ("我喜欢低糖饮品。", "emotion:焦虑", "偏好低糖饮品"),
+        ("我喜欢低糖饮品。", "taste:low-sugar", "偏好低糖饮品，抑郁"),
+        ("我喜欢低糖饮品，但有焦虑情绪。", "taste:low-sugar", "偏好低糖饮品"),
+        ("我喜欢低糖饮品。", "taste:low-sugar", "偏好低糖饮品，有抑郁情绪"),
+    ],
+)
+def test_server_rejects_bare_mental_health_details_in_memory_candidates(
+    database_session: Session,
+    content: str,
+    key: str,
+    summary: str,
+) -> None:
+    user = persisted_user(database_session)
+    conversation, message = persisted_source(database_session, user, content)
+
+    assert apply(
+        database_session,
+        user,
+        conversation,
+        message,
+        [candidate(key=key, summary=summary, sensitive=False)],
+    ) == []
+    assert database_session.exec(
+        select(AiMemory).where(AiMemory.user_id == user.id)
+    ).all() == []
+    assert database_session.exec(
+        select(AiMemorySource).where(AiMemorySource.source_message_id == message.id)
+    ).all() == []
+
+
+@pytest.mark.parametrize("content", ["抑郁", "焦虑", "抑郁情绪", "焦虑情绪"])
+def test_medical_memory_detector_rejects_bare_mental_health_details(content: str) -> None:
+    assert contains_medical_memory_detail(content)
 
 
 @pytest.mark.parametrize(

@@ -100,7 +100,7 @@ DIAGNOSIS_ASSERTION_TOKENS = (
 )
 DIAGNOSIS_TOKENS = ("抑郁", "焦虑", "精神疾病", "酒精依赖")
 MEDICAL_MEMORY_CONDITION_PATTERN = re.compile(
-    r"(?:糖尿病|高血压|抑郁症|焦虑症|哮喘|癌症|肝炎|胃炎|精神疾病|酒精依赖|"
+    r"(?:糖尿病|高血压|抑郁|焦虑|哮喘|癌症|肝炎|胃炎|精神疾病|酒精依赖|"
     r"[\u4e00-\u9fff]{1,12}(?:综合征|障碍))"
 )
 MEDICAL_MEMORY_CONTEXT_PATTERN = re.compile(

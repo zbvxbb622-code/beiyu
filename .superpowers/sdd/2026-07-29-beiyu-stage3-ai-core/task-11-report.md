@@ -212,3 +212,64 @@ The 24-character contextual window is deliberately conservative and can reject
 non-diagnostic text immediately following a medical marker. It avoids storing
 medical detail and avoids the prior broad single-character false positive;
 expanding it should be reviewed as a privacy-policy change.
+
+## Review Round 3 / 5
+
+### Important Fix
+
+Long-term memory now treats the bare, two-character mental-health state terms
+`抑郁` and `焦虑` as direct sensitive details, in addition to their existing
+diagnostic forms. This intentionally rejects `抑郁情绪` and `焦虑情绪` too: such
+emotional details do not belong in retained memory even when the provider sends
+`sensitive=false`. The direct-condition regular expression remains limited to
+multi-character terms; it does not restore a single-character token such as
+`炎`, so ordinary `炎热天气` and `发炎色` preferences remain allowed.
+
+Real PostgreSQL tests cover the raw terms independently in owned source
+content, memory key, and summary, and assert both memory and source rows are
+absent. A direct detector test covers both raw terms and their `情绪` forms.
+The pre-existing canonicalization and apply flow continue to check all three
+candidate inputs before any write, while normal `偏好低糖清爽`-style preferences
+remain permitted.
+
+### RED / GREEN
+
+```text
+RED
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/pytest tests/modules/ai/test_memory.py \
+  -k 'bare_mental_health_details or non_medical_preferences_near_medical_terms'
+3 failed, 6 passed, 35 deselected
+
+The failures showed bare `抑郁` in source content, bare `焦虑` in memory key,
+and `焦虑情绪` in source content could be stored despite `sensitive=false`.
+
+GREEN (focused)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/pytest tests/modules/ai/test_memory.py \
+  -k 'bare_mental_health_details or non_medical_preferences_near_medical_terms'
+13 passed, 35 deselected in 0.36s
+
+GREEN (Task 11 memory)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/pytest tests/modules/ai/test_memory.py
+48 passed in 0.95s
+
+GREEN (full)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/pytest
+403 passed in 15.45s
+
+.venv/bin/ruff check .
+All checks passed!
+
+.venv/bin/ty check
+All checks passed!
+```
+
+### Residual Risk
+
+This is intentionally broader for persistent memory than a clinical diagnosis
+classifier: incidental uses of `抑郁` or `焦虑` are rejected rather than retained.
+The policy prevents storage of mental-health and detailed emotional state data;
+changing that balance requires a privacy design review.
