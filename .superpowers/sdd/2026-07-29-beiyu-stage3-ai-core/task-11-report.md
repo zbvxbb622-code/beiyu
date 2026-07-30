@@ -73,3 +73,74 @@ All checks passed!
 The deterministic Chinese expression and privacy rules deliberately reject
 ambiguous candidates. Expanding language coverage or adding a classifier would
 need a new safety/privacy design review rather than weakening this allowlist.
+
+## Review Round 1 / 5
+
+### Important Fixes
+
+1. Candidate `sensitive=false` is now only one rejection signal, never an
+   authorization. Source content, normalized key, and summary are canonicalized
+   with NFKC/casefold before server-side privacy and conservative medical-detail
+   checks. The shared Task 9 safety helper now covers full-width identifiers and
+   medical terms including diabetes, anxiety disorder, hypertension, cancer,
+   inflammation, syndromes, disorders, diagnosis, medication, and history.
+   A normal low-sugar preference remains allowed. Safety reminders are limited
+   to one `避免 X` or `偏好无酒精` conclusion, with medical reasons rejected.
+2. Privacy checks now run against the canonical content/key/summary tuple.
+   Real PostgreSQL tests cover full-width phone, ID card, email, and address
+   values and assert that no memory row is written.
+3. `apply_memory_candidates` no longer trusts caller-owned model attributes.
+   It uses only supplied IDs, locks and reads the current user, conversation,
+   and user-role source message from PostgreSQL, and rejects missing, foreign,
+   or mismatched rows before candidate processing.
+4. Consent is read only after a `FOR UPDATE` user lock with
+   `populate_existing=True`; `set_memory_enabled` takes the same lock. Real
+   two-session tests prove a committed disable defeats a stale apply, while an
+   already locked apply completes before a waiting disable, yielding explicit
+   linearized behavior.
+5. The common lock hierarchy is `user -> conversation -> source message ->
+   memory -> memory source`. Conversation cleanup takes the user and
+   conversation locks before snapshotting sources, locks affected memories
+   before source rows, and removes orphans. A real concurrent cleanup plus
+   conversation-delete test proves a stale apply is rejected rather than
+   leaving a source-less memory. Task 12 must call
+   `remove_conversation_memory_sources()` before deleting a conversation in the
+   same transaction.
+
+### RED / GREEN
+
+```text
+RED
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest tests/modules/ai/test_memory.py -q
+10 failed, 20 passed
+
+The failing cases covered medical candidates marked non-sensitive, full-width
+privacy data, forged detached source models, stale consent, and cleanup/apply
+foreign-key races. A final single-conclusion safety-reminder test also failed
+before its validator was added.
+
+GREEN (focused)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest tests/modules/ai/test_memory.py -q
+31 passed in 0.63s
+
+GREEN (full)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest -q
+386 passed in 15.17s
+
+.venv/bin/ruff check .
+All checks passed!
+
+.venv/bin/ty check
+All checks passed!
+```
+
+### Transaction Boundary
+
+Memory services still do not commit or roll back caller work. Any flush remains
+inside the caller transaction; the only ordering guarantee is tombstone flush
+before user-driven source/summary deletion. Concurrent test workers use bounded
+barriers and `Future.result(timeout=10)` and remove their independently
+committed setup users after observation.

@@ -1,4 +1,5 @@
 import re
+import unicodedata
 from collections.abc import Collection
 from dataclasses import dataclass
 from uuid import UUID
@@ -58,8 +59,8 @@ ID_CARD_PATTERN = re.compile(r"(?<![\dXx])\d{17}[\dXx](?![\dXx])")
 BANK_CARD_PATTERN = re.compile(r"(?<!\d)(?:\d[ -]?){15,18}\d(?!\d)")
 ADDRESS_PATTERN = re.compile(r"(?:住址|详细地址|家庭地址|地址是|住在).{4,80}")
 EMAIL_PATTERN = re.compile(
-    r"(?<![\w.+-])[A-Za-z0-9][A-Za-z0-9._%+-]{0,63}"
-    r"@[A-Za-z0-9][A-Za-z0-9.-]{0,251}\.[A-Za-z]{2,63}(?![\w.-])"
+    r"(?<![A-Za-z0-9.+_-])[A-Za-z0-9][A-Za-z0-9._%+-]{0,63}"
+    r"@[A-Za-z0-9][A-Za-z0-9.-]{0,251}\.[A-Za-z]{2,63}(?![A-Za-z0-9.-])"
 )
 EXACT_CHINESE_ADDRESS_PATTERN = re.compile(
     r"(?:(?:[\u4e00-\u9fff]{2,9}省)?(?:[\u4e00-\u9fff]{2,9}市)?)"
@@ -98,6 +99,24 @@ DIAGNOSIS_ASSERTION_TOKENS = (
     "可以确诊",
 )
 DIAGNOSIS_TOKENS = ("抑郁", "焦虑", "精神疾病", "酒精依赖")
+MEMORY_MEDICAL_TERMS = frozenset(
+    (
+        *DIAGNOSIS_TOKENS,
+        "糖尿病",
+        "焦虑症",
+        "高血压",
+        "癌",
+        "炎",
+        "综合征",
+        "障碍",
+        "确诊",
+        "患有",
+        "用药",
+        "病史",
+        "处方",
+        "药物",
+    )
+)
 DIAGNOSIS_NEGATION_CUE_PATTERN = re.compile(
     r"(?:不能|无法|不应|不该).{0,8}(?:诊断|判断|确定)",
     re.IGNORECASE,
@@ -157,8 +176,18 @@ def redact_private_identifiers(content: str) -> str:
     return redacted
 
 
+def canonicalize_safety_text(content: str) -> str:
+    return unicodedata.normalize("NFKC", content).casefold()
+
+
 def contains_private_identifiers(content: str) -> bool:
-    return redact_private_identifiers(content) != content
+    canonical = canonicalize_safety_text(content)
+    return redact_private_identifiers(canonical) != canonical
+
+
+def contains_medical_memory_detail(content: str) -> bool:
+    canonical = canonicalize_safety_text(content)
+    return any(term in canonical for term in MEMORY_MEDICAL_TERMS)
 
 
 def _risk_decision(label: AiSafetyLabel, reply: str) -> SafetyDecision:

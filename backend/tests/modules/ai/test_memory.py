@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
-from threading import Barrier
+from threading import Barrier, Event
 from uuid import uuid4
 
 import pytest
@@ -616,7 +616,7 @@ def test_apply_concurrently_never_exceeds_memory_limit(
                 f"我喜欢清爽、低甜的饮品 {index}。",
             )
             session.commit()
-            barrier.wait()
+            barrier.wait(timeout=5)
             apply(
                 session,
                 owned_user,
@@ -628,7 +628,9 @@ def test_apply_concurrently_never_exceeds_memory_limit(
             session.commit()
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        list(executor.map(worker, range(2)))
+        futures = [executor.submit(worker, index) for index in range(2)]
+        for future in futures:
+            assert future.result(timeout=10) is None
 
     with Session(get_engine()) as observer:
         count = observer.exec(
@@ -663,7 +665,7 @@ def test_apply_concurrently_merges_the_same_normalized_key(
                 "我喜欢清爽、低甜的饮品。",
             )
             session.commit()
-            barrier.wait()
+            barrier.wait(timeout=5)
             apply(
                 session,
                 owned_user,
@@ -678,7 +680,9 @@ def test_apply_concurrently_merges_the_same_normalized_key(
             session.commit()
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        list(executor.map(worker, range(2)))
+        futures = [executor.submit(worker, index) for index in range(2)]
+        for future in futures:
+            assert future.result(timeout=10) is None
 
     with Session(get_engine()) as observer:
         memories = observer.exec(
@@ -693,3 +697,347 @@ def test_apply_concurrently_merges_the_same_normalized_key(
         observer.commit()
     assert len(memories) == 1
     assert len(sources) == 2
+
+
+@pytest.mark.parametrize(
+    ("content", "key", "summary"),
+    [
+        ("我喜欢低糖饮品，但患有糖尿病。", "taste:low-sugar", "偏好低糖饮品"),
+        ("我喜欢低糖饮品。", "safety:高血压", "偏好低糖饮品"),
+        ("我喜欢低糖饮品。", "taste:low-sugar", "因焦虑症偏好低糖饮品"),
+        ("我喜欢低糖饮品。", "taste:癌症", "偏好低糖饮品"),
+        ("我喜欢低糖饮品，正在用药。", "taste:low-sugar", "偏好低糖饮品"),
+        ("我喜欢低糖饮品。", "taste:low-sugar", "有病史，偏好低糖饮品"),
+    ],
+)
+def test_server_rejects_medical_candidate_even_when_provider_marks_it_non_sensitive(
+    database_session: Session,
+    content: str,
+    key: str,
+    summary: str,
+) -> None:
+    user = persisted_user(database_session)
+    conversation, message = persisted_source(database_session, user, content)
+
+    assert apply(
+        database_session,
+        user,
+        conversation,
+        message,
+        [candidate(key=key, summary=summary, sensitive=False)],
+    ) == []
+    assert database_session.exec(
+        select(AiMemory).where(AiMemory.user_id == user.id)
+    ).all() == []
+
+
+def test_safety_reminder_keeps_only_non_medical_necessary_conclusion(
+    database_session: Session,
+) -> None:
+    user = persisted_user(database_session)
+    conversation, message = persisted_source(
+        database_session,
+        user,
+        "我需要避免高糖饮品，也偏好无酒精选择。",
+    )
+
+    changes = apply(
+        database_session,
+        user,
+        conversation,
+        message,
+        [
+            candidate(
+                key="safety:avoid-high-sugar",
+                summary="避免高糖饮品",
+                category=AiMemoryCategory.SAFETY_REMINDER,
+            ),
+            candidate(
+                key="safety:diabetes",
+                summary="因糖尿病避免高糖饮品",
+                category=AiMemoryCategory.SAFETY_REMINDER,
+            ),
+        ],
+    )
+
+    assert [(change.action, change.summary) for change in changes] == [
+        (MemoryChangeAction.CREATED, "避免高糖饮品")
+    ]
+
+
+def test_safety_reminder_rejects_extra_facts_beyond_one_necessary_conclusion(
+    database_session: Session,
+) -> None:
+    user = persisted_user(database_session)
+    conversation, message = persisted_source(
+        database_session,
+        user,
+        "我需要避免高糖饮品，也偏好无酒精选择。",
+    )
+
+    assert apply(
+        database_session,
+        user,
+        conversation,
+        message,
+        [
+            candidate(
+                key="safety:mixed",
+                summary="避免高糖饮品，也偏好无酒精选择",
+                category=AiMemoryCategory.SAFETY_REMINDER,
+            )
+        ],
+    ) == []
+
+
+@pytest.mark.parametrize(
+    ("content", "key", "summary"),
+    [
+        ("我喜欢清爽低甜的饮品，电话是１３８００１２３４５６。", "taste:crisp", "偏好清爽低甜饮品"),
+        ("我喜欢清爽低甜的饮品。", "taste:１１０１０５１９４９１２３１００２Ｘ", "偏好清爽低甜饮品"),
+        ("我喜欢清爽低甜的饮品。", "taste:crisp", "偏好清爽低甜饮品，邮箱ａｂｃ＠ｅｘａｍｐｌｅ．ｃｏｍ"),
+        ("我喜欢清爽低甜的饮品。", "taste:crisp", "偏好清爽低甜饮品，住址北京市朝阳区中山路１２号"),
+    ],
+)
+def test_privacy_checks_canonicalize_content_key_and_summary_before_writing(
+    database_session: Session,
+    content: str,
+    key: str,
+    summary: str,
+) -> None:
+    user = persisted_user(database_session)
+    conversation, message = persisted_source(database_session, user, content)
+
+    assert apply(
+        database_session,
+        user,
+        conversation,
+        message,
+        [candidate(key=key, summary=summary)],
+    ) == []
+    assert database_session.exec(
+        select(AiMemory).where(AiMemory.user_id == user.id)
+    ).all() == []
+
+
+def test_low_sugar_preference_without_a_medical_reason_is_allowed(
+    database_session: Session,
+) -> None:
+    user = persisted_user(database_session)
+    conversation, message = persisted_source(database_session, user, "我喜欢低糖饮品。")
+
+    changes = apply(
+        database_session,
+        user,
+        conversation,
+        message,
+        [candidate(key="taste:low-sugar", summary="偏好低糖饮品", sensitive=False)],
+    )
+
+    assert [change.action for change in changes] == [MemoryChangeAction.CREATED]
+
+
+def test_apply_uses_database_owned_ids_instead_of_forged_detached_models(
+    database_session: Session,
+) -> None:
+    owner = persisted_user(database_session, "owner")
+    foreign = persisted_user(database_session, "foreign")
+    owner_conversation, _ = persisted_source(database_session, owner)
+    _, foreign_message = persisted_source(database_session, foreign)
+    forged_conversation = AiConversation(id=owner_conversation.id, user_id=owner.id)
+    forged_message = AiMessage(
+        id=foreign_message.id,
+        user_id=owner.id,
+        conversation_id=owner_conversation.id,
+        role=AiMessageRole.USER,
+        content="我喜欢清爽、低甜的饮品。",
+    )
+
+    assert apply(
+        database_session,
+        owner,
+        forged_conversation,
+        forged_message,
+        [candidate()],
+    ) == []
+    assert database_session.exec(
+        select(AiMemory).where(AiMemory.user_id == owner.id)
+    ).all() == []
+
+
+def test_disable_commit_wins_against_an_apply_call_holding_a_stale_user(
+    database_session: Session,
+) -> None:
+    del database_session
+    with Session(get_engine()) as setup_session:
+        user = persisted_user(setup_session)
+        conversation, message = persisted_source(setup_session, user)
+        user_id, conversation_id, message_id = user.id, conversation.id, message.id
+        setup_session.commit()
+    ready = Barrier(2)
+
+    def stale_apply() -> list[MemoryChangeAction]:
+        with Session(get_engine()) as session:
+            stale_user = session.get(User, user_id)
+            stale_conversation = session.get(AiConversation, conversation_id)
+            stale_message = session.get(AiMessage, message_id)
+            assert stale_user is not None
+            assert stale_conversation is not None
+            assert stale_message is not None
+            ready.wait(timeout=5)
+            changes = apply(
+                session,
+                stale_user,
+                stale_conversation,
+                stale_message,
+                [candidate()],
+            )
+            session.commit()
+            return [change.action for change in changes]
+
+    def disable() -> None:
+        with Session(get_engine()) as session:
+            current_user = session.get(User, user_id)
+            assert current_user is not None
+            set_memory_enabled(session, current_user, False)
+            session.commit()
+            ready.wait(timeout=5)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        apply_future = executor.submit(stale_apply)
+        disable_future = executor.submit(disable)
+        assert disable_future.result(timeout=10) is None
+        assert apply_future.result(timeout=10) == []
+
+    with Session(get_engine()) as observer:
+        owned_user = observer.get(User, user_id)
+        assert owned_user is not None
+        assert owned_user.memory_enabled is False
+        assert observer.exec(
+            select(AiMemory).where(AiMemory.user_id == user_id)
+        ).all() == []
+        observer.delete(owned_user)
+        observer.commit()
+
+
+def test_apply_then_disable_is_linearized_by_the_same_user_lock(
+    database_session: Session,
+) -> None:
+    del database_session
+    with Session(get_engine()) as setup_session:
+        user = persisted_user(setup_session)
+        conversation, message = persisted_source(setup_session, user)
+        user_id, conversation_id, message_id = user.id, conversation.id, message.id
+        setup_session.commit()
+    start = Barrier(2)
+    disable_started = Event()
+    disable_finished = Event()
+
+    def apply_first() -> list[MemoryChangeAction]:
+        with Session(get_engine()) as session:
+            current_user = session.get(User, user_id)
+            conversation = session.get(AiConversation, conversation_id)
+            message = session.get(AiMessage, message_id)
+            assert current_user is not None
+            assert conversation is not None
+            assert message is not None
+            session.exec(select(User).where(User.id == user_id).with_for_update()).one()
+            start.wait(timeout=5)
+            assert disable_started.wait(timeout=5)
+            assert not disable_finished.is_set()
+            changes = apply(session, current_user, conversation, message, [candidate()])
+            session.commit()
+            return [change.action for change in changes]
+
+    def disable_after_apply() -> None:
+        with Session(get_engine()) as session:
+            current_user = session.get(User, user_id)
+            assert current_user is not None
+            start.wait(timeout=5)
+            disable_started.set()
+            set_memory_enabled(session, current_user, False)
+            session.commit()
+            disable_finished.set()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        apply_future = executor.submit(apply_first)
+        disable_future = executor.submit(disable_after_apply)
+        assert apply_future.result(timeout=10) == [MemoryChangeAction.CREATED]
+        assert disable_future.result(timeout=10) is None
+
+    with Session(get_engine()) as observer:
+        owned_user = observer.get(User, user_id)
+        assert owned_user is not None
+        assert owned_user.memory_enabled is False
+        assert observer.exec(
+            select(AiMemory).where(AiMemory.user_id == user_id)
+        ).all().__len__() == 1
+        observer.delete(owned_user)
+        observer.commit()
+
+
+def test_cleanup_then_conversation_delete_rejects_a_racing_stale_apply(
+    database_session: Session,
+) -> None:
+    del database_session
+    with Session(get_engine()) as setup_session:
+        user = persisted_user(setup_session)
+        conversation, message = persisted_source(setup_session, user)
+        user_id, conversation_id, message_id = user.id, conversation.id, message.id
+        setup_session.commit()
+    ready = Barrier(2)
+
+    def cleanup_and_delete() -> None:
+        with Session(get_engine()) as session:
+            conversation = session.get(AiConversation, conversation_id)
+            assert conversation is not None
+            session.exec(select(User).where(User.id == user_id).with_for_update()).one()
+            session.exec(
+                select(AiConversation)
+                .where(AiConversation.id == conversation_id)
+                .with_for_update()
+            ).one()
+            ready.wait(timeout=5)
+            remove_conversation_memory_sources(session, conversation)
+            session.delete(conversation)
+            session.commit()
+
+    def stale_apply() -> list[MemoryChangeAction]:
+        with Session(get_engine()) as session:
+            stale_user = session.get(User, user_id)
+            stale_conversation = session.get(AiConversation, conversation_id)
+            stale_message = session.get(AiMessage, message_id)
+            assert stale_user is not None
+            assert stale_conversation is not None
+            assert stale_message is not None
+            ready.wait(timeout=5)
+            changes = apply(
+                session,
+                stale_user,
+                stale_conversation,
+                stale_message,
+                [candidate()],
+            )
+            session.commit()
+            return [change.action for change in changes]
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        cleanup_future = executor.submit(cleanup_and_delete)
+        apply_future = executor.submit(stale_apply)
+        assert cleanup_future.result(timeout=10) is None
+        assert apply_future.result(timeout=10) == []
+
+    with Session(get_engine()) as observer:
+        assert observer.get(AiConversation, conversation_id) is None
+        assert observer.exec(
+            select(AiMemory).where(AiMemory.user_id == user_id)
+        ).all() == []
+        assert observer.exec(
+            select(AiMemorySource).where(
+                AiMemorySource.conversation_id == conversation_id
+            )
+        ).all() == []
+        owned_user = observer.get(User, user_id)
+        assert owned_user is not None
+        observer.delete(owned_user)
+        observer.commit()

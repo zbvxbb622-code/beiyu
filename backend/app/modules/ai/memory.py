@@ -1,7 +1,6 @@
 import hashlib
 import hmac
 import re
-import unicodedata
 from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any, cast
@@ -27,6 +26,8 @@ from app.db.models.accounts import utc_now
 from app.modules.ai.safety import (
     ALLOWED_MEMORY_CATEGORIES,
     SafetyDecision,
+    canonicalize_safety_text,
+    contains_medical_memory_detail,
     contains_private_identifiers,
 )
 from app.modules.ai.schemas import (
@@ -42,6 +43,9 @@ MEMORY_LIST_MAX_ITEMS = 20
 MEMORY_HMAC_DOMAIN = "beiyu-ai-memory-v1:"
 WHITESPACE_PATTERN = re.compile(r"\s+")
 CJK_TEXT_PATTERN = re.compile(r"[\u4e00-\u9fff]+")
+SAFETY_REMINDER_SUMMARY_PATTERN = re.compile(
+    r"(?:避免[\u4e00-\u9fffA-Za-z0-9 -]{1,80}|偏好无酒精(?:饮品|选择)?)"
+)
 EXPLICIT_PREFERENCE_MARKERS = ("喜欢", "偏好", "不喜欢", "不爱", "希望", "想要", "避免")
 EXPLICIT_SAFETY_MARKERS = ("避免", "不要", "不能", "不喝", "无酒精")
 GENERIC_MEMORY_BIGRAMS = frozenset(
@@ -86,12 +90,14 @@ def _column(value: Any) -> ColumnElement[Any]:
 
 def normalize_memory_key(key: str) -> str:
     """Return the stable database key without retaining raw provider formatting."""
-    normalized = WHITESPACE_PATTERN.sub(
-        " ", unicodedata.normalize("NFKC", key).casefold()
-    ).strip()
+    normalized = _canonical_memory_text(key)
     if not normalized or len(normalized) > MEMORY_KEY_MAX_LENGTH:
         raise ValueError("memory key must be 1 to 80 characters after normalization")
     return normalized
+
+
+def _canonical_memory_text(value: str) -> str:
+    return WHITESPACE_PATTERN.sub(" ", canonicalize_safety_text(value)).strip()
 
 
 def memory_key_hash(key: str, secret: str) -> str:
@@ -130,31 +136,37 @@ def list_memories(
     return [_memory_response(memory) for memory in memories]
 
 
-def _lock_user(session: Session, user_id: UUID) -> None:
+def _lock_user(session: Session, user_id: UUID) -> User:
     locked = session.exec(
-        select(User.id).where(User.id == user_id).with_for_update()
+        select(User)
+        .where(User.id == user_id)
+        .execution_options(populate_existing=True)
+        .with_for_update()
     ).first()
     if locked is None:
         raise AppError(
             code="AI_MEMORY_NOT_FOUND", message="AI 记忆不存在", status_code=404
         )
+    return locked
 
 
 def _candidate_is_explicit_user_expression(
     candidate: AiMemoryCandidate,
-    source_message: AiMessage,
+    canonical_content: str,
+    canonical_summary: str,
 ) -> bool:
-    content = source_message.content.strip()
-    if not content or not any(marker in content for marker in ("我", "本人", "自己")):
+    if not canonical_content or not any(
+        marker in canonical_content for marker in ("我", "本人", "自己")
+    ):
         return False
     markers = (
         EXPLICIT_SAFETY_MARKERS
         if candidate.category is AiMemoryCategory.SAFETY_REMINDER
         else EXPLICIT_PREFERENCE_MARKERS
     )
-    if not any(marker in content for marker in markers):
+    if not any(marker in canonical_content for marker in markers):
         return False
-    summary = candidate.summary.casefold()
+    summary = canonical_summary
     for generic in GENERIC_MEMORY_BIGRAMS:
         summary = summary.replace(generic, "")
     evidence = {
@@ -164,41 +176,67 @@ def _candidate_is_explicit_user_expression(
         for index in range(len(fragment) - 1)
     }
     return bool(
-        evidence and any(fragment in content.casefold() for fragment in evidence)
+        evidence and any(fragment in canonical_content for fragment in evidence)
     )
 
 
-def _is_safe_candidate(candidate: AiMemoryCandidate) -> bool:
+def _is_safe_candidate(
+    candidate: AiMemoryCandidate,
+    *,
+    canonical_content: str,
+    canonical_key: str,
+    canonical_summary: str,
+) -> bool:
+    canonical_values = (canonical_content, canonical_key, canonical_summary)
+    if any(contains_private_identifiers(value) for value in canonical_values):
+        return False
+    if any(contains_medical_memory_detail(value) for value in canonical_values):
+        return False
     if candidate.sensitive or candidate.category not in ALLOWED_MEMORY_CATEGORIES:
         return False
     if candidate.summary != candidate.summary.strip() or not candidate.summary:
         return False
     if len(candidate.summary) > MEMORY_SUMMARY_MAX_LENGTH:
         return False
-    if contains_private_identifiers(
-        candidate.memory_key
-    ) or contains_private_identifiers(candidate.summary):
+    if candidate.category is AiMemoryCategory.SAFETY_REMINDER and not SAFETY_REMINDER_SUMMARY_PATTERN.fullmatch(canonical_summary):
         return False
-    normalized_summary = candidate.summary.casefold()
-    return not any(term in normalized_summary for term in MEMORY_PROHIBITED_TERMS)
+    return not any(term in canonical_summary for term in MEMORY_PROHIBITED_TERMS)
 
 
-def _is_owned_normal_source(
+def _locked_owned_normal_source(
+    session: Session,
     *,
-    user: User,
+    user_id: UUID,
     conversation: AiConversation | None,
     source_message: AiMessage | None,
     mode: AiChatMode,
-) -> bool:
-    return bool(
-        mode is AiChatMode.NORMAL
-        and conversation is not None
-        and source_message is not None
-        and conversation.user_id == user.id
-        and source_message.user_id == user.id
-        and source_message.conversation_id == conversation.id
-        and source_message.role is AiMessageRole.USER
-    )
+) -> tuple[User, AiConversation, AiMessage] | None:
+    if mode is not AiChatMode.NORMAL or conversation is None or source_message is None:
+        return None
+    locked_user = _lock_user(session, user_id)
+    locked_conversation = session.exec(
+        select(AiConversation)
+        .where(
+            AiConversation.id == conversation.id,
+            AiConversation.user_id == locked_user.id,
+        )
+        .with_for_update()
+    ).first()
+    if locked_conversation is None:
+        return None
+    locked_message = session.exec(
+        select(AiMessage)
+        .where(
+            AiMessage.id == source_message.id,
+            AiMessage.user_id == locked_user.id,
+            AiMessage.conversation_id == locked_conversation.id,
+            AiMessage.role == AiMessageRole.USER,
+        )
+        .with_for_update()
+    ).first()
+    if locked_message is None:
+        return None
+    return locked_user, locked_conversation, locked_message
 
 
 def _existing_tombstone_hashes(
@@ -231,29 +269,39 @@ def apply_memory_candidates(
     settings: Settings,
 ) -> list[MemoryChange]:
     """Apply reviewed candidates without committing the caller's transaction."""
-    if (
-        not user.memory_enabled
-        or not safety.allow_memory
-        or not _is_owned_normal_source(
-            user=user,
-            conversation=conversation,
-            source_message=source_message,
-            mode=mode,
-        )
-    ):
+    if not safety.allow_memory:
         return []
-    assert conversation is not None
-    assert source_message is not None
+    owned_source = _locked_owned_normal_source(
+        session,
+        user_id=user.id,
+        conversation=conversation,
+        source_message=source_message,
+        mode=mode,
+    )
+    if owned_source is None:
+        return []
+    locked_user, locked_conversation, locked_message = owned_source
+    if not locked_user.memory_enabled:
+        return []
+    canonical_content = _canonical_memory_text(locked_message.content)
 
     valid_candidates: list[tuple[AiMemoryCandidate, str, str]] = []
     for candidate in candidates:
-        if not _is_safe_candidate(
-            candidate
-        ) or not _candidate_is_explicit_user_expression(candidate, source_message):
-            continue
         try:
             normalized_key = normalize_memory_key(candidate.memory_key)
         except ValueError:
+            continue
+        canonical_summary = _canonical_memory_text(candidate.summary)
+        if not _is_safe_candidate(
+            candidate,
+            canonical_content=canonical_content,
+            canonical_key=normalized_key,
+            canonical_summary=canonical_summary,
+        ) or not _candidate_is_explicit_user_expression(
+            candidate,
+            canonical_content,
+            canonical_summary,
+        ):
             continue
         valid_candidates.append(
             (
@@ -270,16 +318,17 @@ def apply_memory_candidates(
 
     # This serializes a user's concurrent candidate writes, covering both the
     # per-key unique constraint and the configured active-memory cap.
-    _lock_user(session, user.id)
     existing_memories = session.exec(
-        select(AiMemory).where(AiMemory.user_id == user.id).with_for_update()
+        select(AiMemory)
+        .where(AiMemory.user_id == locked_user.id)
+        .with_for_update()
     ).all()
     memories_by_key = {
         (memory.category, memory.memory_key): memory for memory in existing_memories
     }
     tombstones = _existing_tombstone_hashes(
         session,
-        user_id=user.id,
+        user_id=locked_user.id,
         categories_and_hashes=(
             (candidate.category, key_hash)
             for candidate, _, key_hash in valid_candidates
@@ -287,9 +336,9 @@ def apply_memory_candidates(
     )
     source_memory_ids = set(
         session.exec(
-            select(AiMemorySource.memory_id).where(
-                AiMemorySource.source_message_id == source_message.id
-            )
+            select(AiMemorySource.memory_id)
+            .where(AiMemorySource.source_message_id == locked_message.id)
+            .with_for_update()
         ).all()
     )
     changes: list[MemoryChange] = []
@@ -303,7 +352,7 @@ def apply_memory_candidates(
             if len(memories_by_key) >= settings.ai_memory_limit:
                 continue
             memory = AiMemory(
-                user_id=user.id,
+                user_id=locked_user.id,
                 category=candidate.category,
                 memory_key=normalized_key,
                 summary=candidate.summary,
@@ -336,8 +385,8 @@ def apply_memory_candidates(
             session.add(
                 AiMemorySource(
                     memory_id=memory.id,
-                    conversation_id=conversation.id,
-                    source_message_id=source_message.id,
+                    conversation_id=locked_conversation.id,
+                    source_message_id=locked_message.id,
                 )
             )
             source_memory_ids.add(memory.id)
@@ -439,22 +488,51 @@ def clear_memories(session: Session, user: User, settings: Settings) -> None:
 
 def set_memory_enabled(session: Session, user: User, enabled: bool) -> User:
     """Change only the read/write consent flag; disabling never deletes memories."""
-    user.memory_enabled = enabled
-    user.updated_at = datetime.now(UTC)
-    session.add(user)
+    locked_user = _lock_user(session, user.id)
+    locked_user.memory_enabled = enabled
+    locked_user.updated_at = datetime.now(UTC)
+    session.add(locked_user)
     session.flush()
-    return user
+    return locked_user
 
 
 def remove_conversation_memory_sources(
     session: Session, conversation: AiConversation
 ) -> None:
     """Remove one conversation's evidence and prune only its orphaned memories."""
-    sources = session.exec(
-        select(AiMemorySource).where(AiMemorySource.conversation_id == conversation.id)
-    ).all()
-    if not sources:
+    with session.no_autoflush:
+        owner_id = session.exec(
+            select(AiConversation.user_id).where(AiConversation.id == conversation.id)
+        ).first()
+    if owner_id is None:
         return
+    locked_user = _lock_user(session, owner_id)
+    locked_conversation = session.exec(
+        select(AiConversation)
+        .where(
+            AiConversation.id == conversation.id,
+            AiConversation.user_id == locked_user.id,
+        )
+        .with_for_update()
+    ).first()
+    if locked_conversation is None:
+        return
+    source_ids = session.exec(
+        select(AiMemorySource.memory_id).where(
+            AiMemorySource.conversation_id == locked_conversation.id
+        )
+    ).all()
+    if not source_ids:
+        return
+    memory_id = _column(AiMemory.id)
+    memories = session.exec(
+        select(AiMemory).where(memory_id.in_(set(source_ids))).with_for_update()
+    ).all()
+    sources = session.exec(
+        select(AiMemorySource)
+        .where(AiMemorySource.conversation_id == locked_conversation.id)
+        .with_for_update()
+    ).all()
     affected_memory_ids = {source.memory_id for source in sources}
     for source in sources:
         session.delete(source)
@@ -469,7 +547,6 @@ def remove_conversation_memory_sources(
     ]
     if not orphan_ids:
         return
-    memory_id = _column(AiMemory.id)
-    orphans = session.exec(select(AiMemory).where(memory_id.in_(orphan_ids))).all()
+    orphans = [memory for memory in memories if memory.id in orphan_ids]
     # Conversation cleanup is intentionally not a user deletion: no tombstones.
     _delete_memory_rows(session, orphans)
