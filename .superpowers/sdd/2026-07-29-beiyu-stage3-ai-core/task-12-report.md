@@ -118,3 +118,54 @@ BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
   .venv/bin/python -m pytest -q
 416 passed in 15.67s
 ```
+
+## Review Round 2 / 5
+
+### Important Fix
+
+Database-side `CASCADE` and `SET NULL` effects now synchronize the caller's
+loaded ORM state immediately after the hard-delete statement flushes, without a
+commit, rollback, or global `expire_all()`. Before deleting an owned
+conversation, Task12 records the affected message IDs and already-loaded
+conversation/message/request/usage instances. After the parent delete it
+expires only those instances: deleted conversations/messages reload as absent,
+and the affected request `conversation_id`/`response_message_id` and usage
+`conversation_id` reload as null.
+
+Task11's bulk source cleanup uses the same precise behavior for its direct
+bulk deletes: loaded removed sources and orphan memories are expired after
+flush, while shared memories remain usable. All three bulk deletes explicitly
+use `synchronize_session=False`, preserving their mapped objects long enough
+for the targeted expire; default ORM synchronization would otherwise expunge
+only directly deleted rows while leaving database-cascaded rows stale.
+
+### Regression Coverage
+
+- The single-delete test loads request, usage, user and assistant messages,
+  memory source, orphan/shared memory, and an unrelated profile before deletion
+  without an afterward test-side expire. It verifies the request/usage nulls,
+  `session.get(...) is None` for deleted messages/source/orphan, and
+  `ObjectDeletedError` for retained deleted-object references.
+- The stale cleanup test preloads its request and usage, marks an unrelated
+  profile nickname dirty, and verifies cleanup refreshes only the nullified
+  associations while preserving the profile's in-memory pending value. No
+  commit-dependent `expire_on_commit` behavior is used.
+
+### RED / GREEN
+
+```text
+RED
+2 failed: loaded messages remained returned by session.get after single
+delete, and a loaded stale-cleanup request retained its old conversation_id.
+
+GREEN (focused)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest tests/modules/ai/test_conversations.py \
+  tests/modules/ai/test_memory.py -q
+60 passed in 1.64s
+
+GREEN (full)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest -q
+417 passed in 19.69s
+```

@@ -544,7 +544,7 @@ def _remove_conversation_memory_sources_for_locked_conversations(
     if not affected_memory_ids:
         return
     memory_id = _column(AiMemory.id)
-    session.exec(
+    memories = session.exec(
         select(AiMemory)
         .where(
             AiMemory.user_id == user_id,
@@ -552,8 +552,14 @@ def _remove_conversation_memory_sources_for_locked_conversations(
         )
         .with_for_update()
     ).all()
-    session.exec(delete(AiMemorySource).where(source_conversation_id.in_(locked_ids)))
+    session.exec(
+        delete(AiMemorySource)
+        .where(source_conversation_id.in_(locked_ids))
+        .execution_options(synchronize_session=False)
+    )
     session.flush()
+    for source in sources:
+        session.expire(source)
     remaining_memory_ids = set(
         session.exec(
             select(AiMemorySource.memory_id).where(
@@ -566,12 +572,17 @@ def _remove_conversation_memory_sources_for_locked_conversations(
         return
     # Conversation cleanup is intentionally not a user deletion: no tombstones.
     session.exec(
-        delete(AiMemory).where(
+        delete(AiMemory)
+        .where(
             _column(AiMemory.user_id) == user_id,
             memory_id.in_(orphan_ids),
         )
+        .execution_options(synchronize_session=False)
     )
     session.flush()
+    for memory in memories:
+        if memory.id in orphan_ids:
+            session.expire(memory)
 
 
 def remove_conversation_memory_sources_bulk(

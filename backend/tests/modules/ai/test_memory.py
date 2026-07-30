@@ -574,24 +574,26 @@ def test_removing_conversation_sources_keeps_shared_memory_and_deletes_orphans_w
     memory = database_session.exec(
         select(AiMemory).where(AiMemory.user_id == user.id)
     ).one()
+    memory_id = memory.id
+    second_conversation_id = second_conversation.id
 
     remove_conversation_memory_sources(
         session=database_session, conversation=first_conversation
     )
-    assert database_session.get(AiMemory, memory.id) is not None
+    assert database_session.get(AiMemory, memory_id) is not None
     assert (
         database_session.exec(
-            select(AiMemorySource).where(AiMemorySource.memory_id == memory.id)
+            select(AiMemorySource).where(AiMemorySource.memory_id == memory_id)
         )
         .one()
         .conversation_id
-        == second_conversation.id
+        == second_conversation_id
     )
 
     remove_conversation_memory_sources(
         session=database_session, conversation=second_conversation
     )
-    assert database_session.get(AiMemory, memory.id) is None
+    assert database_session.get(AiMemory, memory_id) is None
     assert (
         database_session.exec(
             select(AiMemoryTombstone).where(AiMemoryTombstone.user_id == user.id)

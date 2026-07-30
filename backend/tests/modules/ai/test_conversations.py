@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy import event
+from sqlalchemy.orm.exc import ObjectDeletedError
 from sqlmodel import Session, select
 
 from app.core.errors import AppError
@@ -23,6 +24,7 @@ from app.db.models import (
     AiSafetyLabel,
     AiUsageLog,
     User,
+    UserProfile,
 )
 from app.db.session import get_engine
 from app.modules.ai import conversations
@@ -271,6 +273,12 @@ def test_create_and_list_clean_only_owned_stale_empty_conversations(
     )
     database_session.add_all([stale, boundary, foreign_stale, live, expired, failed])
     database_session.flush()
+    stale_id = stale.id
+    boundary_id = boundary.id
+    foreign_stale_id = foreign_stale.id
+    live_id = live.id
+    expired_id = expired.id
+    failed_id = failed.id
     normal_request(database_session, user=owner, conversation=live)
     expired_request = normal_request(database_session, user=owner, conversation=expired)
     expired_request.reservation_expires_at = now - timedelta(microseconds=1)
@@ -286,12 +294,12 @@ def test_create_and_list_clean_only_owned_stale_empty_conversations(
         session=database_session, user=owner, now=now
     )
 
-    assert database_session.get(AiConversation, stale.id) is None
-    assert database_session.get(AiConversation, boundary.id) is not None
-    assert database_session.get(AiConversation, foreign_stale.id) is not None
-    assert database_session.get(AiConversation, live.id) is not None
-    assert database_session.get(AiConversation, expired.id) is None
-    assert database_session.get(AiConversation, failed.id) is None
+    assert database_session.get(AiConversation, stale_id) is None
+    assert database_session.get(AiConversation, boundary_id) is not None
+    assert database_session.get(AiConversation, foreign_stale_id) is not None
+    assert database_session.get(AiConversation, live_id) is not None
+    assert database_session.get(AiConversation, expired_id) is None
+    assert database_session.get(AiConversation, failed_id) is None
     assert created.last_message_at is None
 
 
@@ -469,23 +477,54 @@ def test_delete_conversation_cleans_orphans_and_preserves_audit_rows(
         latency_ms=1,
     )
     database_session.add(usage)
+    profile = UserProfile(user_id=user.id, nickname="删除前")
+    database_session.add(profile)
     database_session.flush()
+    orphan_source_id = database_session.exec(
+        select(AiMemorySource.id).where(AiMemorySource.memory_id == orphan.id)
+    ).one()
     source_id = source.id
+    response_id = response.id
     orphan_id = orphan.id
     shared_id = shared.id
     request_id = request.id
     usage_id = usage.id
+    conversation_id = conversation.id
+    database_session.expire_all()
+    loaded_request = database_session.get(AiRequest, request_id)
+    loaded_usage = database_session.get(AiUsageLog, usage_id)
+    loaded_source = database_session.get(AiMemorySource, orphan_source_id)
+    loaded_orphan = database_session.get(AiMemory, orphan_id)
+    loaded_shared = database_session.get(AiMemory, shared_id)
+    loaded_user_message = database_session.get(AiMessage, source_id)
+    loaded_assistant_message = database_session.get(AiMessage, response_id)
+    loaded_profile = database_session.get(UserProfile, user.id)
+    assert all(
+        value is not None
+        for value in [
+            loaded_request,
+            loaded_usage,
+            loaded_source,
+            loaded_orphan,
+            loaded_shared,
+            loaded_user_message,
+            loaded_assistant_message,
+            loaded_profile,
+        ]
+    )
+    assert loaded_profile is not None
+    loaded_profile.nickname = "删除后仍待保存"
 
     conversations.delete_conversation(
-        session=database_session, user=user, conversation_id=conversation.id
+        session=database_session, user=user, conversation_id=conversation_id
     )
-    database_session.flush()
-    database_session.expire_all()
 
-    assert database_session.get(AiConversation, conversation.id) is None
+    assert database_session.get(AiConversation, conversation_id) is None
     assert database_session.get(AiMessage, source_id) is None
+    assert database_session.get(AiMessage, response_id) is None
     assert database_session.get(AiMemory, orphan_id) is None
     assert database_session.get(AiMemory, shared_id) is not None
+    assert database_session.get(AiMemorySource, orphan_source_id) is None
     persisted_request = database_session.get(AiRequest, request_id)
     persisted_usage = database_session.get(AiUsageLog, usage_id)
     assert persisted_request is not None
@@ -493,6 +532,82 @@ def test_delete_conversation_cleans_orphans_and_preserves_audit_rows(
     assert persisted_request.conversation_id is None
     assert persisted_request.response_message_id is None
     assert persisted_usage.conversation_id is None
+    assert loaded_request is not None
+    assert loaded_usage is not None
+    assert loaded_source is not None
+    assert loaded_orphan is not None
+    assert loaded_shared is not None
+    assert loaded_user_message is not None
+    assert loaded_assistant_message is not None
+    assert loaded_request.conversation_id is None
+    assert loaded_request.response_message_id is None
+    assert loaded_usage.conversation_id is None
+    assert loaded_shared.summary == "偏好清爽"
+    assert loaded_profile.nickname == "删除后仍待保存"
+    with pytest.raises(ObjectDeletedError):
+        _ = loaded_source.conversation_id
+    with pytest.raises(ObjectDeletedError):
+        _ = loaded_orphan.summary
+    with pytest.raises(ObjectDeletedError):
+        _ = loaded_user_message.content
+    with pytest.raises(ObjectDeletedError):
+        _ = loaded_assistant_message.content
+
+
+def test_stale_cleanup_refreshes_loaded_request_usage_without_expiring_profile(
+    database_session: Session,
+) -> None:
+    user = persisted_user(database_session)
+    now = datetime(2026, 7, 30, 12, tzinfo=UTC)
+    conversation = AiConversation(
+        user_id=user.id,
+        created_at=now - timedelta(days=2),
+        updated_at=now - timedelta(days=2),
+    )
+    database_session.add(conversation)
+    database_session.flush()
+    request = normal_request(
+        database_session,
+        user=user,
+        conversation=conversation,
+        status=AiRequestStatus.FAILED,
+    )
+    usage = AiUsageLog(
+        request_id=request.id,
+        attempt_no=1,
+        user_id=user.id,
+        conversation_id=conversation.id,
+        mode=AiChatMode.NORMAL,
+        outcome="FAILED",
+        provider="test",
+        model="test",
+        prompt_version="v1",
+        latency_ms=1,
+    )
+    profile = UserProfile(user_id=user.id, nickname="清理前")
+    database_session.add_all([usage, profile])
+    database_session.flush()
+    request_id = request.id
+    usage_id = usage.id
+    conversation_id = conversation.id
+    database_session.expire_all()
+    loaded_request = database_session.get(AiRequest, request_id)
+    loaded_usage = database_session.get(AiUsageLog, usage_id)
+    loaded_profile = database_session.get(UserProfile, user.id)
+    assert loaded_request is not None
+    assert loaded_usage is not None
+    assert loaded_profile is not None
+    loaded_profile.nickname = "清理后仍待保存"
+
+    assert conversations.cleanup_stale_empty_conversations(
+        session=database_session, user=user, now=now
+    ) == 1
+
+    assert database_session.get(AiConversation, conversation_id) is None
+    assert loaded_request.conversation_id is None
+    assert loaded_request.response_message_id is None
+    assert loaded_usage.conversation_id is None
+    assert loaded_profile.nickname == "清理后仍待保存"
 
 
 def test_concurrent_exchange_saves_allocate_unique_chronological_messages() -> None:
@@ -658,6 +773,9 @@ def test_bulk_source_cleanup_keeps_shared_memory_and_deletes_orphans_without_tom
         ]
     )
     database_session.flush()
+    orphan_id = orphan.id
+    shared_id = shared.id
+    retained_id = retained.id
 
     remove_conversation_memory_sources_bulk(
         session=database_session,
@@ -666,11 +784,11 @@ def test_bulk_source_cleanup_keeps_shared_memory_and_deletes_orphans_without_tom
     )
     database_session.expire_all()
 
-    assert database_session.get(AiMemory, orphan.id) is None
-    assert database_session.get(AiMemory, shared.id) is not None
+    assert database_session.get(AiMemory, orphan_id) is None
+    assert database_session.get(AiMemory, shared_id) is not None
     assert database_session.exec(
-        select(AiMemorySource).where(AiMemorySource.memory_id == shared.id)
-    ).one().conversation_id == retained.id
+        select(AiMemorySource).where(AiMemorySource.memory_id == shared_id)
+    ).one().conversation_id == retained_id
 
 
 def _cleanup_statement_counts(*, candidate_count: int) -> Counter[str]:

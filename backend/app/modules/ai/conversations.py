@@ -16,6 +16,7 @@ from app.db.models import (
     AiRequest,
     AiRequestStatus,
     AiSafetyLabel,
+    AiUsageLog,
     User,
 )
 from app.modules.ai.context import derive_conversation_title
@@ -191,6 +192,91 @@ def _cleanup_candidates(
     )
 
 
+def _owned_message_ids(
+    *, session: Session, user_id: UUID, conversation_ids: list[UUID]
+) -> set[UUID]:
+    if not conversation_ids:
+        return set()
+    return set(
+        session.exec(
+            select(AiMessage.id).where(
+                AiMessage.user_id == user_id,
+                _column(AiMessage.conversation_id).in_(conversation_ids),
+            )
+        ).all()
+    )
+
+
+def _cascade_affected_instances(
+    *, session: Session, conversation_ids: set[UUID], message_ids: set[UUID]
+) -> tuple[list[AiConversation], list[AiMessage], list[AiRequest], list[AiUsageLog]]:
+    conversations: list[AiConversation] = []
+    messages: list[AiMessage] = []
+    requests: list[AiRequest] = []
+    usages: list[AiUsageLog] = []
+    for instance in list(session.identity_map.values()):
+        if isinstance(instance, AiConversation) and instance.id in conversation_ids:
+            conversations.append(instance)
+        elif isinstance(instance, AiMessage) and instance.id in message_ids:
+            messages.append(instance)
+        elif isinstance(instance, AiRequest) and (
+            instance.conversation_id in conversation_ids
+            or instance.response_message_id in message_ids
+        ):
+            requests.append(instance)
+        elif isinstance(instance, AiUsageLog) and instance.conversation_id in conversation_ids:
+            usages.append(instance)
+    return conversations, messages, requests, usages
+
+
+def _expire_database_cascade_state(
+    *,
+    session: Session,
+    affected_instances: tuple[
+        list[AiConversation], list[AiMessage], list[AiRequest], list[AiUsageLog]
+    ],
+) -> None:
+    conversations, messages, requests, usages = affected_instances
+    for conversation in conversations:
+        session.expire(conversation)
+    for message in messages:
+        session.expire(message)
+    for request in requests:
+        session.expire(request, ["conversation_id", "response_message_id"])
+    for usage in usages:
+        session.expire(usage, ["conversation_id"])
+
+
+def _hard_delete_locked_conversations(
+    *, session: Session, user_id: UUID, conversation_ids: list[UUID]
+) -> None:
+    if not conversation_ids:
+        return
+    message_ids = _owned_message_ids(
+        session=session,
+        user_id=user_id,
+        conversation_ids=conversation_ids,
+    )
+    affected_instances = _cascade_affected_instances(
+        session=session,
+        conversation_ids=set(conversation_ids),
+        message_ids=message_ids,
+    )
+    session.exec(
+        delete(AiConversation)
+        .where(
+            _column(AiConversation.user_id) == user_id,
+            _column(AiConversation.id).in_(conversation_ids),
+        )
+        .execution_options(synchronize_session=False)
+    )
+    session.flush()
+    _expire_database_cascade_state(
+        session=session,
+        affected_instances=affected_instances,
+    )
+
+
 def cleanup_stale_empty_conversations(
     *,
     session: Session,
@@ -213,13 +299,11 @@ def cleanup_stale_empty_conversations(
         conversation_ids=candidate_ids,
     )
     if candidates:
-        session.exec(
-            delete(AiConversation).where(
-                _column(AiConversation.user_id) == locked_user.id,
-                _column(AiConversation.id).in_(candidate_ids),
-            )
+        _hard_delete_locked_conversations(
+            session=session,
+            user_id=locked_user.id,
+            conversation_ids=candidate_ids,
         )
-        session.flush()
     return len(candidates)
 
 
@@ -477,10 +561,8 @@ def delete_conversation(
         user_id=conversation.user_id,
         conversation_ids=[conversation.id],
     )
-    session.exec(
-        delete(AiConversation).where(
-            _column(AiConversation.id) == conversation.id,
-            _column(AiConversation.user_id) == conversation.user_id,
-        )
+    _hard_delete_locked_conversations(
+        session=session,
+        user_id=conversation.user_id,
+        conversation_ids=[conversation.id],
     )
-    session.flush()
