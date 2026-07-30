@@ -1194,19 +1194,19 @@ git commit -m "feat: add AI memory controls"
 - Produces: repeatable local Stage 3 demo and independent frontend CI.
 - Consumes: all previous tasks.
 
-- [ ] **Step 1: Add failing workflow-shape test**
+- [x] **Step 1: Add failing workflow-shape test**
 
 Create `src/services/__tests__/frontendCi.test.ts` that parses the workflow text
 and asserts it runs `npm ci`, lint, typecheck, and Jest in band on both push and
 pull request when frontend paths change.
 
-- [ ] **Step 2: Run the test and verify RED**
+- [x] **Step 2: Run the test and verify RED**
 
 ```bash
 npm test -- --runInBand src/services/__tests__/frontendCi.test.ts
 ```
 
-- [ ] **Step 3: Add frontend workflow and local runbook**
+- [x] **Step 3: Add frontend workflow and local runbook**
 
 The job uses Node 22 and runs:
 
@@ -1221,7 +1221,7 @@ Document Docker startup, migration, content seed, development SMS code, Expo
 API URL, normal chat, temporary data inspection, memory deletion, quota
 boundary, provider timeout, and safety fixtures. Use example credentials only.
 
-- [ ] **Step 4: Run full backend verification**
+- [x] **Step 4: Run full backend verification**
 
 ```bash
 cd backend
@@ -1233,7 +1233,7 @@ docker compose config
 docker compose build api
 ```
 
-- [ ] **Step 5: Run full frontend verification**
+- [x] **Step 5: Run full frontend verification**
 
 ```bash
 cd ..
@@ -1244,20 +1244,20 @@ npm test -- --runInBand
 npx expo export --platform ios
 ```
 
-- [ ] **Step 6: Perform privacy and persistence smoke checks**
+- [x] **Step 6: Perform privacy and persistence smoke checks**
 
 Use a unique marker in normal and temporary messages. Query all AI tables and
 container logs. Require normal text only in `ai_messages`; require temporary
 text nowhere. Delete the normal conversation and require its text and orphan
 memory summary to disappear while usage rows remain.
 
-- [ ] **Step 7: Perform the 22-step local acceptance**
+- [x] **Step 7: Perform the 22-step local acceptance**
 
 Follow design section 27 in order. Record pass/fail evidence in the pull
 request description. Do not mark the task complete if Docker, Expo export, or
 either complete test suite fails.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add .github/workflows/frontend-ci.yml backend/README.md docs/backend-stage3-local-demo.md docs/superpowers/plans/2026-07-29-beiyu-stage3-ai-core.md
@@ -1283,12 +1283,12 @@ git commit -m "ci: verify Stage 3 AI workflows"
 
 ## Final Review Gate
 
-- [ ] Confirm all 19 task commits are present and the worktree is clean.
-- [ ] Compare every design requirement in sections 2-28 with at least one test.
-- [ ] Confirm no production import references `createMockAiReply`.
-- [ ] Confirm temporary text does not appear in device storage, database
+- [x] Confirm all 19 task commits are present and the worktree is clean.
+- [x] Compare every design requirement in sections 2-28 with at least one test.
+- [x] Confirm no production import references `createMockAiReply`.
+- [x] Confirm temporary text does not appear in device storage, database
   metadata, request logs, provider logs, or test snapshots.
-- [ ] Confirm OpenAPI and Zod field names match exactly.
+- [x] Confirm OpenAPI and Zod field names match exactly.
 - [ ] Confirm no committed secret or real phone number exists.
 - [ ] Run backend and frontend full verification once more from a clean process.
 - [ ] Push `codex/backend-stage3-ai` and open a pull request against the Stage 2
