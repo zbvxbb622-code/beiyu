@@ -3,6 +3,7 @@ import { type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   Bell,
+  BrainCircuit,
   ChevronLeft,
   ChevronRight,
   Headphones,
@@ -76,6 +77,12 @@ export default function SettingsScreen() {
               title="隐私设置"
               onPress={() => router.push('/settings-privacy' as Href)}
               testID="settings-privacy"
+            />
+            <SettingsItem
+              icon={<BrainCircuit color={colors.text} size={21} />}
+              title="AI 记忆"
+              onPress={() => router.push('/settings-ai-memory' as Href)}
+              testID="settings-ai-memory"
             />
           </SettingsGroup>
 

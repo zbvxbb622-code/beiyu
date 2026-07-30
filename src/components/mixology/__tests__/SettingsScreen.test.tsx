@@ -105,4 +105,12 @@ describe('SettingsScreen', () => {
 
     expect(mockRouter.push).toHaveBeenCalledWith('/settings-privacy');
   });
+
+  it('navigates to AI memory settings from the memory entry', async () => {
+    const screen = await render(<SettingsScreen />);
+
+    await fireEvent.press(screen.getByTestId('settings-ai-memory'));
+
+    expect(mockRouter.push).toHaveBeenCalledWith('/settings-ai-memory');
+  });
 });
