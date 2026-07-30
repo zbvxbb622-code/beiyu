@@ -518,6 +518,7 @@ def test_delete_conversation_cleans_orphans_and_preserves_audit_rows(
     conversations.delete_conversation(
         session=database_session, user=user, conversation_id=conversation_id
     )
+    assert database_session.is_modified(loaded_profile)
 
     assert database_session.get(AiConversation, conversation_id) is None
     assert database_session.get(AiMessage, source_id) is None
@@ -602,12 +603,146 @@ def test_stale_cleanup_refreshes_loaded_request_usage_without_expiring_profile(
     assert conversations.cleanup_stale_empty_conversations(
         session=database_session, user=user, now=now
     ) == 1
+    assert database_session.is_modified(loaded_profile)
 
     assert database_session.get(AiConversation, conversation_id) is None
     assert loaded_request.conversation_id is None
     assert loaded_request.response_message_id is None
     assert loaded_usage.conversation_id is None
     assert loaded_profile.nickname == "清理后仍待保存"
+
+
+def test_same_session_can_delete_two_preloaded_conversations_after_database_effects(
+    database_session: Session,
+) -> None:
+    user = persisted_user(database_session)
+    conversations_to_delete = [AiConversation(user_id=user.id) for _ in range(2)]
+    database_session.add_all(conversations_to_delete)
+    database_session.flush()
+    messages = [
+        AiMessage(
+            conversation_id=conversation.id,
+            user_id=user.id,
+            role=role,
+            content=f"{index}-{role.value}",
+        )
+        for index, conversation in enumerate(conversations_to_delete)
+        for role in (AiMessageRole.USER, AiMessageRole.ASSISTANT)
+    ]
+    database_session.add_all(messages)
+    database_session.flush()
+    requests = []
+    usages = []
+    for index, conversation in enumerate(conversations_to_delete):
+        request = normal_request(database_session, user=user, conversation=conversation)
+        request.response_message_id = messages[index * 2 + 1].id
+        requests.append(request)
+        usages.append(
+            AiUsageLog(
+                request_id=request.id,
+                attempt_no=1,
+                user_id=user.id,
+                conversation_id=conversation.id,
+                mode=AiChatMode.NORMAL,
+                outcome="SUCCEEDED",
+                provider="test",
+                model="test",
+                prompt_version="v1",
+                latency_ms=1,
+            )
+        )
+    database_session.add_all(usages)
+    database_session.flush()
+    conversation_ids = [conversation.id for conversation in conversations_to_delete]
+    message_ids = [message.id for message in messages]
+    request_ids = [request.id for request in requests]
+    usage_ids = [usage.id for usage in usages]
+    database_session.expire_all()
+    loaded_requests = [database_session.get(AiRequest, request_id) for request_id in request_ids]
+    loaded_usages = [database_session.get(AiUsageLog, usage_id) for usage_id in usage_ids]
+    loaded_messages = [database_session.get(AiMessage, message_id) for message_id in message_ids]
+    assert all(loaded_requests)
+    assert all(loaded_usages)
+    assert all(loaded_messages)
+
+    for conversation_id in conversation_ids:
+        conversations.delete_conversation(
+            session=database_session, user=user, conversation_id=conversation_id
+        )
+
+    assert [database_session.get(AiConversation, conversation_id) for conversation_id in conversation_ids] == [
+        None,
+        None,
+    ]
+    assert [database_session.get(AiMessage, message_id) for message_id in message_ids] == [
+        None,
+        None,
+        None,
+        None,
+    ]
+    assert all(request is not None and request.conversation_id is None for request in loaded_requests)
+    assert all(request is not None and request.response_message_id is None for request in loaded_requests)
+    assert all(usage is not None and usage.conversation_id is None for usage in loaded_usages)
+
+
+def test_delete_and_cleanup_keep_unrelated_profile_dirty_and_uncommitted() -> None:
+    engine = get_engine()
+    now = datetime(2026, 7, 30, 12, tzinfo=UTC)
+    with Session(engine) as setup:
+        user = persisted_user(setup)
+        delete_conversation = AiConversation(user_id=user.id)
+        stale_conversation = AiConversation(
+            user_id=user.id,
+            created_at=now - timedelta(days=2),
+            updated_at=now - timedelta(days=2),
+        )
+        profile = UserProfile(user_id=user.id, nickname="原昵称")
+        setup.add_all([delete_conversation, stale_conversation, profile])
+        setup.flush()
+        user_id = user.id
+        delete_conversation_id = delete_conversation.id
+        setup.commit()
+
+    def assert_observer_sees_original() -> None:
+        with Session(engine) as observer:
+            profile = observer.get(UserProfile, user_id)
+            assert profile is not None
+            assert profile.nickname == "原昵称"
+
+    try:
+        with Session(engine) as deleting:
+            user = deleting.get(User, user_id)
+            profile = deleting.get(UserProfile, user_id)
+            assert user is not None
+            assert profile is not None
+            profile.nickname = "删除中待保存"
+            conversations.delete_conversation(
+                session=deleting,
+                user=user,
+                conversation_id=delete_conversation_id,
+            )
+            assert deleting.is_modified(profile)
+            assert_observer_sees_original()
+            deleting.rollback()
+
+        with Session(engine) as cleaning:
+            user = cleaning.get(User, user_id)
+            profile = cleaning.get(UserProfile, user_id)
+            assert user is not None
+            assert profile is not None
+            profile.nickname = "清理中待保存"
+            assert conversations.cleanup_stale_empty_conversations(
+                session=cleaning, user=user, now=now
+            ) == 1
+            assert cleaning.is_modified(profile)
+            assert_observer_sees_original()
+            cleaning.rollback()
+    finally:
+        with Session(engine) as cleanup:
+            user = cleanup.get(User, user_id)
+            if user is not None:
+                cleanup.delete(user)
+                cleanup.commit()
 
 
 def test_concurrent_exchange_saves_allocate_unique_chronological_messages() -> None:

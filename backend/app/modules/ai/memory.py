@@ -534,55 +534,54 @@ def _remove_conversation_memory_sources_for_locked_conversations(
     locked_ids = tuple(sorted(set(conversation_ids)))
     if not locked_ids:
         return
-    source_conversation_id = _column(AiMemorySource.conversation_id)
-    sources = session.exec(
-        select(AiMemorySource)
-        .where(source_conversation_id.in_(locked_ids))
-        .with_for_update()
-    ).all()
-    affected_memory_ids = {source.memory_id for source in sources}
-    if not affected_memory_ids:
-        return
-    memory_id = _column(AiMemory.id)
-    memories = session.exec(
-        select(AiMemory)
-        .where(
-            AiMemory.user_id == user_id,
-            memory_id.in_(affected_memory_ids),
-        )
-        .with_for_update()
-    ).all()
-    session.exec(
-        delete(AiMemorySource)
-        .where(source_conversation_id.in_(locked_ids))
-        .execution_options(synchronize_session=False)
-    )
-    session.flush()
-    for source in sources:
-        session.expire(source)
-    remaining_memory_ids = set(
-        session.exec(
-            select(AiMemorySource.memory_id).where(
-                _column(AiMemorySource.memory_id).in_(affected_memory_ids)
-            )
+    with session.no_autoflush:
+        source_conversation_id = _column(AiMemorySource.conversation_id)
+        sources = session.exec(
+            select(AiMemorySource)
+            .where(source_conversation_id.in_(locked_ids))
+            .with_for_update()
         ).all()
-    )
-    orphan_ids = affected_memory_ids - remaining_memory_ids
-    if not orphan_ids:
-        return
-    # Conversation cleanup is intentionally not a user deletion: no tombstones.
-    session.exec(
-        delete(AiMemory)
-        .where(
-            _column(AiMemory.user_id) == user_id,
-            memory_id.in_(orphan_ids),
+        affected_memory_ids = {source.memory_id for source in sources}
+        if not affected_memory_ids:
+            return
+        memory_id = _column(AiMemory.id)
+        memories = session.exec(
+            select(AiMemory)
+            .where(
+                AiMemory.user_id == user_id,
+                memory_id.in_(affected_memory_ids),
+            )
+            .with_for_update()
+        ).all()
+        memories_by_id = {memory.id: memory for memory in memories}
+        session.exec(
+            delete(AiMemorySource)
+            .where(source_conversation_id.in_(locked_ids))
+            .execution_options(synchronize_session=False)
         )
-        .execution_options(synchronize_session=False)
-    )
-    session.flush()
-    for memory in memories:
-        if memory.id in orphan_ids:
-            session.expire(memory)
+        for source in sources:
+            session.expire(source)
+        remaining_memory_ids = set(
+            session.exec(
+                select(AiMemorySource.memory_id).where(
+                    _column(AiMemorySource.memory_id).in_(affected_memory_ids)
+                )
+            ).all()
+        )
+        orphan_ids = affected_memory_ids - remaining_memory_ids
+        if not orphan_ids:
+            return
+        # Conversation cleanup is intentionally not a user deletion: no tombstones.
+        session.exec(
+            delete(AiMemory)
+            .where(
+                _column(AiMemory.user_id) == user_id,
+                memory_id.in_(orphan_ids),
+            )
+            .execution_options(synchronize_session=False)
+        )
+        for orphan_id in orphan_ids:
+            session.expire(memories_by_id[orphan_id])
 
 
 def remove_conversation_memory_sources_bulk(
@@ -592,17 +591,18 @@ def remove_conversation_memory_sources_bulk(
     conversation_ids: Sequence[UUID],
 ) -> None:
     """Verify and lock owned conversations, then prune their evidence in bulk."""
-    locked_user = _lock_user(session, user_id)
-    conversations = _locked_owned_conversations(
-        session,
-        user_id=locked_user.id,
-        conversation_ids=conversation_ids,
-    )
-    _remove_conversation_memory_sources_for_locked_conversations(
-        session,
-        user_id=locked_user.id,
-        conversation_ids=[conversation.id for conversation in conversations],
-    )
+    with session.no_autoflush:
+        locked_user = _lock_user(session, user_id)
+        conversations = _locked_owned_conversations(
+            session,
+            user_id=locked_user.id,
+            conversation_ids=conversation_ids,
+        )
+        _remove_conversation_memory_sources_for_locked_conversations(
+            session,
+            user_id=locked_user.id,
+            conversation_ids=[conversation.id for conversation in conversations],
+        )
 
 
 def remove_conversation_memory_sources(

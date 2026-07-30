@@ -4,7 +4,7 @@ from math import ceil
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, delete, exists, func
+from sqlalchemy import ColumnElement, delete, exists, func, update
 from sqlmodel import Session, select
 
 from app.core.errors import AppError
@@ -128,12 +128,13 @@ def get_owned_conversation(
     *, session: Session, user: User, conversation_id: UUID
 ) -> AiConversation:
     """Return a conversation only when its id and owner id match."""
-    conversation = session.exec(
-        select(AiConversation).where(
-            AiConversation.id == conversation_id,
-            AiConversation.user_id == user.id,
-        )
-    ).first()
+    with session.no_autoflush:
+        conversation = session.exec(
+            select(AiConversation).where(
+                AiConversation.id == conversation_id,
+                AiConversation.user_id == user.id,
+            )
+        ).first()
     if conversation is None:
         raise _not_found()
     return conversation
@@ -192,14 +193,14 @@ def _cleanup_candidates(
     )
 
 
-def _owned_message_ids(
+def _owned_messages(
     *, session: Session, user_id: UUID, conversation_ids: list[UUID]
-) -> set[UUID]:
+) -> list[AiMessage]:
     if not conversation_ids:
-        return set()
-    return set(
+        return []
+    return list(
         session.exec(
-            select(AiMessage.id).where(
+            select(AiMessage).where(
                 AiMessage.user_id == user_id,
                 _column(AiMessage.conversation_id).in_(conversation_ids),
             )
@@ -207,61 +208,54 @@ def _owned_message_ids(
     )
 
 
-def _cascade_affected_instances(
-    *, session: Session, conversation_ids: set[UUID], message_ids: set[UUID]
-) -> tuple[list[AiConversation], list[AiMessage], list[AiRequest], list[AiUsageLog]]:
-    conversations: list[AiConversation] = []
-    messages: list[AiMessage] = []
-    requests: list[AiRequest] = []
-    usages: list[AiUsageLog] = []
-    for instance in list(session.identity_map.values()):
-        if isinstance(instance, AiConversation) and instance.id in conversation_ids:
-            conversations.append(instance)
-        elif isinstance(instance, AiMessage) and instance.id in message_ids:
-            messages.append(instance)
-        elif isinstance(instance, AiRequest) and (
-            instance.conversation_id in conversation_ids
-            or instance.response_message_id in message_ids
-        ):
-            requests.append(instance)
-        elif isinstance(instance, AiUsageLog) and instance.conversation_id in conversation_ids:
-            usages.append(instance)
-    return conversations, messages, requests, usages
-
-
-def _expire_database_cascade_state(
-    *,
-    session: Session,
-    affected_instances: tuple[
-        list[AiConversation], list[AiMessage], list[AiRequest], list[AiUsageLog]
-    ],
-) -> None:
-    conversations, messages, requests, usages = affected_instances
-    for conversation in conversations:
-        session.expire(conversation)
-    for message in messages:
-        session.expire(message)
-    for request in requests:
-        session.expire(request, ["conversation_id", "response_message_id"])
-    for usage in usages:
-        session.expire(usage, ["conversation_id"])
-
-
 def _hard_delete_locked_conversations(
-    *, session: Session, user_id: UUID, conversation_ids: list[UUID]
+    *, session: Session, user_id: UUID, conversations: list[AiConversation]
 ) -> None:
+    conversation_ids = [conversation.id for conversation in conversations]
     if not conversation_ids:
         return
-    message_ids = _owned_message_ids(
+    messages = _owned_messages(
         session=session,
         user_id=user_id,
         conversation_ids=conversation_ids,
     )
-    affected_instances = _cascade_affected_instances(
-        session=session,
-        conversation_ids=set(conversation_ids),
-        message_ids=message_ids,
+    message_ids = [message.id for message in messages]
+    session.exec(
+        update(AiRequest)
+        .where(
+            _column(AiRequest.user_id) == user_id,
+            _column(AiRequest.conversation_id).in_(conversation_ids),
+        )
+        .values(conversation_id=None)
+        .execution_options(synchronize_session="fetch")
     )
+    if message_ids:
+        session.exec(
+            update(AiRequest)
+            .where(_column(AiRequest.response_message_id).in_(message_ids))
+            .values(response_message_id=None)
+            .execution_options(synchronize_session="fetch")
+        )
+    session.exec(
+        update(AiUsageLog)
+        .where(
+            _column(AiUsageLog.user_id) == user_id,
+            _column(AiUsageLog.conversation_id).in_(conversation_ids),
+        )
+        .values(conversation_id=None)
+        .execution_options(synchronize_session="fetch")
+    )
+    if messages:
+        session.exec(
+            delete(AiMessage)
+            .where(
+                _column(AiMessage.user_id) == user_id,
+                _column(AiMessage.conversation_id).in_(conversation_ids),
+            )
+            .execution_options(synchronize_session=False)
+        )
+        for message in messages:
+            session.expire(message)
     session.exec(
         delete(AiConversation)
         .where(
@@ -270,11 +264,8 @@ def _hard_delete_locked_conversations(
         )
         .execution_options(synchronize_session=False)
     )
-    session.flush()
-    _expire_database_cascade_state(
-        session=session,
-        affected_instances=affected_instances,
-    )
+    for conversation in conversations:
+        session.expire(conversation)
 
 
 def cleanup_stale_empty_conversations(
@@ -288,21 +279,21 @@ def cleanup_stale_empty_conversations(
     now = _utc_now(now)
     if limit < 1:
         raise ValueError("limit must be at least 1")
-    locked_user = _lock_user(session, user_id=user.id)
-    candidates = _cleanup_candidates(
-        session=session, user_id=locked_user.id, now=now, limit=limit
-    )
-    candidate_ids = [conversation.id for conversation in candidates]
-    _remove_conversation_memory_sources_for_locked_conversations(
-        session,
-        user_id=locked_user.id,
-        conversation_ids=candidate_ids,
-    )
-    if candidates:
+    with session.no_autoflush:
+        locked_user = _lock_user(session, user_id=user.id)
+        candidates = _cleanup_candidates(
+            session=session, user_id=locked_user.id, now=now, limit=limit
+        )
+        candidate_ids = [conversation.id for conversation in candidates]
+        _remove_conversation_memory_sources_for_locked_conversations(
+            session,
+            user_id=locked_user.id,
+            conversation_ids=candidate_ids,
+        )
         _hard_delete_locked_conversations(
             session=session,
             user_id=locked_user.id,
-            conversation_ids=candidate_ids,
+            conversations=candidates,
         )
     return len(candidates)
 
@@ -312,14 +303,15 @@ def create_conversation(
 ) -> ConversationResponse:
     """Create an empty, caller-owned conversation after bounded stale cleanup."""
     now = _utc_now(now)
-    cleanup_stale_empty_conversations(session=session, user=user, now=now)
-    conversation = AiConversation(
-        user_id=user.id,
-        created_at=now,
-        updated_at=now,
-    )
-    session.add(conversation)
-    session.flush()
+    with session.no_autoflush:
+        cleanup_stale_empty_conversations(session=session, user=user, now=now)
+        conversation = AiConversation(
+            user_id=user.id,
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(conversation)
+        session.flush(objects=[conversation])
     return conversation_response(conversation)
 
 
@@ -333,19 +325,22 @@ def list_conversations(
         maximum=CONVERSATION_MAX_PAGE_SIZE,
         resource="conversation",
     )
-    cleanup_stale_empty_conversations(session=session, user=user, now=now)
-    last_message_at = _column(AiConversation.last_message_at)
-    conversation_id = _column(AiConversation.id)
-    statement = select(AiConversation).where(
-        AiConversation.user_id == user.id,
-        last_message_at.is_not(None),
-    )
-    total_items = session.exec(select(func.count()).select_from(statement.subquery())).one()
-    conversations = session.exec(
-        statement.order_by(last_message_at.desc(), conversation_id.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-    ).all()
+    with session.no_autoflush:
+        cleanup_stale_empty_conversations(session=session, user=user, now=now)
+        last_message_at = _column(AiConversation.last_message_at)
+        conversation_id = _column(AiConversation.id)
+        statement = select(AiConversation).where(
+            AiConversation.user_id == user.id,
+            last_message_at.is_not(None),
+        )
+        total_items = session.exec(
+            select(func.count()).select_from(statement.subquery())
+        ).one()
+        conversations = session.exec(
+            statement.order_by(last_message_at.desc(), conversation_id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        ).all()
     return ConversationListResponse(
         items=[conversation_response(conversation) for conversation in conversations],
         pagination=_conversation_pagination(
@@ -369,19 +364,22 @@ def list_messages(
         maximum=MESSAGE_MAX_PAGE_SIZE,
         resource="message",
     )
-    get_owned_conversation(session=session, user=user, conversation_id=conversation_id)
-    created_at = _column(AiMessage.created_at)
-    message_id = _column(AiMessage.id)
-    statement = select(AiMessage).where(
-        AiMessage.conversation_id == conversation_id,
-        AiMessage.user_id == user.id,
-    )
-    total_items = session.exec(select(func.count()).select_from(statement.subquery())).one()
-    messages = session.exec(
-        statement.order_by(created_at.asc(), message_id.asc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-    ).all()
+    with session.no_autoflush:
+        get_owned_conversation(session=session, user=user, conversation_id=conversation_id)
+        created_at = _column(AiMessage.created_at)
+        message_id = _column(AiMessage.id)
+        statement = select(AiMessage).where(
+            AiMessage.conversation_id == conversation_id,
+            AiMessage.user_id == user.id,
+        )
+        total_items = session.exec(
+            select(func.count()).select_from(statement.subquery())
+        ).one()
+        messages = session.exec(
+            statement.order_by(created_at.asc(), message_id.asc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        ).all()
     return MessageListResponse(
         items=[message_response(message) for message in messages],
         pagination=_message_pagination(
@@ -496,52 +494,55 @@ def save_exchange(
     _validate_content(content=user_content, limit=2_000, field="user_content")
     _validate_content(content=assistant_content, limit=8_000, field="assistant_content")
     now = _utc_now(now)
-    locked_user, conversation = _lock_owned_conversation(
-        session=session, user_id=user.id, conversation_id=conversation_id
-    )
-    request = _request_for_exchange(
-        session=session,
-        user_id=locked_user.id,
-        conversation_id=conversation.id,
-        request_id=request_id,
-    )
-    replay = _replayed_exchange(session=session, request=request, conversation=conversation)
-    if replay is not None:
-        return replay
-    if request.status is not AiRequestStatus.RESERVED:
-        raise AppError(
-            code="AI_REQUEST_NOT_ACTIVE",
-            message="AI 请求不在可完成状态",
-            status_code=409,
+    with session.no_autoflush:
+        locked_user, conversation = _lock_owned_conversation(
+            session=session, user_id=user.id, conversation_id=conversation_id
         )
-    user_created_at, assistant_created_at = _next_exchange_timestamps(
-        session=session, conversation=conversation, now=now
-    )
-    user_message = AiMessage(
-        conversation_id=conversation.id,
-        user_id=locked_user.id,
-        role=AiMessageRole.USER,
-        content=user_content,
-        safety_label=user_safety_label,
-        created_at=user_created_at,
-    )
-    assistant_message = AiMessage(
-        conversation_id=conversation.id,
-        user_id=locked_user.id,
-        role=AiMessageRole.ASSISTANT,
-        content=assistant_content,
-        recipe_ids=list(dict.fromkeys(reviewed_recipe_ids)),
-        safety_label=assistant_safety_label,
-        created_at=assistant_created_at,
-    )
-    session.add_all([user_message, assistant_message])
-    if conversation.last_message_at is None:
-        conversation.title = derive_conversation_title(user_content)
-    conversation.last_message_at = assistant_created_at
-    conversation.updated_at = assistant_created_at
-    request.response_message_id = assistant_message.id
-    session.add_all([conversation, request])
-    session.flush()
+        request = _request_for_exchange(
+            session=session,
+            user_id=locked_user.id,
+            conversation_id=conversation.id,
+            request_id=request_id,
+        )
+        replay = _replayed_exchange(
+            session=session, request=request, conversation=conversation
+        )
+        if replay is not None:
+            return replay
+        if request.status is not AiRequestStatus.RESERVED:
+            raise AppError(
+                code="AI_REQUEST_NOT_ACTIVE",
+                message="AI 请求不在可完成状态",
+                status_code=409,
+            )
+        user_created_at, assistant_created_at = _next_exchange_timestamps(
+            session=session, conversation=conversation, now=now
+        )
+        user_message = AiMessage(
+            conversation_id=conversation.id,
+            user_id=locked_user.id,
+            role=AiMessageRole.USER,
+            content=user_content,
+            safety_label=user_safety_label,
+            created_at=user_created_at,
+        )
+        assistant_message = AiMessage(
+            conversation_id=conversation.id,
+            user_id=locked_user.id,
+            role=AiMessageRole.ASSISTANT,
+            content=assistant_content,
+            recipe_ids=list(dict.fromkeys(reviewed_recipe_ids)),
+            safety_label=assistant_safety_label,
+            created_at=assistant_created_at,
+        )
+        session.add_all([user_message, assistant_message])
+        if conversation.last_message_at is None:
+            conversation.title = derive_conversation_title(user_content)
+        conversation.last_message_at = assistant_created_at
+        conversation.updated_at = assistant_created_at
+        request.response_message_id = assistant_message.id
+        session.add_all([conversation, request])
+        session.flush(objects=[user_message, assistant_message, conversation, request])
     return SavedExchange(
         conversation=conversation,
         user_message=user_message,
@@ -553,16 +554,17 @@ def delete_conversation(
     *, session: Session, user: User, conversation_id: UUID
 ) -> None:
     """Hard-delete an owned conversation and prune only its orphaned memories."""
-    _, conversation = _lock_owned_conversation(
-        session=session, user_id=user.id, conversation_id=conversation_id
-    )
-    _remove_conversation_memory_sources_for_locked_conversations(
-        session,
-        user_id=conversation.user_id,
-        conversation_ids=[conversation.id],
-    )
-    _hard_delete_locked_conversations(
-        session=session,
-        user_id=conversation.user_id,
-        conversation_ids=[conversation.id],
-    )
+    with session.no_autoflush:
+        _, conversation = _lock_owned_conversation(
+            session=session, user_id=user.id, conversation_id=conversation_id
+        )
+        _remove_conversation_memory_sources_for_locked_conversations(
+            session,
+            user_id=conversation.user_id,
+            conversation_ids=[conversation.id],
+        )
+        _hard_delete_locked_conversations(
+            session=session,
+            user_id=conversation.user_id,
+            conversations=[conversation],
+        )

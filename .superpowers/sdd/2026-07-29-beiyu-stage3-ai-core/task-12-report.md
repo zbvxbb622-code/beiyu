@@ -169,3 +169,58 @@ BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
   .venv/bin/python -m pytest -q
 417 passed in 19.69s
 ```
+
+## Review Round 3 / 5
+
+### Important Fixes
+
+The delete path no longer scans `Session.identity_map` or reads attributes from
+possibly expired/deleted objects. It now selects the owned target messages,
+uses targeted `UPDATE ... synchronize_session="fetch"` statements to null
+`AiRequest.conversation_id`, `AiRequest.response_message_id`, and
+`AiUsageLog.conversation_id`, then directly deletes the target messages and
+conversations. The target instances are expired by the already-selected lists,
+so a session can delete conversation A and then conversation B without
+dereferencing A's deleted state.
+
+The conversation service paths and Task11 bulk source-cleanup path now run
+their database work inside `session.no_autoflush`. The former broad deletion
+flushes are removed; only the pre-existing exchange/create persistence uses
+targeted `flush(objects=[...])`. This leaves unrelated caller-owned pending
+changes intact and unpersisted until the caller chooses to flush or commit.
+
+### Regression Coverage
+
+- A real PostgreSQL regression preloads two conversations, their requests,
+  usages, and messages, deletes both in the same session, and checks the
+  loaded request/usage associations are null with no deleted-message rows left.
+- Single delete and stale batch cleanup dirty an unrelated loaded
+  `UserProfile` before the call. They assert it remains dirty immediately
+  afterward; an independent session still sees the original stored nickname.
+- Existing loaded source/orphan/shared-memory tests continue to confirm the
+  explicit source/memory deletion semantics, including retained shared memory.
+
+### RED / GREEN
+
+```text
+RED
+4 failed: unrelated dirty profiles were autoflushed, and deleting a second
+preloaded conversation read the expired/deleted first conversation while
+scanning the identity map.
+
+GREEN (focused)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest tests/modules/ai/test_conversations.py \
+  tests/modules/ai/test_memory.py -q
+62 passed in 1.35s
+
+GREEN (full)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/python -m pytest -q
+419 passed in 14.08s
+
+STATIC
+.venv/bin/ruff check app tests
+.venv/bin/ty check
+All checks passed.
+```
