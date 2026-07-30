@@ -22,7 +22,7 @@ def assert_object_schema(
     assert set(schema["required"]) == properties
 
 
-def test_openapi_has_exact_stage_two_paths_and_explicit_success_schemas() -> None:
+def test_openapi_has_exact_stage_three_paths_and_explicit_success_schemas() -> None:
     schema = create_app().openapi()
 
     public_paths = {
@@ -33,6 +33,14 @@ def test_openapi_has_exact_stage_two_paths_and_explicit_success_schemas() -> Non
         "/api/v1/auth/logout",
         "/api/v1/auth/refresh",
         "/api/v1/auth/sms-codes",
+        "/api/v1/ai/conversations",
+        "/api/v1/ai/conversations/{conversationId}",
+        "/api/v1/ai/conversations/{conversationId}/messages",
+        "/api/v1/ai/memories",
+        "/api/v1/ai/memories/{memoryId}",
+        "/api/v1/ai/memory-settings",
+        "/api/v1/ai/temporary-messages",
+        "/api/v1/ai/usage/today",
         "/api/v1/bars",
         "/api/v1/bars/{public_id}",
         "/api/v1/cellar/items",
@@ -98,7 +106,7 @@ def test_openapi_has_exact_stage_two_paths_and_explicit_success_schemas() -> Non
     }
 
 
-def test_stage_two_contract_uses_bearer_auth_and_camel_case() -> None:
+def test_stage_three_contract_uses_bearer_auth_and_camel_case() -> None:
     schema = create_app().openapi()
     assert schema["components"]["securitySchemes"]["HTTPBearer"] == {
         "type": "http",
@@ -113,6 +121,18 @@ def test_stage_two_contract_uses_bearer_auth_and_camel_case() -> None:
         ("/api/v1/me/bootstrap", "get"),
         ("/api/v1/me/profile", "patch"),
         ("/api/v1/me/local-sync", "post"),
+        ("/api/v1/ai/conversations", "get"),
+        ("/api/v1/ai/conversations", "post"),
+        ("/api/v1/ai/conversations/{conversationId}", "get"),
+        ("/api/v1/ai/conversations/{conversationId}", "delete"),
+        ("/api/v1/ai/conversations/{conversationId}/messages", "get"),
+        ("/api/v1/ai/conversations/{conversationId}/messages", "post"),
+        ("/api/v1/ai/temporary-messages", "post"),
+        ("/api/v1/ai/memories", "get"),
+        ("/api/v1/ai/memories", "delete"),
+        ("/api/v1/ai/memories/{memoryId}", "delete"),
+        ("/api/v1/ai/memory-settings", "patch"),
+        ("/api/v1/ai/usage/today", "get"),
         ("/api/v1/admin/recipes", "get"),
         ("/api/v1/admin/recipes", "post"),
         ("/api/v1/admin/bars", "post"),
@@ -142,6 +162,8 @@ def test_stage_two_contract_uses_bearer_auth_and_camel_case() -> None:
         "featureFlags",
     }
     assert "ingredientId" in schemas["CellarItemResponse"]["properties"]
+    assert "clientMessageId" in schemas["SendMessageRequest"]["properties"]
+    assert "assistantMessage" in schemas["TemporaryMessageResponse"]["properties"]
 
 
 def test_readiness_declares_unified_503_error_schema() -> None:
@@ -186,6 +208,13 @@ def test_openapi_does_not_expose_secrets_configuration_or_stack_traces() -> None
         "installation_id_hash",
         "normalized_custom_name",
         "sms_development_code",
+        "ai_api_key",
+        "ai_base_url",
+        "ai_memory_hmac_key",
+        "prompt_version",
+        "context_text",
+        "provider payload",
+        "api key",
     }
     exposed_fragments = {
         fragment for fragment in forbidden_fragments if fragment in serialized_schema

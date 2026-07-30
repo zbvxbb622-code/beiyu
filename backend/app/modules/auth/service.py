@@ -225,12 +225,6 @@ def _get_or_create_user(
         select(User).where(User.phone_hash == stored_phone_hash).with_for_update()
     ).first()
     if user is not None:
-        if user.status is UserStatus.BANNED:
-            raise AppError(
-                code="ACCOUNT_BANNED",
-                message="账号当前不可用",
-                status_code=403,
-            )
         if user.status is UserStatus.DELETED:
             raise AppError(
                 code="ACCOUNT_DELETED",
@@ -392,7 +386,7 @@ def rotate_refresh_token(
     device = session.get(UserDevice, old_session.device_id)
     if (
         user is None
-        or user.status is not UserStatus.ACTIVE
+        or user.status is UserStatus.DELETED
         or device is None
         or device.revoked_at is not None
     ):

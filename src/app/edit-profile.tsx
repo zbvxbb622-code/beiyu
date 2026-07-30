@@ -298,6 +298,7 @@ export default function EditProfileScreen() {
   const { userProfile, updateUserProfile } = useMixology();
   const [draft, setDraft] = useState<UserProfile>(userProfile);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [regionModalVisible, setRegionModalVisible] = useState(false);
   const [regionQuery, setRegionQuery] = useState('');
@@ -365,6 +366,7 @@ export default function EditProfileScreen() {
       return;
     }
     setSaving(true);
+    setSaveError(null);
     try {
       await updateUserProfile({
         ...draft,
@@ -373,6 +375,8 @@ export default function EditProfileScreen() {
         city: draft.city.trim(),
       });
       router.replace('/profile' as Href);
+    } catch {
+      setSaveError('保存失败，请重试');
     } finally {
       setSaving(false);
     }
@@ -532,6 +536,7 @@ export default function EditProfileScreen() {
       </ScrollView>
 
       <View style={styles.saveBarWrap}>
+        {saveError ? <Text style={styles.saveError}>{saveError}</Text> : null}
         <Pressable
           onPress={handleSave}
           disabled={!dirty || saving}
@@ -854,6 +859,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '800',
+  },
+  saveError: {
+    color: colors.pink,
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 10,
   },
   content: {
     paddingBottom: 40,

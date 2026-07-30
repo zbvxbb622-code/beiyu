@@ -1,15 +1,18 @@
 # Beiyu API
 
-Stage 2 is the locally runnable account and content backend for Beiyu. It includes
-phone OTP login, rotating access and refresh sessions, device management,
-profile and privacy settings, age confirmation, startup bootstrap, local-data
-sync, private cellar CRUD, published recipes, ingredients, bars, drink
-knowledge, home configuration, search, and versioned editorial administration.
-PostgreSQL persistence, Alembic migrations, structured request logs, health
-checks, and repeatable quality commands are included.
+Stage 3 is the locally runnable account, content, and AI backend for Beiyu. It
+includes phone OTP login, rotating access and refresh sessions, device
+management, profile and privacy settings, age confirmation, startup bootstrap,
+local-data sync, private cellar CRUD, published recipes, ingredients, bars,
+drink knowledge, home configuration, search, versioned editorial
+administration, normal AI conversations, temporary AI chat, controllable AI
+memory, daily quota, deterministic safety routing, and a replaceable AI provider
+boundary. PostgreSQL persistence, Alembic migrations, structured request logs,
+health checks, OpenAPI contracts, Docker, and repeatable quality commands are
+included.
 
-Real SMS, media upload, legal-name verification, AI chat persistence, community
-persistence, and cloud infrastructure are intentionally not active yet.
+Real SMS, media upload, legal-name verification, community persistence, payment,
+and cloud infrastructure are intentionally not active yet.
 
 ## Prerequisites
 
@@ -62,6 +65,13 @@ Copy `.env.example` to `.env` for development. The supported values for
 local verification code `123456` and makes no network request. Staging and
 production reject this provider at startup. A production SMS adapter and its
 cloud credentials must be configured before either environment can start.
+
+`BEIYU_AI_PROVIDER=development` is accepted only in `dev`. It uses a local,
+deterministic provider and never calls a model vendor. The production-ready
+adapter boundary is present for Aliyun DashScope/OpenAI-compatible mode, but
+staging and production require `BEIYU_AI_PROVIDER=aliyun`,
+`BEIYU_AI_BASE_URL`, `BEIYU_AI_API_KEY`, a non-development model name, and an
+independent `BEIYU_AI_MEMORY_HMAC_KEY`.
 
 Do not commit `.env` files or real secrets. `BEIYU_DATABASE_URL` must use a
 PostgreSQL URL such as
@@ -135,9 +145,9 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 ```
 
 Use the returned access token as `Authorization: Bearer <token>` for `/me`,
-`/auth/devices`, and `/cellar` endpoints. Refresh tokens are opaque, stored
-only as hashes, rotate on every refresh, and expire after 90 days by default.
-Phone numbers and OTP values are never stored in plaintext.
+`/auth/devices`, `/cellar`, and `/ai` endpoints. Refresh tokens are opaque,
+stored only as hashes, rotate on every refresh, and expire after 90 days by
+default. Phone numbers and OTP values are never stored in plaintext.
 
 The API namespace is `/api/v1`; liveness and readiness remain unversioned for
 operational tooling.
@@ -166,9 +176,39 @@ publishes automatically.
 The complete phone-to-Swagger-to-Expo walkthrough is in
 [`docs/backend-stage2-local-demo.md`](../docs/backend-stage2-local-demo.md).
 
+## AI Flow
+
+AI endpoints are under `/api/v1/ai` and require a bearer token. A user must also
+have completed age confirmation, must not be banned or deleted, and the
+`BEIYU_AI_ENABLED` feature flag must be true.
+
+The primary routes are:
+
+- `GET /api/v1/ai/conversations`
+- `POST /api/v1/ai/conversations`
+- `GET /api/v1/ai/conversations/{conversationId}`
+- `GET /api/v1/ai/conversations/{conversationId}/messages`
+- `POST /api/v1/ai/conversations/{conversationId}/messages`
+- `DELETE /api/v1/ai/conversations/{conversationId}`
+- `POST /api/v1/ai/temporary-messages`
+- `GET /api/v1/ai/memories`
+- `DELETE /api/v1/ai/memories/{memoryId}`
+- `DELETE /api/v1/ai/memories`
+- `PATCH /api/v1/ai/memory-settings`
+- `GET /api/v1/ai/usage/today`
+
+Normal conversations persist user and assistant messages. Temporary chat uses
+the caller-supplied context only during the request; it stores quota and usage
+metadata but no temporary message text, no response message ID, and no memory.
+Successful fixed safety replies still consume quota; provider timeout or
+unavailable errors release the reserved quota.
+
+The complete local AI walkthrough is in
+[`docs/backend-stage3-ai-local-demo.md`](../docs/backend-stage3-ai-local-demo.md).
+
 ## OpenAPI Contract Snapshot
 
-`openapi.json` is the committed Stage 2 contract snapshot for frontend review.
+`openapi.json` is the committed Stage 3 contract snapshot for frontend review.
 Regenerate it from the running application schema after an intentional public
 API change, then review its diff before committing:
 
@@ -180,6 +220,7 @@ BEIYU_SECRET_KEY=change-me \
 uv run python scripts/generate_openapi.py
 ```
 
-The snapshot also contains public and administrative content routes. Review
-every change for unexpected paths and accidental exposure of configuration,
-hashes, secrets, tokens, database UUIDs, or internal error details.
+The snapshot also contains public content routes, administrative content routes,
+and AI routes. Review every change for unexpected paths and accidental exposure
+of configuration, hashes, secrets, tokens, database UUIDs, chat text, provider
+payloads, memory HMAC keys, API keys, or internal error details.

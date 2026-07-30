@@ -1,9 +1,11 @@
 import uuid
+from datetime import datetime
 from typing import Any, cast
 
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlmodel import Session, select
 
+from app.core.config import Settings
 from app.core.errors import AppError
 from app.db.models import (
     AuthSession,
@@ -14,6 +16,8 @@ from app.db.models import (
     UserStatus,
 )
 from app.db.models.accounts import default_visibility, utc_now
+from app.modules.ai.access import require_ai_access
+from app.modules.ai.quota import next_reset, quota_snapshot
 from app.modules.auth.schemas import AuthenticatedUser
 from app.modules.auth.service import list_user_devices
 from app.modules.cellar.service import (
@@ -142,14 +146,60 @@ def confirm_age(*, session: Session, user: User) -> User:
     return user
 
 
+def bootstrap_ai_state(
+    *,
+    session: Session,
+    user: User,
+    settings: Settings,
+    now: datetime,
+) -> tuple[AiAllowance, bool]:
+    try:
+        require_ai_access(user, settings)
+    except AppError as exc:
+        if exc.code not in {
+            "AI_ACCESS_SUSPENDED",
+            "AGE_CONFIRMATION_REQUIRED",
+            "AI_FEATURE_DISABLED",
+        }:
+            raise
+        return (
+            AiAllowance(
+                daily_message_limit=0,
+                messages_used_today=0,
+                remaining=0,
+                resets_at=next_reset(now),
+            ),
+            False,
+        )
+
+    quota = quota_snapshot(session, user.id, settings, now)
+    return (
+        AiAllowance(
+            daily_message_limit=quota.daily_message_limit,
+            messages_used_today=quota.messages_used_today,
+            remaining=quota.remaining,
+            resets_at=quota.resets_at,
+        ),
+        True,
+    )
+
+
 def bootstrap_response(
     *,
     session: Session,
     user: User,
     current_device: UserDevice,
+    settings: Settings,
+    now: datetime,
 ) -> BootstrapResponse:
     profile = get_user_profile(session, user)
     devices = list_user_devices(session=session, user=user)
+    ai_allowance, ai_chat_enabled = bootstrap_ai_state(
+        session=session,
+        user=user,
+        settings=settings,
+        now=now,
+    )
     return BootstrapResponse(
         user=AuthenticatedUser(
             id=user.id,
@@ -176,8 +226,8 @@ def bootstrap_response(
             ],
         ),
         cellar=cellar_list_response(list_cellar_items(session=session, user=user)),
-        ai=AiAllowance(daily_message_limit=50, messages_used_today=0),
-        feature_flags=FeatureFlags(),
+        ai=ai_allowance,
+        feature_flags=FeatureFlags(ai_chat=ai_chat_enabled),
     )
 
 
@@ -187,9 +237,10 @@ def sync_local_state(
     user: User,
     current_device: UserDevice,
     payload: LocalSyncRequest,
+    settings: Settings,
+    now: datetime,
 ) -> BootstrapResponse:
     profile = get_user_profile(session, user)
-    now = utc_now()
 
     if payload.profile is not None:
         local_values = payload.profile.model_dump(
@@ -246,6 +297,8 @@ def sync_local_state(
         session=session,
         user=user,
         current_device=current_device,
+        settings=settings,
+        now=now,
     )
 
 

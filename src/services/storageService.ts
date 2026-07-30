@@ -7,6 +7,10 @@ const CELLAR_KEY = 'mixology.cellarIngredientIds';
 const PRIVACY_KEY = 'mixology.privacySettings';
 const USER_PROFILE_KEY = 'mixology.userProfile';
 const ACCOUNT_SECURITY_KEY = 'mixology.accountSecurity';
+const GUEST_AGE_VERIFIED_KEY = 'mixology.guest.ageVerified.v1';
+const GUEST_CELLAR_KEY = 'mixology.guest.cellarIngredientIds.v1';
+const GUEST_PRIVACY_KEY = 'mixology.guest.privacySettings.v1';
+const GUEST_USER_PROFILE_KEY = 'mixology.guest.userProfile.v1';
 
 export const defaultPrivacySettings: PrivacySettings = {
   localOnlyMode: true,
@@ -62,6 +66,23 @@ export const defaultAccountSecurity: AccountSecurity = {
     },
   ],
 };
+
+export const anonymousAccountSecurity: AccountSecurity = {
+  phone: '',
+  phoneVerified: false,
+  wechatBound: false,
+  wechatAccount: '',
+  passwordSet: false,
+  realnameVerified: false,
+  realnameName: '',
+  officialVerified: false,
+  officialType: '',
+  devices: [],
+};
+
+function accountKey(userId: string, name: string) {
+  return `mixology.account.${encodeURIComponent(userId)}.${name}.v1`;
+}
 
 async function readJson<T>(key: string, fallback: T): Promise<T> {
   let rawValue: string | null;
@@ -125,6 +146,75 @@ export async function loadAccountSecurity(): Promise<AccountSecurity> {
 
 export async function saveAccountSecurity(accountSecurity: AccountSecurity) {
   await writeJson(ACCOUNT_SECURITY_KEY, accountSecurity);
+}
+
+export async function saveAuthenticatedState({
+  userId,
+  localState,
+  userProfile,
+  accountSecurity,
+}: {
+  userId: string;
+  localState: LocalState;
+  userProfile: UserProfile;
+  accountSecurity: AccountSecurity;
+}) {
+  try {
+    await AsyncStorage.multiSet([
+      [accountKey(userId, 'ageVerified'), JSON.stringify(localState.ageVerified)],
+      [accountKey(userId, 'cellarIngredientIds'), JSON.stringify(localState.cellarIngredientIds)],
+      [accountKey(userId, 'privacySettings'), JSON.stringify(localState.privacySettings)],
+      [accountKey(userId, 'userProfile'), JSON.stringify(userProfile)],
+      [accountKey(userId, 'accountSecurity'), JSON.stringify(accountSecurity)],
+    ]);
+  } catch {
+    // Keep UI usable in Expo Go even if native storage is unavailable.
+  }
+}
+
+export async function loadAuthenticatedState(userId: string): Promise<{
+  localState: LocalState;
+  userProfile: UserProfile;
+  accountSecurity: AccountSecurity;
+}> {
+  const [ageVerified, cellarIngredientIds, privacySettings, userProfile, accountSecurity] = await Promise.all([
+    readJson<boolean>(accountKey(userId, 'ageVerified'), false),
+    readJson<string[]>(accountKey(userId, 'cellarIngredientIds'), []),
+    readJson<PrivacySettings>(accountKey(userId, 'privacySettings'), defaultPrivacySettings),
+    readJson<UserProfile>(accountKey(userId, 'userProfile'), defaultUserProfile),
+    readJson<AccountSecurity>(accountKey(userId, 'accountSecurity'), anonymousAccountSecurity),
+  ]);
+  return {
+    localState: { ageVerified, cellarIngredientIds, privacySettings },
+    userProfile: { ...defaultUserProfile, ...userProfile },
+    accountSecurity: { ...anonymousAccountSecurity, ...accountSecurity },
+  };
+}
+
+export async function loadGuestState(): Promise<{ localState: LocalState; userProfile: UserProfile }> {
+  const [ageVerified, cellarIngredientIds, privacySettings, profile] = await Promise.all([
+    readJson<boolean>(GUEST_AGE_VERIFIED_KEY, false),
+    readJson<string[]>(GUEST_CELLAR_KEY, []),
+    readJson<PrivacySettings>(GUEST_PRIVACY_KEY, defaultPrivacySettings),
+    readJson<UserProfile>(GUEST_USER_PROFILE_KEY, defaultUserProfile),
+  ]);
+  return {
+    localState: { ageVerified, cellarIngredientIds, privacySettings },
+    userProfile: { ...defaultUserProfile, ...profile },
+  };
+}
+
+export async function saveGuestState(localState: LocalState, userProfile: UserProfile) {
+  try {
+    await AsyncStorage.multiSet([
+      [GUEST_AGE_VERIFIED_KEY, JSON.stringify(localState.ageVerified)],
+      [GUEST_CELLAR_KEY, JSON.stringify(localState.cellarIngredientIds)],
+      [GUEST_PRIVACY_KEY, JSON.stringify(localState.privacySettings)],
+      [GUEST_USER_PROFILE_KEY, JSON.stringify(userProfile)],
+    ]);
+  } catch {
+    // Keep UI usable in Expo Go even if native storage is unavailable.
+  }
 }
 
 export async function clearLocalState() {

@@ -10,6 +10,21 @@ from app.db.models.accounts import (
     UserRole,
     UserStatus,
 )
+from app.db.models.ai import (
+    AiChatMode,
+    AiConversation,
+    AiDailyQuota,
+    AiMemory,
+    AiMemoryCategory,
+    AiMemorySource,
+    AiMemoryTombstone,
+    AiMessage,
+    AiMessageRole,
+    AiRequest,
+    AiRequestStatus,
+    AiSafetyLabel,
+    AiUsageLog,
+)
 from app.db.models.cellar import CellarItem, CellarItemSource
 from app.db.models.content import (
     Bar,
@@ -28,6 +43,19 @@ from app.db.models.content import (
 from app.db.models.system import SystemMetadata
 
 __all__ = [
+    "AiChatMode",
+    "AiConversation",
+    "AiDailyQuota",
+    "AiMemory",
+    "AiMemoryCategory",
+    "AiMemorySource",
+    "AiMemoryTombstone",
+    "AiMessage",
+    "AiMessageRole",
+    "AiRequest",
+    "AiRequestStatus",
+    "AiSafetyLabel",
+    "AiUsageLog",
     "AuthSession",
     "Bar",
     "CellarItem",

@@ -1,10 +1,62 @@
+import re
 from enum import StrEnum
 from functools import lru_cache
+from urllib.parse import urlparse
 
-from pydantic import Field, PostgresDsn, RedisDsn, model_validator
+from pydantic import (
+    Field,
+    PostgresDsn,
+    RedisDsn,
+    SecretStr,
+    field_validator,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 MIN_SECRET_KEY_LENGTH = 32
+DEVELOPMENT_AI_MODEL = "beiyu-development-v1"
+DEVELOPMENT_MEMORY_HMAC_KEY = "beiyu-development-memory-hmac-key"
+DASHSCOPE_CHINA_HOST = "dashscope.aliyuncs.com"
+DASHSCOPE_BEIJING_WORKSPACE_SUFFIX = ".cn-beijing.maas.aliyuncs.com"
+DASHSCOPE_COMPATIBLE_MODE_PATH = "/compatible-mode/v1"
+WORKSPACE_LABEL_PATTERN = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?")
+
+
+def canonical_aliyun_base_url(base_url: str) -> str:
+    """Accept only documented DashScope China compatible-mode origins."""
+    parsed = urlparse(base_url)
+    if parsed.scheme != "https" or not parsed.netloc:
+        raise ValueError("Aliyun AI base URL must use HTTPS")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError("Aliyun AI base URL must not include credentials")
+    if parsed.query or parsed.fragment or parsed.params:
+        raise ValueError("Aliyun AI base URL must not include a query, fragment, or parameters")
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError("Aliyun AI base URL port is invalid") from exc
+    if port not in (None, 443):
+        raise ValueError("Aliyun AI base URL must use the default HTTPS port")
+    hostname = parsed.hostname
+    if hostname is None:
+        raise ValueError("Aliyun AI base URL host is invalid")
+    try:
+        canonical_host = hostname.encode("idna").decode("ascii").lower()
+    except UnicodeError as exc:
+        raise ValueError("Aliyun AI base URL host is invalid") from exc
+    path = parsed.path
+    if "%2f" in path.lower() or "%2e" in path.lower():
+        raise ValueError("Aliyun AI base URL path must not be percent encoded")
+    if path.rstrip("/") != DASHSCOPE_COMPATIBLE_MODE_PATH:
+        raise ValueError("Aliyun AI base URL must use the compatible-mode v1 path")
+    if canonical_host != DASHSCOPE_CHINA_HOST:
+        workspace = canonical_host.removesuffix(DASHSCOPE_BEIJING_WORKSPACE_SUFFIX)
+        if (
+            workspace == canonical_host
+            or not WORKSPACE_LABEL_PATTERN.fullmatch(workspace)
+        ):
+            raise ValueError("Aliyun AI base URL host is not an approved DashScope origin")
+    return f"https://{canonical_host}{DASHSCOPE_COMPATIBLE_MODE_PATH}"
 
 
 class Environment(StrEnum):
@@ -14,6 +66,11 @@ class Environment(StrEnum):
 
 
 class SmsProvider(StrEnum):
+    DEVELOPMENT = "development"
+    ALIYUN = "aliyun"
+
+
+class AiProvider(StrEnum):
     DEVELOPMENT = "development"
     ALIYUN = "aliyun"
 
@@ -42,6 +99,49 @@ class Settings(BaseSettings):
     otp_max_per_device_day: int = Field(default=20, ge=1, le=100)
     otp_max_per_ip_day: int = Field(default=30, ge=1, le=200)
     max_active_devices: int = Field(default=5, ge=1, le=10)
+    ai_enabled: bool = True
+    ai_provider: AiProvider = AiProvider.DEVELOPMENT
+    ai_model: str = Field(default=DEVELOPMENT_AI_MODEL, min_length=1, max_length=200)
+    ai_daily_limit: int = Field(default=50, ge=1, le=1000)
+    ai_requests_per_minute: int = Field(default=10, ge=1, le=100)
+    ai_timeout_seconds: int = Field(default=20, ge=1, le=120)
+    ai_reservation_seconds: int = Field(default=120, ge=1, le=600)
+    ai_context_messages: int = Field(default=20, ge=1, le=100)
+    ai_memory_limit: int = Field(default=20, ge=1, le=100)
+    ai_base_url: str | None = None
+    ai_api_key: SecretStr | None = None
+    ai_memory_hmac_key: SecretStr = SecretStr(DEVELOPMENT_MEMORY_HMAC_KEY)
+
+    @field_validator("ai_model", mode="before")
+    @classmethod
+    def normalize_ai_model(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+    @field_validator("ai_base_url", mode="before")
+    @classmethod
+    def normalize_optional_ai_base_url(cls, value: object) -> object:
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+        return value
+
+    @field_validator("ai_api_key", mode="before")
+    @classmethod
+    def normalize_ai_api_key(cls, value: object) -> object:
+        if isinstance(value, SecretStr):
+            value = value.get_secret_value()
+        return value.strip() if isinstance(value, str) else value
+
+    @field_validator("ai_memory_hmac_key", mode="before")
+    @classmethod
+    def reject_blank_memory_hmac_key(cls, value: object) -> object:
+        if isinstance(value, SecretStr):
+            value = value.get_secret_value()
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                raise ValueError("memory HMAC key must not be blank")
+        return value
 
     @model_validator(mode="after")
     def require_generated_secret_outside_dev(self) -> "Settings":
@@ -57,6 +157,34 @@ class Settings(BaseSettings):
             and self.sms_provider is SmsProvider.DEVELOPMENT
         ):
             raise ValueError("development SMS provider is only allowed in dev")
+        if (
+            self.environment is not Environment.DEV
+            and self.ai_provider is AiProvider.DEVELOPMENT
+        ):
+            raise ValueError("development AI provider is only allowed in dev")
+        if self.ai_provider is AiProvider.ALIYUN:
+            if self.ai_base_url is None:
+                raise ValueError("aliyun AI provider requires an HTTPS base URL")
+            self.ai_base_url = canonical_aliyun_base_url(self.ai_base_url)
+            if self.ai_api_key is None or not self.ai_api_key.get_secret_value():
+                raise ValueError("aliyun AI provider requires an API key")
+            if self.ai_model == DEVELOPMENT_AI_MODEL:
+                raise ValueError("aliyun AI provider requires a configured model")
+        if self.environment is not Environment.DEV:
+            memory_hmac_key = self.ai_memory_hmac_key.get_secret_value()
+            secret_key = self.secret_key.strip()
+            api_key = (
+                self.ai_api_key.get_secret_value().strip()
+                if self.ai_api_key
+                else None
+            )
+            if (
+                memory_hmac_key == DEVELOPMENT_MEMORY_HMAC_KEY
+                or len(memory_hmac_key.encode("utf-8")) < MIN_SECRET_KEY_LENGTH
+                or memory_hmac_key == secret_key
+                or memory_hmac_key == api_key
+            ):
+                raise ValueError("memory HMAC key must be independently configured")
         return self
 
 

@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { type Href, useRouter } from 'expo-router';
 import { Menu, ShieldCheck, Star } from 'lucide-react-native';
 import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
 
 import { GradientButton } from '@/components/mixology/GradientButton';
 import { getImageAsset } from '@/data/imageAssets';
@@ -11,9 +12,16 @@ import { useMixology } from '@/state/MixologyState';
 export function WelcomeScreen() {
   const router = useRouter();
   const { verifyAge } = useMixology();
+  const [ageError, setAgeError] = useState<string | null>(null);
 
   const enterApp = async () => {
-    await verifyAge();
+    setAgeError(null);
+    try {
+      await verifyAge();
+      router.replace('/login' as Href);
+    } catch {
+      setAgeError('验证失败，请重试');
+    }
   };
 
   return (
@@ -29,9 +37,10 @@ export function WelcomeScreen() {
           <Text style={styles.title}>欢迎来到杯语</Text>
           <Text style={styles.script}>Beiyu</Text>
           <Text style={styles.subtitle}>你的 AI 调酒陪伴</Text>
-          <GradientButton label="我已满18岁，去聊天" onPress={enterApp} style={styles.cta} />
+          <GradientButton testID="welcome-age-consent" label="我已满18岁，继续" onPress={enterApp} style={styles.cta} />
+          {ageError ? <Text style={styles.ageError}>{ageError}</Text> : null}
           <Pressable onPress={() => router.push('/login' as Href)} style={styles.loginLink}>
-            <Text style={styles.loginText}>手机号登录 / 游客可跳过</Text>
+            <Text style={styles.loginText}>已有账号，手机号登录</Text>
           </Pressable>
         </View>
         <View style={styles.privacyBadge}>
@@ -106,6 +115,11 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     paddingHorizontal: 16,
     paddingVertical: 10,
+  },
+  ageError: {
+    color: colors.pink,
+    fontSize: 13,
+    marginTop: 10,
   },
   loginText: {
     color: colors.textMuted,

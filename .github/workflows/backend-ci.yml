@@ -4,10 +4,12 @@ on:
   push:
     paths:
       - "backend/**"
+      - "docs/backend-stage3-ai-local-demo.md"
       - ".github/workflows/backend-ci.yml"
   pull_request:
     paths:
       - "backend/**"
+      - "docs/backend-stage3-ai-local-demo.md"
       - ".github/workflows/backend-ci.yml"
 
 jobs:
