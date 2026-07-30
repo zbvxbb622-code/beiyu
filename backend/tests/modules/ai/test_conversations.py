@@ -1,3 +1,4 @@
+from collections import Counter
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
@@ -5,6 +6,7 @@ from threading import Barrier
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import event
 from sqlmodel import Session, select
 
 from app.core.errors import AppError
@@ -24,6 +26,7 @@ from app.db.models import (
 )
 from app.db.session import get_engine
 from app.modules.ai import conversations
+from app.modules.ai.memory import remove_conversation_memory_sources_bulk
 
 
 def persisted_user(session: Session, suffix: str = "owner") -> User:
@@ -184,6 +187,50 @@ def test_messages_are_owned_oldest_first_and_paginated_without_overlap(
             page_size=50,
         )
     )
+
+
+def test_conversation_and_message_page_size_limits_are_distinct(
+    database_session: Session,
+) -> None:
+    user = persisted_user(database_session)
+    conversation = AiConversation(
+        user_id=user.id,
+        last_message_at=datetime(2026, 7, 29, 12, tzinfo=UTC),
+    )
+    database_session.add(conversation)
+    database_session.flush()
+
+    with pytest.raises(ValueError, match="conversation page_size"):
+        conversations.list_conversations(
+            session=database_session,
+            user=user,
+            page=1,
+            page_size=51,
+            now=datetime(2026, 7, 29, 12, tzinfo=UTC),
+        )
+
+    assert conversations.list_messages(
+        session=database_session,
+        user=user,
+        conversation_id=conversation.id,
+        page=1,
+        page_size=51,
+    ).pagination.page_size == 51
+    assert conversations.list_messages(
+        session=database_session,
+        user=user,
+        conversation_id=conversation.id,
+        page=1,
+        page_size=100,
+    ).pagination.page_size == 100
+    with pytest.raises(ValueError, match="message page_size"):
+        conversations.list_messages(
+            session=database_session,
+            user=user,
+            conversation_id=conversation.id,
+            page=1,
+            page_size=101,
+        )
 
 
 def test_create_and_list_clean_only_owned_stale_empty_conversations(
@@ -555,3 +602,139 @@ def test_concurrent_stale_cleanup_deletes_each_conversation_once() -> None:
             if user is not None:
                 cleanup.delete(user)
                 cleanup.commit()
+
+
+def test_bulk_source_cleanup_keeps_shared_memory_and_deletes_orphans_without_tombstones(
+    database_session: Session,
+) -> None:
+    user = persisted_user(database_session)
+    first = AiConversation(user_id=user.id)
+    second = AiConversation(user_id=user.id)
+    retained = AiConversation(user_id=user.id)
+    database_session.add_all([first, second, retained])
+    database_session.flush()
+    messages = [
+        AiMessage(
+            conversation_id=conversation.id,
+            user_id=user.id,
+            role=AiMessageRole.USER,
+            content=f"来源 {index}",
+        )
+        for index, conversation in enumerate([first, second, retained])
+    ]
+    database_session.add_all(messages)
+    database_session.flush()
+    orphan = AiMemory(
+        user_id=user.id,
+        category=AiMemoryCategory.DRINK_PREFERENCE,
+        memory_key="batch-orphan",
+        summary="偏好低甜",
+    )
+    shared = AiMemory(
+        user_id=user.id,
+        category=AiMemoryCategory.DRINK_PREFERENCE,
+        memory_key="batch-shared",
+        summary="偏好清爽",
+    )
+    database_session.add_all([orphan, shared])
+    database_session.flush()
+    database_session.add_all(
+        [
+            AiMemorySource(
+                memory_id=orphan.id,
+                conversation_id=first.id,
+                source_message_id=messages[0].id,
+            ),
+            *[
+                AiMemorySource(
+                    memory_id=shared.id,
+                    conversation_id=conversation.id,
+                    source_message_id=message.id,
+                )
+                for conversation, message in zip(
+                    [first, second, retained], messages, strict=True
+                )
+            ],
+        ]
+    )
+    database_session.flush()
+
+    remove_conversation_memory_sources_bulk(
+        session=database_session,
+        user_id=user.id,
+        conversation_ids=[second.id, first.id],
+    )
+    database_session.expire_all()
+
+    assert database_session.get(AiMemory, orphan.id) is None
+    assert database_session.get(AiMemory, shared.id) is not None
+    assert database_session.exec(
+        select(AiMemorySource).where(AiMemorySource.memory_id == shared.id)
+    ).one().conversation_id == retained.id
+
+
+def _cleanup_statement_counts(*, candidate_count: int) -> Counter[str]:
+    engine = get_engine()
+    now = datetime(2026, 7, 30, 12, tzinfo=UTC)
+    with Session(engine) as setup:
+        user = persisted_user(setup, f"cleanup-count-{candidate_count}")
+        setup.add_all(
+            [
+                AiConversation(
+                    user_id=user.id,
+                    created_at=now - timedelta(days=2),
+                    updated_at=now - timedelta(days=2),
+                )
+                for _ in range(candidate_count)
+            ]
+        )
+        setup.flush()
+        user_id = user.id
+        setup.commit()
+
+    counts: Counter[str] = Counter()
+
+    def count_statement(
+        _: object,
+        __: object,
+        statement: str,
+        ___: object,
+        ____: object,
+        _____: bool,
+    ) -> None:
+        operation = statement.lstrip().split(maxsplit=1)[0].upper()
+        if operation in {"SELECT", "DELETE"}:
+            counts[operation] += 1
+
+    try:
+        with Session(engine) as session:
+            user = session.get(User, user_id)
+            assert user is not None
+            event.listen(engine, "before_cursor_execute", count_statement)
+            try:
+                assert conversations.cleanup_stale_empty_conversations(
+                    session=session,
+                    user=user,
+                    now=now,
+                    limit=candidate_count,
+                ) == candidate_count
+                session.commit()
+            finally:
+                event.remove(engine, "before_cursor_execute", count_statement)
+    finally:
+        with Session(engine) as cleanup:
+            user = cleanup.get(User, user_id)
+            if user is not None:
+                cleanup.delete(user)
+                cleanup.commit()
+    return counts
+
+
+def test_stale_cleanup_query_count_is_constant_across_batch_sizes() -> None:
+    one_candidate = _cleanup_statement_counts(candidate_count=1)
+    hundred_candidates = _cleanup_statement_counts(candidate_count=100)
+
+    assert hundred_candidates["SELECT"] - one_candidate["SELECT"] <= 1
+    assert hundred_candidates["DELETE"] - one_candidate["DELETE"] <= 1
+    assert hundred_candidates["SELECT"] <= 5
+    assert hundred_candidates["DELETE"] <= 2

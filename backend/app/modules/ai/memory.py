@@ -1,12 +1,12 @@
 import hashlib
 import hmac
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import ColumnElement
+from sqlalchemy import ColumnElement, delete
 from sqlmodel import Session, select
 
 from app.core.config import Settings
@@ -496,57 +496,110 @@ def set_memory_enabled(session: Session, user: User, enabled: bool) -> User:
     return locked_user
 
 
-def remove_conversation_memory_sources(
-    session: Session, conversation: AiConversation
-) -> None:
-    """Remove one conversation's evidence and prune only its orphaned memories."""
-    with session.no_autoflush:
-        owner_id = session.exec(
-            select(AiConversation.user_id).where(AiConversation.id == conversation.id)
-        ).first()
-    if owner_id is None:
-        return
-    locked_user = _lock_user(session, owner_id)
-    locked_conversation = session.exec(
+def _locked_owned_conversations(
+    session: Session,
+    *,
+    user_id: UUID,
+    conversation_ids: Sequence[UUID],
+) -> list[AiConversation]:
+    requested_ids = tuple(sorted(set(conversation_ids)))
+    if not requested_ids:
+        return []
+    conversation_id = _column(AiConversation.id)
+    conversations = session.exec(
         select(AiConversation)
         .where(
-            AiConversation.id == conversation.id,
-            AiConversation.user_id == locked_user.id,
+            AiConversation.user_id == user_id,
+            conversation_id.in_(requested_ids),
         )
+        .order_by(conversation_id.asc())
         .with_for_update()
-    ).first()
-    if locked_conversation is None:
-        return
-    source_ids = session.exec(
-        select(AiMemorySource.memory_id).where(
-            AiMemorySource.conversation_id == locked_conversation.id
+    ).all()
+    if {conversation.id for conversation in conversations} != set(requested_ids):
+        raise AppError(
+            code="AI_CONVERSATION_NOT_FOUND",
+            message="AI 对话不存在",
+            status_code=404,
         )
-    ).all()
-    if not source_ids:
+    return list(conversations)
+
+
+def _remove_conversation_memory_sources_for_locked_conversations(
+    session: Session,
+    *,
+    user_id: UUID,
+    conversation_ids: Sequence[UUID],
+) -> None:
+    """Prune evidence for conversations already locked after their user row."""
+    locked_ids = tuple(sorted(set(conversation_ids)))
+    if not locked_ids:
         return
-    memory_id = _column(AiMemory.id)
-    memories = session.exec(
-        select(AiMemory).where(memory_id.in_(set(source_ids))).with_for_update()
-    ).all()
+    source_conversation_id = _column(AiMemorySource.conversation_id)
     sources = session.exec(
         select(AiMemorySource)
-        .where(AiMemorySource.conversation_id == locked_conversation.id)
+        .where(source_conversation_id.in_(locked_ids))
         .with_for_update()
     ).all()
     affected_memory_ids = {source.memory_id for source in sources}
-    for source in sources:
-        session.delete(source)
+    if not affected_memory_ids:
+        return
+    memory_id = _column(AiMemory.id)
+    session.exec(
+        select(AiMemory)
+        .where(
+            AiMemory.user_id == user_id,
+            memory_id.in_(affected_memory_ids),
+        )
+        .with_for_update()
+    ).all()
+    session.exec(delete(AiMemorySource).where(source_conversation_id.in_(locked_ids)))
     session.flush()
-    orphan_ids = [
-        memory_id
-        for memory_id in affected_memory_ids
-        if session.exec(
-            select(AiMemorySource.id).where(AiMemorySource.memory_id == memory_id)
-        ).first()
-        is None
-    ]
+    remaining_memory_ids = set(
+        session.exec(
+            select(AiMemorySource.memory_id).where(
+                _column(AiMemorySource.memory_id).in_(affected_memory_ids)
+            )
+        ).all()
+    )
+    orphan_ids = affected_memory_ids - remaining_memory_ids
     if not orphan_ids:
         return
-    orphans = [memory for memory in memories if memory.id in orphan_ids]
     # Conversation cleanup is intentionally not a user deletion: no tombstones.
-    _delete_memory_rows(session, orphans)
+    session.exec(
+        delete(AiMemory).where(
+            _column(AiMemory.user_id) == user_id,
+            memory_id.in_(orphan_ids),
+        )
+    )
+    session.flush()
+
+
+def remove_conversation_memory_sources_bulk(
+    session: Session,
+    *,
+    user_id: UUID,
+    conversation_ids: Sequence[UUID],
+) -> None:
+    """Verify and lock owned conversations, then prune their evidence in bulk."""
+    locked_user = _lock_user(session, user_id)
+    conversations = _locked_owned_conversations(
+        session,
+        user_id=locked_user.id,
+        conversation_ids=conversation_ids,
+    )
+    _remove_conversation_memory_sources_for_locked_conversations(
+        session,
+        user_id=locked_user.id,
+        conversation_ids=[conversation.id for conversation in conversations],
+    )
+
+
+def remove_conversation_memory_sources(
+    session: Session, conversation: AiConversation
+) -> None:
+    """Compatibility wrapper for one conversation using the bulk semantics."""
+    remove_conversation_memory_sources_bulk(
+        session,
+        user_id=conversation.user_id,
+        conversation_ids=[conversation.id],
+    )

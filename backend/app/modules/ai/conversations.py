@@ -4,7 +4,7 @@ from math import ceil
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, exists, func
+from sqlalchemy import ColumnElement, delete, exists, func
 from sqlmodel import Session, select
 
 from app.core.errors import AppError
@@ -19,16 +19,20 @@ from app.db.models import (
     User,
 )
 from app.modules.ai.context import derive_conversation_title
-from app.modules.ai.memory import remove_conversation_memory_sources
+from app.modules.ai.memory import (
+    _remove_conversation_memory_sources_for_locked_conversations,
+)
 from app.modules.ai.schemas import (
     AiMessageResponse,
     ConversationListResponse,
+    ConversationPaginationResponse,
     ConversationResponse,
     MessageListResponse,
-    PaginationResponse,
+    MessagePaginationResponse,
 )
 
-MAX_PAGE_SIZE = 100
+CONVERSATION_MAX_PAGE_SIZE = 50
+MESSAGE_MAX_PAGE_SIZE = 100
 STALE_EMPTY_CONVERSATION_AGE = timedelta(hours=24)
 STALE_EMPTY_CLEANUP_BATCH_SIZE = 100
 
@@ -58,15 +62,28 @@ def _not_found() -> AppError:
     )
 
 
-def _validate_page(*, page: int, page_size: int) -> None:
+def _validate_page(*, page: int, page_size: int, maximum: int, resource: str) -> None:
     if page < 1:
         raise ValueError("page must be at least 1")
-    if not 1 <= page_size <= MAX_PAGE_SIZE:
-        raise ValueError(f"page_size must be between 1 and {MAX_PAGE_SIZE}")
+    if not 1 <= page_size <= maximum:
+        raise ValueError(f"{resource} page_size must be between 1 and {maximum}")
 
 
-def _pagination(*, page: int, page_size: int, total_items: int) -> PaginationResponse:
-    return PaginationResponse(
+def _conversation_pagination(
+    *, page: int, page_size: int, total_items: int
+) -> ConversationPaginationResponse:
+    return ConversationPaginationResponse(
+        page=page,
+        page_size=page_size,
+        total_items=total_items,
+        total_pages=ceil(total_items / page_size) if total_items else 0,
+    )
+
+
+def _message_pagination(
+    *, page: int, page_size: int, total_items: int
+) -> MessagePaginationResponse:
+    return MessagePaginationResponse(
         page=page,
         page_size=page_size,
         total_items=total_items,
@@ -167,7 +184,7 @@ def _cleanup_candidates(
                 ~message_exists,
                 ~live_reservation_exists,
             )
-            .order_by(_column(AiConversation.created_at).asc(), _column(AiConversation.id).asc())
+            .order_by(_column(AiConversation.id).asc())
             .limit(limit)
             .with_for_update(skip_locked=True)
         ).all()
@@ -189,11 +206,19 @@ def cleanup_stale_empty_conversations(
     candidates = _cleanup_candidates(
         session=session, user_id=locked_user.id, now=now, limit=limit
     )
-    for conversation in candidates:
-        # Keep Task 11's source/orphan behavior identical for manual and batch deletion.
-        remove_conversation_memory_sources(session, conversation)
-        session.delete(conversation)
+    candidate_ids = [conversation.id for conversation in candidates]
+    _remove_conversation_memory_sources_for_locked_conversations(
+        session,
+        user_id=locked_user.id,
+        conversation_ids=candidate_ids,
+    )
     if candidates:
+        session.exec(
+            delete(AiConversation).where(
+                _column(AiConversation.user_id) == locked_user.id,
+                _column(AiConversation.id).in_(candidate_ids),
+            )
+        )
         session.flush()
     return len(candidates)
 
@@ -218,7 +243,12 @@ def list_conversations(
     *, session: Session, user: User, page: int, page_size: int, now: datetime
 ) -> ConversationListResponse:
     """List only conversations with a completed exchange in stable newest-first order."""
-    _validate_page(page=page, page_size=page_size)
+    _validate_page(
+        page=page,
+        page_size=page_size,
+        maximum=CONVERSATION_MAX_PAGE_SIZE,
+        resource="conversation",
+    )
     cleanup_stale_empty_conversations(session=session, user=user, now=now)
     last_message_at = _column(AiConversation.last_message_at)
     conversation_id = _column(AiConversation.id)
@@ -234,7 +264,9 @@ def list_conversations(
     ).all()
     return ConversationListResponse(
         items=[conversation_response(conversation) for conversation in conversations],
-        pagination=_pagination(page=page, page_size=page_size, total_items=total_items),
+        pagination=_conversation_pagination(
+            page=page, page_size=page_size, total_items=total_items
+        ),
     )
 
 
@@ -247,7 +279,12 @@ def list_messages(
     page_size: int,
 ) -> MessageListResponse:
     """List an owned conversation's messages in stable chronological order."""
-    _validate_page(page=page, page_size=page_size)
+    _validate_page(
+        page=page,
+        page_size=page_size,
+        maximum=MESSAGE_MAX_PAGE_SIZE,
+        resource="message",
+    )
     get_owned_conversation(session=session, user=user, conversation_id=conversation_id)
     created_at = _column(AiMessage.created_at)
     message_id = _column(AiMessage.id)
@@ -263,7 +300,9 @@ def list_messages(
     ).all()
     return MessageListResponse(
         items=[message_response(message) for message in messages],
-        pagination=_pagination(page=page, page_size=page_size, total_items=total_items),
+        pagination=_message_pagination(
+            page=page, page_size=page_size, total_items=total_items
+        ),
     )
 
 
@@ -433,6 +472,15 @@ def delete_conversation(
     _, conversation = _lock_owned_conversation(
         session=session, user_id=user.id, conversation_id=conversation_id
     )
-    remove_conversation_memory_sources(session, conversation)
-    session.delete(conversation)
+    _remove_conversation_memory_sources_for_locked_conversations(
+        session,
+        user_id=conversation.user_id,
+        conversation_ids=[conversation.id],
+    )
+    session.exec(
+        delete(AiConversation).where(
+            _column(AiConversation.id) == conversation.id,
+            _column(AiConversation.user_id) == conversation.user_id,
+        )
+    )
     session.flush()

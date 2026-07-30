@@ -28,6 +28,14 @@ class PaginationResponse(ApiModel):
     total_pages: int = Field(ge=0)
 
 
+class ConversationPaginationResponse(PaginationResponse):
+    page_size: int = Field(ge=1, le=50)
+
+
+class MessagePaginationResponse(PaginationResponse):
+    page_size: int = Field(ge=1, le=100)
+
+
 class ConversationResponse(ApiModel):
     id: uuid.UUID
     title: str = Field(min_length=1, max_length=80)
@@ -37,7 +45,7 @@ class ConversationResponse(ApiModel):
 
 class ConversationListResponse(ApiModel):
     items: list[ConversationResponse]
-    pagination: PaginationResponse
+    pagination: ConversationPaginationResponse
 
 
 class AiMessageResponse(ApiModel):
@@ -51,7 +59,7 @@ class AiMessageResponse(ApiModel):
 
 class MessageListResponse(ApiModel):
     items: list[AiMessageResponse]
-    pagination: PaginationResponse
+    pagination: MessagePaginationResponse
 
 
 class SendMessageRequest(ApiModel):
