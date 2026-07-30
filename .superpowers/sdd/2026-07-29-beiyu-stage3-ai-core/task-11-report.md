@@ -144,3 +144,71 @@ inside the caller transaction; the only ordering guarantee is tombstone flush
 before user-driven source/summary deletion. Concurrent test workers use bounded
 barriers and `Future.result(timeout=10)` and remove their independently
 committed setup users after observation.
+
+## Review Round 2 / 5
+
+### Important Fix
+
+`contains_medical_memory_detail()` no longer relies on raw single-character
+medical substrings. After the existing NFKC/casefold canonicalization it uses
+two explainable, bounded regular expressions: a direct list of common
+multi-character conditions (including diabetes, hypertension, depression and
+anxiety disorders, asthma, cancer, hepatitis, and gastritis), and medical
+context markers (`得了`, `患有`, `确诊`, `诊断为`, `病史`, `病情`, `发作`,
+`正在治疗`, `服药`, `用药`, `医生说`) followed by one to 24 non-sentence-boundary
+characters. The latter conservatively rejects an unknown nearby condition such
+as `得了罕见病` without requiring Chinese segmentation or unbounded matching.
+
+The check continues to run on canonicalized user source content, normalized
+key, and summary before a provider's `sensitive` flag is considered. Real
+PostgreSQL tests prove that a provider-marked-non-sensitive candidate is not
+stored for source-only `得了哮喘`, an unknown condition in medical context, or a
+summary mentioning diabetes. Negated medical information (for example,
+`没有被诊断为糖尿病`) remains rejected intentionally: it is still medical detail
+that must not be retained. Ordinary preferences containing non-medical uses of
+these characters (`炎热天气`, `发炎色`, `酸甜苦辣`, and `低糖低酒精`) remain
+storable.
+
+### Lock Hierarchy And Transactions
+
+This round does not alter the established order: `user -> conversation ->
+source message -> memory -> memory source`. Candidate application still locks
+and re-reads the user before consent and source validation; cleanup and consent
+paths retain their compatible ordering. No service commits or rolls back the
+caller's transaction, and the bounded detector performs no database work.
+
+### RED / GREEN
+
+```text
+RED
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/pytest tests/modules/ai/test_memory.py \
+  -k 'medical_candidate or non_medical_preferences_near_medical_terms'
+3 failed, 10 passed, 25 deselected
+
+The failures showed that source-only `得了哮喘` and `得了罕见病` were written,
+while the ordinary `炎热天气` preference was incorrectly rejected.
+
+GREEN (focused)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/pytest tests/modules/ai/test_memory.py
+39 passed in 0.72s
+
+GREEN (full)
+BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test \
+  .venv/bin/pytest
+394 passed in 11.98s
+
+.venv/bin/ruff check .
+All checks passed!
+
+.venv/bin/ty check
+All checks passed!
+```
+
+### Residual Risk
+
+The 24-character contextual window is deliberately conservative and can reject
+non-diagnostic text immediately following a medical marker. It avoids storing
+medical detail and avoids the prior broad single-character false positive;
+expanding it should be reviewed as a privacy-policy change.

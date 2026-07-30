@@ -703,11 +703,23 @@ def test_apply_concurrently_merges_the_same_normalized_key(
     ("content", "key", "summary"),
     [
         ("我喜欢低糖饮品，但患有糖尿病。", "taste:low-sugar", "偏好低糖饮品"),
+        ("我喜欢低糖饮品，但得了哮喘。", "taste:low-sugar", "偏好低糖饮品"),
+        ("我喜欢低糖饮品，但得了罕见病。", "taste:low-sugar", "偏好低糖饮品"),
         ("我喜欢低糖饮品。", "safety:高血压", "偏好低糖饮品"),
         ("我喜欢低糖饮品。", "taste:low-sugar", "因焦虑症偏好低糖饮品"),
+        (
+            "我喜欢低糖饮品。",
+            "taste:low-sugar",
+            "偏好适合糖尿病人的低糖饮品",
+        ),
         ("我喜欢低糖饮品。", "taste:癌症", "偏好低糖饮品"),
-        ("我喜欢低糖饮品，正在用药。", "taste:low-sugar", "偏好低糖饮品"),
-        ("我喜欢低糖饮品。", "taste:low-sugar", "有病史，偏好低糖饮品"),
+        ("我喜欢低糖饮品，正在用药治疗罕见病。", "taste:low-sugar", "偏好低糖饮品"),
+        ("我喜欢低糖饮品。", "taste:low-sugar", "有高血压病史，偏好低糖饮品"),
+        (
+            "我没有被诊断为糖尿病，只是喜欢低糖饮品。",
+            "taste:low-sugar",
+            "偏好低糖饮品",
+        ),
     ],
 )
 def test_server_rejects_medical_candidate_even_when_provider_marks_it_non_sensitive(
@@ -729,6 +741,37 @@ def test_server_rejects_medical_candidate_even_when_provider_marks_it_non_sensit
     assert database_session.exec(
         select(AiMemory).where(AiMemory.user_id == user.id)
     ).all() == []
+
+
+@pytest.mark.parametrize(
+    ("content", "key", "summary"),
+    [
+        ("我喜欢炎热天气时喝冰饮。", "taste:hot-weather", "偏好炎热天气时喝冰饮"),
+        ("我喜欢发炎色包装的饮品。", "taste:bright-packaging", "偏好发炎色包装的饮品"),
+        ("我喜欢酸甜苦辣都能接受。", "taste:all-flavors", "偏好酸甜苦辣的饮品"),
+        ("我喜欢低糖低酒精饮品。", "taste:low-sugar-low-alcohol", "偏好低糖低酒精饮品"),
+    ],
+)
+def test_server_allows_non_medical_preferences_near_medical_terms(
+    database_session: Session,
+    content: str,
+    key: str,
+    summary: str,
+) -> None:
+    user = persisted_user(database_session)
+    conversation, message = persisted_source(database_session, user, content)
+
+    changes = apply(
+        database_session,
+        user,
+        conversation,
+        message,
+        [candidate(key=key, summary=summary, sensitive=False)],
+    )
+
+    assert [(change.action, change.summary) for change in changes] == [
+        (MemoryChangeAction.CREATED, summary)
+    ]
 
 
 def test_safety_reminder_keeps_only_non_medical_necessary_conclusion(

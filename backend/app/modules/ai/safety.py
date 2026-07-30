@@ -99,23 +99,13 @@ DIAGNOSIS_ASSERTION_TOKENS = (
     "可以确诊",
 )
 DIAGNOSIS_TOKENS = ("抑郁", "焦虑", "精神疾病", "酒精依赖")
-MEMORY_MEDICAL_TERMS = frozenset(
-    (
-        *DIAGNOSIS_TOKENS,
-        "糖尿病",
-        "焦虑症",
-        "高血压",
-        "癌",
-        "炎",
-        "综合征",
-        "障碍",
-        "确诊",
-        "患有",
-        "用药",
-        "病史",
-        "处方",
-        "药物",
-    )
+MEDICAL_MEMORY_CONDITION_PATTERN = re.compile(
+    r"(?:糖尿病|高血压|抑郁症|焦虑症|哮喘|癌症|肝炎|胃炎|精神疾病|酒精依赖|"
+    r"[\u4e00-\u9fff]{1,12}(?:综合征|障碍))"
+)
+MEDICAL_MEMORY_CONTEXT_PATTERN = re.compile(
+    r"(?:得了|患有|确诊|诊断为|病史|病情|发作|正在治疗|服药|用药|医生说)"
+    r"[^，。；;！!？?\n]{1,24}"
 )
 DIAGNOSIS_NEGATION_CUE_PATTERN = re.compile(
     r"(?:不能|无法|不应|不该).{0,8}(?:诊断|判断|确定)",
@@ -186,8 +176,16 @@ def contains_private_identifiers(content: str) -> bool:
 
 
 def contains_medical_memory_detail(content: str) -> bool:
+    """Reject stored medical details, including negated diagnosis statements.
+
+    A bounded contextual match keeps unknown conditions private without treating
+    ordinary words such as ``炎热`` as medical information.
+    """
     canonical = canonicalize_safety_text(content)
-    return any(term in canonical for term in MEMORY_MEDICAL_TERMS)
+    return bool(
+        MEDICAL_MEMORY_CONDITION_PATTERN.search(canonical)
+        or MEDICAL_MEMORY_CONTEXT_PATTERN.search(canonical)
+    )
 
 
 def _risk_decision(label: AiSafetyLabel, reply: str) -> SafetyDecision:
