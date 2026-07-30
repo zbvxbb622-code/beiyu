@@ -111,7 +111,8 @@ Deletion, quota, timeout, and safety smoke:
 20. PASS: backend complete checks, migration tests, Compose config, and Docker
    build passed.
 21. PASS: Expo dev server started and iOS export generated `dist`.
-22. PENDING: push and GitHub CI verification happen after this report commit.
+22. PASS: branch pushed, PR created, and latest GitHub backend/frontend checks
+    passed.
 
 Manual iOS Simulator UI operation was not executed because this delegated
 terminal session does not provide an interactive simulator surface. API smoke,
@@ -134,3 +135,9 @@ functional paths available locally.
 - PASS with notes: phone scan found only existing fixture/demo placeholders such
   as `13800138000`, `13800000000`, and smoke-only local generated numbers in
   command output, not committed real user phone numbers.
+
+## GitHub CI Update
+
+- PASS: backend, latest push run `30528306060` / job `90824331330`.
+- PASS: backend, PR run `30528310401` / job `90824345847`.
+- PASS: frontend, PR run `30528310293` / job `90824345267`.
