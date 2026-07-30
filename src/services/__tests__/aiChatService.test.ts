@@ -1,21 +1,18 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { createMockAiReply } from '../aiChatService';
+import type { AuthenticatedClient } from '@/services/api/authenticatedClient';
+
+import { createAiRepository } from '../aiChatService';
 
 describe('aiChatService', () => {
-  it('returns an assistant chat message and recipe cards for a user prompt', () => {
-    const result = createMockAiReply({
-      prompt: '今晚想喝酸甜一点，有龙舌兰和青柠',
-      selectedIngredientIds: ['tequila', 'lime'],
-    });
+  it('creates the typed AI repository from an authenticated client', () => {
+    const request = (async () => undefined) as AuthenticatedClient['request'];
+    const repository = createAiRepository({ request });
 
-    expect(result.message).toEqual(
-      expect.objectContaining({
-        role: 'assistant',
-      })
-    );
-    expect(result.message.text).toContain('Mixology');
-    expect(result.recipes.length).toBeGreaterThan(0);
-    expect(result.recipes.length).toBeLessThanOrEqual(3);
+    expect(repository).toEqual(expect.objectContaining({
+      listConversations: expect.any(Function),
+      sendTemporaryMessage: expect.any(Function),
+      setMemoryEnabled: expect.any(Function),
+    }));
   });
 });

@@ -1,5 +1,11 @@
 import { recommendCocktails } from '@/services/recommendationService';
+import type { AuthenticatedClient } from '@/services/api/authenticatedClient';
+import { AiRepository } from '@/services/ai/aiRepository';
 import type { ChatMessage, RecommendationInput } from '@/types/mixology';
+
+export function createAiRepository(authenticatedClient: AuthenticatedClient) {
+  return new AiRepository({ authenticatedClient });
+}
 
 export function createMockAiReply(input: RecommendationInput, messageId = `assistant-${Date.now()}`) {
   const result = recommendCocktails(input);
