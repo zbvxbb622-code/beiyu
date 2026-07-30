@@ -143,6 +143,10 @@ class MemorySettingsRequest(ApiModel):
     enabled: bool
 
 
+class MemorySettingsResponse(ApiModel):
+    enabled: bool
+
+
 class MessageFeedback(StrEnum):
     HELPFUL = "HELPFUL"
     NOT_HELPFUL = "NOT_HELPFUL"
