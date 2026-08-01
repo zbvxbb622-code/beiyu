@@ -14,14 +14,21 @@ import { AiProvider } from '@/state/AiState';
 import { AuthProvider, useAuth } from '@/state/AuthState';
 import { MixologyProvider, useMixology } from '@/state/MixologyState';
 import { colors } from '@/styles/mixologyTheme';
-import { canAccessBeforeAgeVerification } from '@/utils/ageGateAccess';
+import { getRootRouteGate } from '@/utils/rootRouteGuard';
 
 SplashScreen.preventAutoHideAsync();
 
 function RootContent() {
   const { isHydrated, localState } = useMixology();
-  const { status } = useAuth();
+  const { bootstrapData, status } = useAuth();
   const pathname = usePathname();
+  const routeGate = getRootRouteGate({
+    isHydrated,
+    status,
+    pathname,
+    localAgeVerified: localState.ageVerified,
+    bootstrapAgeConfirmed: bootstrapData?.user.ageConfirmed ?? null,
+  });
 
   useEffect(() => {
     if (isHydrated) {
@@ -29,7 +36,7 @@ function RootContent() {
     }
   }, [isHydrated]);
 
-  if (!isHydrated || status === 'restoring') {
+  if (routeGate === 'loading') {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={colors.pink} />
@@ -38,11 +45,11 @@ function RootContent() {
     );
   }
 
-  if (!localState.ageVerified && !canAccessBeforeAgeVerification(pathname)) {
+  if (routeGate === 'welcome') {
     return <WelcomeScreen />;
   }
 
-  if (pathname === '/ai' && status !== 'signedIn') {
+  if (routeGate === 'loginForAi') {
     return <Redirect href={{ pathname: '/login', params: { next: '/ai' } }} />;
   }
 
