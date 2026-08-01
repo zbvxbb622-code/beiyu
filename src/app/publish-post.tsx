@@ -171,6 +171,11 @@ export default function PublishPostScreen() {
     <ScreenShell>
       <TopBar title="发布笔记" backHref={backHref} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <View style={styles.betaNotice}>
+          <Text style={styles.betaNoticeTitle}>社区发布内测</Text>
+          <Text style={styles.betaNoticeText}>当前笔记只保存在本机，正式社区后端、审核和举报能力上线前不会同步到服务器。</Text>
+        </View>
+
         {/* 图片行：缩略图 + 虚线添加框（参考小红书发布页） */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.imageRow}>
           {images.map((image) => (
@@ -340,7 +345,7 @@ export default function PublishPostScreen() {
         </Pressable>
         <Pressable testID="publish-button" onPress={handlePublish} disabled={submitting} style={styles.publishButton}>
           <LinearGradient colors={gradients.cta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.publishGradient}>
-            <Text style={styles.publishText}>{submitting ? '发布中...' : '发布笔记'}</Text>
+            <Text style={styles.publishText}>{submitting ? '保存中...' : '保存本机笔记'}</Text>
           </LinearGradient>
         </Pressable>
       </View>
@@ -352,6 +357,26 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: 120,
     paddingTop: 4,
+  },
+  betaNotice: {
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: radii.md,
+    backgroundColor: 'rgba(255,184,77,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,184,77,0.22)',
+  },
+  betaNoticeTitle: {
+    color: colors.amber,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  betaNoticeText: {
+    marginTop: 4,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
   },
   // 图片行
   imageRow: {

@@ -121,7 +121,7 @@ export default function SettingsScreen() {
               《个人信息收集清单》《第三方信息共享清单》
             </Text>
             <Text style={styles.legalText}>
-              《小红书用户服务协议》《小红书用户隐私政策》
+              《杯语用户服务协议》《杯语隐私说明》
             </Text>
           </View>
         </View>

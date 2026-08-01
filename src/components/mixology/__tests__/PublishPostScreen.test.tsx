@@ -77,4 +77,17 @@ describe('PublishPostScreen 图片管理', () => {
       expect(screen.getByText('后台发布地点')).toBeTruthy();
     });
   });
+
+  it('labels publishing as a local beta workflow before community backend is available', async () => {
+    const screen = await render(
+      <ContentTestProvider>
+        <PublishPostScreen />
+      </ContentTestProvider>
+    );
+    await act(async () => {});
+
+    expect(screen.getByText('社区发布内测')).toBeTruthy();
+    expect(screen.getByText(/当前笔记只保存在本机/)).toBeTruthy();
+    expect(screen.getByText('保存本机笔记')).toBeTruthy();
+  });
 });

@@ -78,6 +78,7 @@ describe('CommunityPostDetailScreen', () => {
   it('sends a comment from the visible send button', async () => {
     const screen = await render(<CommunityPostDetailScreen />);
 
+    expect(screen.getByText('评论仅本机保存，正式社区后端上线前不会同步。')).toBeTruthy();
     await fireEvent.changeText(screen.getByPlaceholderText('说点什么…'), '这家看起来不错');
     await fireEvent.press(screen.getByTestId('community-comment-send-button'));
 

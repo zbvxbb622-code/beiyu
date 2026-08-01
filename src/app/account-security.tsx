@@ -129,9 +129,9 @@ export default function AccountSecurityScreen() {
             />
             <SecurityRow
               title="官方认证"
-              subtitle="个人职业资质、机构、企业认证"
-              value={accountSecurity.officialVerified ? accountSecurity.officialType : '未认证'}
-              onPress={() => router.push('/official-verify' as Href)}
+              subtitle="个人职业资质、机构、企业认证能力上线前暂不开放"
+              value={accountSecurity.officialVerified ? accountSecurity.officialType : '暂未开放'}
+              showArrow={false}
               testID="account-security-official"
             />
           </SecurityGroup>

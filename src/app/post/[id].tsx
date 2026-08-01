@@ -118,25 +118,28 @@ export default function CommunityPostDetailScreen() {
       </ScrollView>
       <View style={styles.bottomBar}>
         {commentsEnabled ? (
-          <View style={styles.commentInputWrap}>
-            <TextInput
-              placeholder="说点什么…"
-              placeholderTextColor="#8a7a83"
-              style={styles.commentInput}
-              value={draft}
-              onChangeText={setDraft}
-              onSubmitEditing={handleSend}
-              returnKeyType="send"
-              editable={!sending}
-            />
-            <Pressable
-              testID="community-comment-send-button"
-              onPress={handleSend}
-              disabled={!canSendComment}
-              style={({ pressed }) => [styles.commentSendButton, pressed && canSendComment ? styles.pressed : null, !canSendComment ? styles.disabled : null]}
-              accessibilityLabel="发送评论">
-              <Send color={colors.text} size={18} strokeWidth={2.5} />
-            </Pressable>
+          <View style={styles.commentArea}>
+            <Text style={styles.commentBetaNotice}>评论仅本机保存，正式社区后端上线前不会同步。</Text>
+            <View style={styles.commentInputWrap}>
+              <TextInput
+                placeholder="说点什么…"
+                placeholderTextColor="#8a7a83"
+                style={styles.commentInput}
+                value={draft}
+                onChangeText={setDraft}
+                onSubmitEditing={handleSend}
+                returnKeyType="send"
+                editable={!sending}
+              />
+              <Pressable
+                testID="community-comment-send-button"
+                onPress={handleSend}
+                disabled={!canSendComment}
+                style={({ pressed }) => [styles.commentSendButton, pressed && canSendComment ? styles.pressed : null, !canSendComment ? styles.disabled : null]}
+                accessibilityLabel="发送评论">
+                <Send color={colors.text} size={18} strokeWidth={2.5} />
+              </Pressable>
+            </View>
           </View>
         ) : (
           <View style={styles.commentsOff}>
@@ -285,8 +288,18 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
     backgroundColor: 'rgba(7,0,4,0.96)',
   },
-  commentInputWrap: {
+  commentArea: {
     flex: 1,
+    minWidth: 0,
+    gap: 5,
+  },
+  commentBetaNotice: {
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 14,
+    paddingLeft: 4,
+  },
+  commentInputWrap: {
     minHeight: 46,
     flexDirection: 'row',
     alignItems: 'center',

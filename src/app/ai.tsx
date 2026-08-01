@@ -160,6 +160,7 @@ export default function AiScreen() {
             onChangeDraft={ai.setDraft}
             onSend={ai.send}
           />
+          <Text style={styles.aiDisclosure}>AI 生成内容仅供参考，请理性饮酒。</Text>
         </KeyboardAvoidingView>
       </SafeAreaView>
 
@@ -266,5 +267,14 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
+  },
+  aiDisclosure: {
+    paddingHorizontal: 24,
+    paddingTop: 4,
+    paddingBottom: 2,
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 15,
+    textAlign: 'center',
   },
 });

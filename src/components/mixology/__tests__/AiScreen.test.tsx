@@ -135,6 +135,7 @@ describe('AiScreen', () => {
     expect(screen.getByTestId('ai-close-button')).toBeTruthy();
     expect(screen.getByTestId('ai-input-dock')).toBeTruthy();
     expect(screen.getByText('今日还剩 10 次')).toBeTruthy();
+    expect(screen.getByText('AI 生成内容仅供参考，请理性饮酒。')).toBeTruthy();
   });
 
   it('exits the AI chat from the header close button', async () => {

@@ -64,14 +64,15 @@ describe('AccountSecurityScreen', () => {
     expect(screen.getByText('2 台')).toBeTruthy();
   });
 
-  it('navigates to sub pages', async () => {
+  it('navigates to available sub pages and keeps official verification closed', async () => {
     const screen = await render(<AccountSecurityScreen />);
 
     await fireEvent.press(screen.getByTestId('account-security-realname'));
     expect(mockRouter.push).toHaveBeenCalledWith('/realname-verify');
 
     await fireEvent.press(screen.getByTestId('account-security-official'));
-    expect(mockRouter.push).toHaveBeenCalledWith('/official-verify');
+    expect(mockRouter.push).not.toHaveBeenCalledWith('/official-verify');
+    expect(screen.getByText('暂未开放')).toBeTruthy();
 
     await fireEvent.press(screen.getByTestId('account-security-devices'));
     expect(mockRouter.push).toHaveBeenCalledWith('/device-management');
