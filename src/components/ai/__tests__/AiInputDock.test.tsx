@@ -4,6 +4,15 @@ import { StyleSheet } from 'react-native';
 
 import { AiInputDock } from '@/components/ai/AiInputDock';
 
+function treeHasPropValue(node: unknown, propName: string, value: unknown): boolean {
+  if (Array.isArray(node)) {
+    return node.some((child) => treeHasPropValue(child, propName, value));
+  }
+  if (!node || typeof node !== 'object') return false;
+  const candidate = node as { props?: Record<string, unknown>; children?: unknown };
+  return candidate.props?.[propName] === value || treeHasPropValue(candidate.children, propName, value);
+}
+
 describe('AiInputDock', () => {
   afterEach(() => {
     cleanup();
@@ -22,6 +31,21 @@ describe('AiInputDock', () => {
     );
 
     expect(screen.queryByLabelText('更多')).toBeNull();
+  });
+
+  it('does not render the unused voice input button in the input bar', async () => {
+    const screen = await render(
+      <AiInputDock
+        draft=""
+        status="idle"
+        mode="normal"
+        usage={{ limit: 50, used: 1, remaining: 49, resetsAt: '2026-07-29T16:00:00Z' }}
+        onChangeDraft={jest.fn()}
+        onSend={jest.fn()}
+      />
+    );
+
+    expect(treeHasPropValue(screen.toJSON(), 'color', '#b7b3be')).toBe(false);
   });
 
   it('shows low quota, keeps send control circular, and sends the latest input', async () => {

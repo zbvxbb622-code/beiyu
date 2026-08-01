@@ -115,14 +115,17 @@ describe('AiScreen', () => {
     mockAiState = baseAiState();
   });
 
-  it('shows the V0-styled mobile empty chat screen by default', async () => {
+  it('shows the beiyu mobile empty chat screen by default', async () => {
     const screen = await render(<AiScreen />);
 
-    expect(screen.getByText('V0-Bartender')).toBeTruthy();
+    expect(screen.getByText('beiyu')).toBeTruthy();
+    expect(screen.queryByText('V0-Bartender')).toBeNull();
     expect(screen.getByText('今天想喝什么？')).toBeTruthy();
     expect(screen.getByPlaceholderText('询问饮品配方或寻求推荐…')).toBeTruthy();
     expect(screen.getByTestId('ai-menu-button')).toBeTruthy();
     expect(screen.getByTestId('ai-temp-chat-button')).toBeTruthy();
+    expect(screen.getByTestId('ai-temp-chat-timer-icon')).toBeTruthy();
+    expect(screen.queryByTestId('ai-temp-chat-plus-icon')).toBeNull();
     const tempSurface = StyleSheet.flatten(screen.getByTestId('ai-temp-chat-button-surface').props.style);
     expect(tempSurface.width).toBe(42);
     expect(tempSurface.height).toBe(42);

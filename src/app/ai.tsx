@@ -1,6 +1,6 @@
 import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Crypto from 'expo-crypto';
-import { ChevronDown, MessageCirclePlus, Menu, X } from 'lucide-react-native';
+import { ChevronDown, Menu, TimerReset, X } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -100,7 +100,7 @@ export default function AiScreen() {
             <Pressable onPress={startNewChat} style={styles.modelSelector}>
               <View style={styles.modelCopy}>
                 <View style={styles.modelTitleRow}>
-                  <Text style={styles.modelTitle}>V0-Bartender</Text>
+                  <Text style={styles.modelTitle}>beiyu</Text>
                   <ChevronDown color={colors.text} size={15} strokeWidth={2.8} />
                 </View>
                 {ai.mode === 'temporary' ? <Text style={styles.tempLabel}>临时对话</Text> : null}
@@ -113,9 +113,10 @@ export default function AiScreen() {
                 onPress={startTemporaryChat}
                 style={({ pressed }) => [styles.headerActionButton, pressed ? styles.pressed : null]}
                 hitSlop={10}
-                accessibilityLabel="临时聊天">
+                accessibilityLabel="开启临时聊天"
+                accessibilityHint="本次对话不会保存到历史">
                 <View testID="ai-temp-chat-button-surface" style={styles.headerActionSurface}>
-                  <MessageCirclePlus color={colors.text} size={21} strokeWidth={2.3} />
+                  <TimerReset testID="ai-temp-chat-timer-icon" color={colors.text} size={22} strokeWidth={2.3} />
                 </View>
               </Pressable>
               <Pressable

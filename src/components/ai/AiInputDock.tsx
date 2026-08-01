@@ -1,4 +1,4 @@
-import { Mic, Send } from 'lucide-react-native';
+import { Send } from 'lucide-react-native';
 import { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -61,7 +61,6 @@ export function AiInputDock({
           style={styles.input}
           editable={canUseInput}
         />
-        <Mic color="#b7b3be" size={25} strokeWidth={2.3} />
         <Pressable
           testID="ai-send-button"
           onPress={sendDraft}
