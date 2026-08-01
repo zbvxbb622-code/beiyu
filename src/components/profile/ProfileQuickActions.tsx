@@ -28,12 +28,6 @@ const actions: ActionItem[] = [
     route: '/cellar-ingredients' as Href,
   },
   {
-    id: 'shared-cellar',
-    label: '大家酒柜',
-    icon: <Martini color={colors.acid} size={20} />,
-    route: '/cellar?from=profile' as Href,
-  },
-  {
     id: 'blind-box',
     label: '经典盲盒',
     icon: <PackageOpen color={colors.amber} size={20} />,

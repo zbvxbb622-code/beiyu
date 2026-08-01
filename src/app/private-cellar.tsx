@@ -1,5 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { Heart, Upload } from 'lucide-react-native';
+import { type Href, useRouter } from 'expo-router';
+import { Heart, PackageOpen, Upload } from 'lucide-react-native';
 import { useState } from 'react';
 import { ImageBackground, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -7,7 +8,6 @@ import { NeonRecipeCard } from '@/components/mixology/NeonRecipeCard';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
 import { TopBar } from '@/components/mixology/TopBar';
 import { getImageAsset } from '@/data/imageAssets';
-import { getSharedCellarCards } from '@/services/contentService';
 import { useMixology } from '@/state/MixologyState';
 import { colors, radii, spacing } from '@/styles/mixologyTheme';
 import type { CocktailIngredient } from '@/types/mixology';
@@ -33,58 +33,59 @@ const borderPalette: readonly (readonly [string, string])[] = [
 ];
 
 export default function PrivateCellarScreen() {
+  const router = useRouter();
   const { interactionState } = useMixology();
   const [activeCard, setActiveCard] = useState<MyCellarCard | null>(null);
 
-  // 优先展示盲盒抽到的卡；还没抽卡时用共享酒柜 Mock 数据垫底，保证页面与设计稿一致
-  const cards: MyCellarCard[] =
-    interactionState.drawnCards.length > 0
-      ? interactionState.drawnCards.map((record, index) => ({
-          id: record.card.id,
-          name: record.card.name,
-          englishName: record.card.englishName,
-          imageKey: record.card.imageKey,
-          likes: 0,
-          ingredients: record.card.ingredients,
-          steps: record.card.steps,
-          bartender: record.card.bartender,
-          borderColors: borderPalette[index % borderPalette.length],
-        }))
-      : getSharedCellarCards().map((card, index) => ({
-          id: card.id,
-          name: card.name,
-          englishName: card.englishName,
-          imageKey: card.imageKey,
-          likes: card.likes,
-          ingredients: card.ingredients,
-          steps: card.steps,
-          bartender: '高鹏',
-          borderColors: card.borderColors ?? borderPalette[index % borderPalette.length],
-        }));
+  const cards: MyCellarCard[] = interactionState.drawnCards.map((record, index) => ({
+    id: record.card.id,
+    name: record.card.name,
+    englishName: record.card.englishName,
+    imageKey: record.card.imageKey,
+    likes: 0,
+    ingredients: record.card.ingredients,
+    steps: record.card.steps,
+    bartender: record.card.bartender,
+    borderColors: borderPalette[index % borderPalette.length],
+  }));
 
   return (
     <ScreenShell>
       <TopBar title="我的酒柜" backHref="/profile" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <View style={styles.grid}>
-          {cards.map((card) => (
-            <LinearGradient key={card.id} colors={card.borderColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cardBorder}>
-              <Pressable onPress={() => setActiveCard(card)} style={({ pressed }) => [styles.card, pressed ? styles.pressed : null]}>
-                <ImageBackground source={getImageAsset(card.imageKey)} resizeMode="cover" imageStyle={styles.cardImageRadius} style={styles.cardImage}>
-                  <View style={styles.publicBadge}>
-                    <Text style={styles.publicBadgeText}>公开</Text>
-                  </View>
-                  <View style={styles.cardBottom}>
-                    <View style={styles.like}>
-                      <Heart color={colors.text} size={13} />
-                      <Text style={styles.likeText}>{card.likes}</Text>
+        {cards.length ? (
+          <View style={styles.grid}>
+            {cards.map((card) => (
+              <LinearGradient key={card.id} colors={card.borderColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cardBorder}>
+                <Pressable onPress={() => setActiveCard(card)} style={({ pressed }) => [styles.card, pressed ? styles.pressed : null]}>
+                  <ImageBackground source={getImageAsset(card.imageKey)} resizeMode="cover" imageStyle={styles.cardImageRadius} style={styles.cardImage}>
+                    <View style={styles.publicBadge}>
+                      <Text style={styles.publicBadgeText}>公开</Text>
                     </View>
-                  </View>
-                </ImageBackground>
-              </Pressable>
-            </LinearGradient>
-          ))}
-        </View>
+                    <View style={styles.cardBottom}>
+                      <View style={styles.like}>
+                        <Heart color={colors.text} size={13} />
+                        <Text style={styles.likeText}>{card.likes}</Text>
+                      </View>
+                    </View>
+                  </ImageBackground>
+                </Pressable>
+              </LinearGradient>
+            ))}
+          </View>
+        ) : (
+          <View testID="private-cellar-empty-state" style={styles.emptyState}>
+            <PackageOpen color={colors.pink} size={42} />
+            <Text style={styles.emptyTitle}>还没有酒卡</Text>
+            <Text style={styles.emptyText}>抽到的经典盲盒酒卡会收进这里。</Text>
+            <Pressable
+              testID="private-cellar-draw-link"
+              onPress={() => router.push('/blind-box' as Href)}
+              style={({ pressed }) => [styles.emptyButton, pressed ? styles.pressed : null]}>
+              <Text style={styles.emptyButtonText}>去抽一张</Text>
+            </Pressable>
+          </View>
+        )}
       </ScrollView>
 
       <Modal visible={activeCard !== null} transparent animationType="fade" onRequestClose={() => setActiveCard(null)}>
@@ -122,6 +123,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+  },
+  emptyState: {
+    minHeight: 320,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(255,47,159,0.36)',
+    backgroundColor: 'rgba(255,47,159,0.06)',
+    paddingHorizontal: 24,
+  },
+  emptyTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '900',
+    marginTop: 12,
+  },
+  emptyText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  emptyButton: {
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.pill,
+    backgroundColor: colors.pink,
+    paddingHorizontal: 24,
+    marginTop: 18,
+  },
+  emptyButtonText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '900',
   },
   cardBorder: {
     width: '48.5%',

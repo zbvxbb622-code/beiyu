@@ -93,6 +93,39 @@ describe('BlindBoxScreen', () => {
     expect(mockDrawBlindBoxCard).not.toHaveBeenCalled();
   });
 
+  it('shows the draw video in a landscape frame instead of a square card box', async () => {
+    const screen = await render(<BlindBoxScreen />);
+
+    fireEvent.press(screen.getByTestId('test-draw-button'));
+    await waitFor(() => {
+      expect(screen.getByText('轻触跳过')).toBeTruthy();
+    });
+
+    const videoFrame = StyleSheet.flatten(screen.getByTestId('blind-box-video-wrap').props.style);
+    expect(videoFrame.width).toBeGreaterThan(videoFrame.height);
+    expect(videoFrame.height / videoFrame.width).toBeLessThanOrEqual(0.6);
+  });
+
+  it('keeps the revealed card inside its stage so action buttons sit below it', async () => {
+    const screen = await render(<BlindBoxScreen />);
+
+    fireEvent.press(screen.getByTestId('test-draw-button'));
+    await waitFor(() => {
+      expect(screen.getByText('轻触跳过')).toBeTruthy();
+    });
+    fireEvent.press(screen.getByTestId('blind-box-video-wrap'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('blind-box-card-frame')).toBeTruthy();
+    });
+
+    const stage = StyleSheet.flatten(screen.getByTestId('blind-box-stage').props.style);
+    const cardFrame = StyleSheet.flatten(screen.getByTestId('blind-box-card-frame').props.style);
+
+    expect(cardFrame.height).toBeLessThanOrEqual(stage.height);
+    expect(cardFrame.height).toBeLessThanOrEqual(430);
+  });
+
   it('keeps the unopened card compact so the draw button is reachable on phone screens', async () => {
     mockLastDrawDate = null;
     mockDrawnCards = [];

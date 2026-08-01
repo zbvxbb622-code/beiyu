@@ -12,7 +12,17 @@ import type { BlindBoxCard as BlindBoxCardType } from '@/types/mixology';
  * 盲盒酒卡：按稀有度呈现不同边框/光泽
  * common=白银边框  rare=蓝光边框  legendary=金色边框+流动光泽
  */
-export function BlindBoxCard({ card }: { card: BlindBoxCardType }) {
+export function BlindBoxCard({
+  card,
+  compact = false,
+  imageHeight = 170,
+  width = 300,
+}: {
+  card: BlindBoxCardType;
+  compact?: boolean;
+  imageHeight?: number;
+  width?: number;
+}) {
   const rarity = rarityConfig[card.rarity];
   const [shine] = useState(() => new Animated.Value(0));
 
@@ -47,12 +57,13 @@ export function BlindBoxCard({ card }: { card: BlindBoxCardType }) {
       style={[
         styles.outer,
         {
+          width,
           borderColor: rarity.borderColor,
           shadowColor: rarity.borderColor,
         },
       ]}
     >
-      <LinearGradient colors={rarity.gradient} style={styles.inner}>
+      <LinearGradient colors={rarity.gradient} style={[styles.inner, compact ? styles.innerCompact : null]}>
         {/* 传说卡流动光泽 */}
         {card.rarity === 'legendary' ? (
           <Animated.View
@@ -69,7 +80,7 @@ export function BlindBoxCard({ card }: { card: BlindBoxCardType }) {
         ) : null}
 
         {/* 卡面图 */}
-        <View style={styles.imageWrap}>
+        <View style={[styles.imageWrap, compact ? styles.imageWrapCompact : null, { height: imageHeight }]}>
           <Image source={getImageAsset(card.imageKey)} style={styles.image} resizeMode="cover" />
           <View style={[styles.rarityBadge, { backgroundColor: rarity.borderColor }]}>
             <Sparkles color="#1a1a1a" size={12} />
@@ -78,32 +89,32 @@ export function BlindBoxCard({ card }: { card: BlindBoxCardType }) {
         </View>
 
         {/* 名称 */}
-        <View style={styles.titleRow}>
-          <Text style={styles.name}>{card.name}</Text>
-          <Text style={[styles.englishName, { color: rarity.borderColor }]}>{card.englishName}</Text>
+        <View style={[styles.titleRow, compact ? styles.titleRowCompact : null]}>
+          <Text style={[styles.name, compact ? styles.nameCompact : null]}>{card.name}</Text>
+          <Text style={[styles.englishName, compact ? styles.englishNameCompact : null, { color: rarity.borderColor }]}>{card.englishName}</Text>
         </View>
 
-        <View style={[styles.divider, { borderColor: rarity.borderColor }]} />
+        <View style={[styles.divider, compact ? styles.dividerCompact : null, { borderColor: rarity.borderColor }]} />
 
         {/* 配料 */}
-        <Text style={[styles.sectionLabel, { color: rarity.borderColor }]}>INGREDIENTS</Text>
+        <Text style={[styles.sectionLabel, compact ? styles.sectionLabelCompact : null, { color: rarity.borderColor }]}>INGREDIENTS</Text>
         {card.ingredients.slice(0, 4).map((ingredient) => (
-          <View key={`${card.id}-${ingredient.name}`} style={styles.ingredientRow}>
-            <Text style={styles.ingredientName}>{ingredient.name}</Text>
+          <View key={`${card.id}-${ingredient.name}`} style={[styles.ingredientRow, compact ? styles.ingredientRowCompact : null]}>
+            <Text style={[styles.ingredientName, compact ? styles.ingredientNameCompact : null]}>{ingredient.name}</Text>
             <View style={styles.dots} />
-            <Text style={styles.ingredientAmount}>{ingredient.amount}</Text>
+            <Text style={[styles.ingredientAmount, compact ? styles.ingredientAmountCompact : null]}>{ingredient.amount}</Text>
           </View>
         ))}
 
         {/* 做法 */}
-        <Text style={[styles.sectionLabel, styles.methodLabel, { color: rarity.borderColor }]}>METHOD</Text>
+        <Text style={[styles.sectionLabel, styles.methodLabel, compact ? styles.methodLabelCompact : null, compact ? styles.sectionLabelCompact : null, { color: rarity.borderColor }]}>METHOD</Text>
         {card.steps.slice(0, 3).map((step, index) => (
-          <Text key={`${card.id}-step-${index}`} style={styles.step} numberOfLines={2}>
+          <Text key={`${card.id}-step-${index}`} style={[styles.step, compact ? styles.stepCompact : null]} numberOfLines={compact ? 1 : 2}>
             {index + 1}. {step}
           </Text>
         ))}
 
-        <Text style={styles.bartender}>— {card.bartender}</Text>
+        <Text style={[styles.bartender, compact ? styles.bartenderCompact : null]}>— {card.bartender}</Text>
       </LinearGradient>
     </View>
   );
@@ -111,7 +122,6 @@ export function BlindBoxCard({ card }: { card: BlindBoxCardType }) {
 
 const styles = StyleSheet.create({
   outer: {
-    width: 300,
     borderRadius: radii.md,
     borderWidth: 2,
     overflow: 'hidden',
@@ -123,6 +133,10 @@ const styles = StyleSheet.create({
   inner: {
     padding: 16,
     paddingBottom: 20,
+  },
+  innerCompact: {
+    padding: 12,
+    paddingBottom: 14,
   },
   shine: {
     position: 'absolute',
@@ -137,8 +151,10 @@ const styles = StyleSheet.create({
   imageWrap: {
     borderRadius: radii.sm,
     overflow: 'hidden',
-    height: 170,
     marginBottom: 14,
+  },
+  imageWrapCompact: {
+    marginBottom: 9,
   },
   image: {
     width: '100%',
@@ -164,11 +180,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
+  titleRowCompact: {
+    marginBottom: 7,
+  },
   name: {
     color: colors.text,
     fontSize: 22,
     fontWeight: '900',
     letterSpacing: 1,
+  },
+  nameCompact: {
+    fontSize: 20,
   },
   englishName: {
     fontSize: 13,
@@ -176,10 +198,17 @@ const styles = StyleSheet.create({
     marginTop: 2,
     letterSpacing: 2,
   },
+  englishNameCompact: {
+    fontSize: 12,
+    letterSpacing: 1.4,
+  },
   divider: {
     borderTopWidth: 1,
     opacity: 0.5,
     marginBottom: 12,
+  },
+  dividerCompact: {
+    marginBottom: 8,
   },
   sectionLabel: {
     fontSize: 11,
@@ -187,17 +216,30 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     marginBottom: 6,
   },
+  sectionLabelCompact: {
+    fontSize: 10,
+    marginBottom: 4,
+  },
   methodLabel: {
     marginTop: 12,
+  },
+  methodLabelCompact: {
+    marginTop: 8,
   },
   ingredientRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     marginBottom: 4,
   },
+  ingredientRowCompact: {
+    marginBottom: 2,
+  },
   ingredientName: {
     color: colors.text,
     fontSize: 13,
+  },
+  ingredientNameCompact: {
+    fontSize: 12,
   },
   dots: {
     flex: 1,
@@ -211,11 +253,19 @@ const styles = StyleSheet.create({
     color: colors.textSoft,
     fontSize: 12,
   },
+  ingredientAmountCompact: {
+    fontSize: 11,
+  },
   step: {
     color: colors.textSoft,
     fontSize: 12,
     lineHeight: 18,
     marginBottom: 2,
+  },
+  stepCompact: {
+    fontSize: 11,
+    lineHeight: 16,
+    marginBottom: 1,
   },
   bartender: {
     color: colors.textMuted,
@@ -223,5 +273,9 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'right',
     marginTop: 12,
+  },
+  bartenderCompact: {
+    fontSize: 11,
+    marginTop: 6,
   },
 });

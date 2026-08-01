@@ -160,8 +160,16 @@ export default function BlindBoxScreen() {
   };
 
   const shownCard = card ?? todayCard;
-  const videoSize = Math.min(width - 48, 380);
-  const stageHeight = Math.min(410, Math.max(330, height * 0.46));
+  const videoWidth = Math.min(width - 56, 330);
+  const videoHeight = Math.round(videoWidth * (9 / 16));
+  const revealedCardWidth = Math.min(width - 80, 282);
+  const revealedCardHeight = Math.min(430, Math.max(392, height * 0.48));
+  const revealedImageHeight = Math.min(118, Math.max(104, revealedCardHeight * 0.27));
+  const stageHeight = phase === 'drawing'
+    ? Math.min(292, Math.max(238, videoHeight + 56))
+    : shownCard
+      ? revealedCardHeight + 18
+      : Math.min(410, Math.max(330, height * 0.46));
   const cardBackWrapHeight = Math.min(360, Math.max(320, height * 0.42));
   const cardBackHeight = cardBackWrapHeight - 24;
   const cardBackWidth = cardBackHeight * 0.7;
@@ -174,8 +182,8 @@ export default function BlindBoxScreen() {
       <View testID="blind-box-stage" style={[styles.stage, { height: stageHeight }]}>
         {/* 抽卡过场视频 */}
         {phase === 'drawing' ? (
-          <Pressable onPress={revealCard} style={[styles.videoWrap, { width: videoSize, height: videoSize }]}>
-            <VideoView player={player} style={styles.video} contentFit="contain" nativeControls={false} />
+          <Pressable testID="blind-box-video-wrap" onPress={revealCard} style={[styles.videoWrap, { width: videoWidth, height: videoHeight }]}>
+            <VideoView player={player} style={styles.video} contentFit="cover" nativeControls={false} />
             <Text style={styles.skipHint}>轻触跳过</Text>
           </Pressable>
         ) : null}
@@ -184,12 +192,17 @@ export default function BlindBoxScreen() {
         {phase !== 'drawing' ? (
           shownCard ? (
             <Animated.View
+              testID="blind-box-card-frame"
               style={{
+                width: revealedCardWidth,
+                height: revealedCardHeight,
+                alignItems: 'center',
+                justifyContent: 'center',
                 transform: [{ scale: phase === 'revealed' ? revealScale : 1 }],
                 opacity: phase === 'revealed' ? revealOpacity : 1,
               }}
             >
-              <BlindBoxCard card={shownCard} />
+              <BlindBoxCard card={shownCard} compact width={revealedCardWidth} imageHeight={revealedImageHeight} />
             </Animated.View>
           ) : (
             <View testID="blind-box-card-back-wrap" style={[styles.cardBackWrap, { width: cardBackWidth + 24, height: cardBackWrapHeight }]}>
