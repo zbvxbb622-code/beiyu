@@ -43,7 +43,7 @@ function RootContent() {
   }
 
   if (pathname === '/ai' && status !== 'signedIn') {
-    return <Redirect href="/login" />;
+    return <Redirect href={{ pathname: '/login', params: { next: '/ai' } }} />;
   }
 
   return <AppTabs />;

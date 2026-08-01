@@ -9,6 +9,7 @@ import { useAuth } from '@/state/AuthState';
 
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
+let mockSearchParams: Record<string, string | undefined> = {};
 const mockRequestSmsCode = jest.fn<(phone: string) => Promise<{ expiresIn: number; retryAfter: number }>>();
 const mockLogin = jest.fn<(phone: string, code: string) => Promise<void>>();
 const mockLinkText = mockRouterLinkText as unknown as mockReact.ComponentType<{
@@ -30,6 +31,7 @@ jest.mock('expo-router', () => {
   return {
     Link: ({ href, children, ...props }: { href: string; children: ReactNode }) =>
       mockReact.createElement(mockLinkText, { href, ...props }, children),
+    useLocalSearchParams: () => mockSearchParams,
     useRouter: () => ({ replace: mockReplace, push: mockPush }),
   };
 });
@@ -38,6 +40,7 @@ jest.mock('@/state/AuthState', () => ({ useAuth: jest.fn() }));
 describe('LoginScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSearchParams = {};
     (useAuth as jest.Mock).mockReturnValue({ requestSmsCode: mockRequestSmsCode, login: mockLogin });
   });
 
@@ -100,6 +103,20 @@ describe('LoginScreen', () => {
     await act(async () => { completeLogin(); });
     expect(mockLogin).toHaveBeenCalledWith('13800000000', '123456');
     expect(mockReplace).toHaveBeenCalledWith('/');
+  });
+
+  it('returns to the requested protected screen after login succeeds', async () => {
+    mockSearchParams = { next: '/ai' };
+    mockLogin.mockResolvedValueOnce();
+    const screen = await render(<LoginScreen />);
+    await fireEvent.changeText(screen.getByTestId('login-phone'), '13800000000');
+    await fireEvent.changeText(screen.getByTestId('login-code'), '123456');
+    await fireEvent.press(screen.getByTestId('login-agreement'));
+
+    await fireEvent.press(screen.getByTestId('login-submit'));
+
+    expect(mockLogin).toHaveBeenCalledWith('13800000000', '123456');
+    expect(mockReplace).toHaveBeenCalledWith('/ai');
   });
 
   it('keeps login errors visible and does not navigate', async () => {

@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { Link, useRouter } from 'expo-router';
+import { type Href, Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { Circle, CircleCheck } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { ImageBackground, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -10,6 +10,7 @@ import { colors, radii, spacing } from '@/styles/mixologyTheme';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ next?: string }>();
   const { login, requestSmsCode } = useAuth();
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
@@ -24,6 +25,7 @@ export default function LoginScreen() {
   const validPhone = /^1\d{10}$/.test(phone);
   const canRequestCode = validPhone && retryAfter === 0 && !isRequesting;
   const canSubmit = validPhone && code.length === 6 && agreed && !isSubmitting;
+  const nextPath = params.next === '/ai' ? '/ai' : '/';
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -70,7 +72,7 @@ export default function LoginScreen() {
     try {
       await login(phone, code);
       if (isMountedRef.current) {
-        router.replace('/');
+        router.replace(nextPath as Href);
       }
     } catch (reason) {
       setIfMounted(() => setError(messageFor(reason)));
