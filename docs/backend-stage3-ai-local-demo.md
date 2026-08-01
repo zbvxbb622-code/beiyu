@@ -349,6 +349,15 @@ rg "$TEMP_MARKER" backend/.pytest_cache .expo src || true
 find . -path '*/__snapshots__/*' -type f -print0 | xargs -0 rg "$TEMP_MARKER" || true
 ```
 
+前端会为 `/ai/temporary-messages` 发送 `Cache-Control: no-store` 和
+`Pragma: no-cache`，后端也会在临时聊天响应上返回相同语义的非持久化响应头。
+这可以防止普通 HTTP 缓存语义下保存临时响应，但 Expo Go 的 iOS 开发网络层
+仍可能把 POST 请求体暂存在
+`Library/Caches/host.exp.Exponent/Cache.db-wal`。如果验收标准要求“设备文件全文
+搜索临时 marker 为零”，请使用原生 dev client 或生产 iOS build 复测，并在原生
+网络层禁用或清理 URL cache；不要把 Expo Go 的 `Cache.db-wal` 结果当作生产包
+结论。
+
 删除普通会话后，普通消息和仅来源于该会话的记忆应消失，用量记录应保留：
 
 ```bash

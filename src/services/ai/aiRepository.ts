@@ -43,6 +43,18 @@ function jsonRequest(method: string, body: unknown): RequestInit {
   };
 }
 
+function nonPersistentJsonRequest(method: string, body: unknown): RequestInit {
+  return {
+    ...jsonRequest(method, body),
+    cache: 'reload',
+    headers: {
+      'Cache-Control': 'no-store',
+      'Content-Type': 'application/json',
+      Pragma: 'no-cache',
+    },
+  };
+}
+
 function pageQuery(input: PaginationInput = {}) {
   const params = new URLSearchParams();
   if (input.page !== undefined) params.set('page', String(input.page));
@@ -107,7 +119,7 @@ export class AiRepository {
     const payload = temporaryMessageRequestSchema.parse(input);
     return this.options.authenticatedClient.request(
       '/ai/temporary-messages',
-      jsonRequest('POST', payload),
+      nonPersistentJsonRequest('POST', payload),
       temporaryMessageResponseSchema
     );
   }

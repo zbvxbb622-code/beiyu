@@ -138,6 +138,11 @@ describe('AiRepository', () => {
       '/ai/temporary-messages',
       expect.objectContaining({
         method: 'POST',
+        cache: 'reload',
+        headers: expect.objectContaining({
+          'Cache-Control': 'no-store',
+          Pragma: 'no-cache',
+        }),
         body: JSON.stringify({
           content: '临时问题',
           clientMessageId: '3333a62f-3f31-4647-9ac2-9914c9d5348d',

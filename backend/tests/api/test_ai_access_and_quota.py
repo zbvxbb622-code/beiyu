@@ -106,6 +106,8 @@ def test_ai_conversation_message_temporary_usage_and_delete_flow(
         },
     )
     assert temporary.status_code == 200, temporary.text
+    assert temporary.headers["cache-control"] == "no-store"
+    assert temporary.headers["pragma"] == "no-cache"
     assert temporary.json()["assistantMessage"]["content"]
     assert temporary.json()["usage"]["used"] == 2
     assert temporary.json()["memoryChanges"] == []
@@ -178,4 +180,3 @@ def test_ai_access_requires_auth_age_active_account_and_feature_flag(
 
     assert disabled.status_code == 403
     assert disabled.json()["error"]["code"] == "AI_FEATURE_DISABLED"
-

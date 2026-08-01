@@ -71,6 +71,11 @@ AI_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
 }
 
 
+def _mark_non_persistent(response: Response) -> None:
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
+
+
 def _usage_response(snapshot: QuotaSnapshot) -> AiUsageResponse:
     return AiUsageResponse(
         limit=snapshot.daily_message_limit,
@@ -218,11 +223,13 @@ def post_message(
 )
 def post_temporary_message(
     payload: TemporaryMessageRequest,
+    response: Response,
     session: SessionDep,
     auth: CurrentAuth,
     settings: SettingsDep,
     provider: AiProviderDep,
 ) -> TemporaryMessageResponse:
+    _mark_non_persistent(response)
     return send_temporary_message(
         session,
         auth.user,

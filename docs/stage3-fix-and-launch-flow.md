@@ -13,10 +13,10 @@ flowchart TD
   E -->|"无"| H{"是否还有 moderate？"}
   H -->|"有"| I["记录为上线前风险<br/>评估 Expo 官方升级路径"]
   H -->|"无"| J["依赖风险清零"]
-  I --> K["真实 iOS Simulator 手工验收"]
+  I --> K["真实 iOS Simulator 验收"]
   J --> K
   K --> L{"22-step acceptance 是否全 PASS？"}
-  L -->|"否"| M["补测普通历史恢复<br/>补测临时聊天退出重进清空"]
+  L -->|"否"| M["修复验收缺口<br/>复测隐私与持久化"]
   M --> N["更新验收报告"]
   N --> L
   L -->|"是"| O["准备 staging 环境"]
@@ -45,9 +45,10 @@ flowchart TD
 - 已移除前端依赖审计中的 high 风险 `brace-expansion`：通过 `overrides` 固定到安全版本。
 - 已删除未使用的直接依赖 `@expo/ngrok`，避免旧 `uuid@3.4.0` 进入项目依赖树。
 - 当前 PR backend/frontend GitHub checks 已通过，分支可合并。
+- 已自动跑通 iOS Simulator 核心验收：登录、普通 AI 消息、历史恢复、临时聊天不进历史、删除普通会话并保留 usage。
 
 ## 当前仍需上线前处理
 
 - `npm audit` 仍有 Expo 依赖链上的 moderate 风险；不要直接执行 `npm audit fix --force`，需要单独评估 Expo 57 官方升级版本。
-- 真实 iOS Simulator 还需人工补跑两项：普通历史重启恢复、临时聊天退出重进清空。
+- Expo Go 的 iOS `Cache.db-wal` 会暂存临时聊天 POST 请求体；上线前需要用原生 dev client 或生产 iOS build 复测，并禁用/清理原生 URL cache 后再关闭该隐私验收缺口。
 - staging/prod 需要真实环境变量：数据库、短信服务、AI 服务、密钥、CORS、前端 API URL。
