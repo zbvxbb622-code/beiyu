@@ -31,7 +31,7 @@ export default function ProfileScreen() {
           <View style={styles.loginRow}>
             <Pressable onPress={() => router.push('/login' as Href)} style={styles.loginLink}>
               <LogIn color={colors.textMuted} size={15} style={styles.loginIcon} />
-              <Text style={styles.loginLinkText}>登录/注册入口（Mock）</Text>
+              <Text style={styles.loginLinkText}>登录/注册</Text>
             </Pressable>
           </View>
         </View>

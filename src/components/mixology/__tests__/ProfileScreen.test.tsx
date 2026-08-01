@@ -68,6 +68,8 @@ describe('ProfileScreen', () => {
     // 设置已收成单个按钮（不再内联三个面板）
     expect(screen.getByTestId('profile-settings-button')).toBeTruthy();
     expect(screen.queryByText('账号与安全')).toBeNull();
+    expect(screen.getByText('登录/注册')).toBeTruthy();
+    expect(screen.queryByText(/Mock/)).toBeNull();
   });
 
   it('navigates to edit profile page', async () => {
