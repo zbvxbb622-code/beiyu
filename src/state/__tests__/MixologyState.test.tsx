@@ -181,7 +181,7 @@ describe('MixologyProvider', () => {
       wechatAccount: 'cup-friend',
       passwordSet: true,
       realnameVerified: true,
-      realnameName: '杯友',
+      realnameName: '',
       officialVerified: true,
       officialType: '调酒师',
       devices: [{
@@ -233,6 +233,25 @@ describe('MixologyProvider', () => {
 
     expect(currentValue?.localState).toEqual(savedLocalState);
     await expect(loadLocalState()).resolves.toEqual(savedLocalState);
+  });
+
+  it('marks realname verification without persisting the submitted name', async () => {
+    mockAuthSnapshot = { status: 'signedIn', repository: mockRepository };
+    const screen = await render(<MixologyProvider><Probe /></MixologyProvider>);
+    await screen.findByText('hydrated');
+
+    await act(async () => {
+      await currentValue!.verifyRealname('张三');
+    });
+
+    expect(currentValue?.accountSecurity.realnameVerified).toBe(true);
+    expect(currentValue?.accountSecurity.realnameName).toBe('');
+    await expect(loadAuthenticatedState('__test-session__')).resolves.toMatchObject({
+      accountSecurity: {
+        realnameVerified: true,
+        realnameName: '',
+      },
+    });
   });
 
   it('uses the server cellar response as the final state across rapid toggles', async () => {

@@ -258,6 +258,12 @@ docker compose config
 docker compose build api
 ```
 
+注意：`docker compose config` 会展开本机 `.env` 里的环境变量。若需要把输出贴到验收报告、PR 或聊天记录中，请先脱敏：
+
+```bash
+docker compose config | sed -E 's/(BEIYU_AI_API_KEY: ).+/\1[redacted]/'
+```
+
 前端完整验证：
 
 ```bash

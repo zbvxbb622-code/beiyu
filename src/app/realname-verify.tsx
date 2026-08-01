@@ -78,14 +78,14 @@ export default function RealnameVerifyScreen() {
                 <ShieldCheck color={colors.pink} size={26} />
               </View>
               <Text style={styles.verifiedTitle}>已通过实名认证</Text>
-              <Text style={styles.verifiedName}>{accountSecurity.realnameName}</Text>
+              <Text style={styles.verifiedName}>认证信息不会在本机展示或保存</Text>
             </View>
           ) : (
             <>
               <Text style={styles.hint}>
                 {isAgeGate
                   ? '创建账号前需先确认本人已满 18 周岁。姓名与身份证号仅用于本次年龄判断，不会保存在本机。'
-                  : '根据相关法律法规，发布内容需完成实名认证。信息仅用于身份核验，不会公开。'}
+                  : '根据相关法律法规，发布内容需完成实名认证。姓名与身份证号仅用于本次校验，不会保存在本机或公开展示。'}
               </Text>
               <TextInput
                 style={styles.input}

@@ -29,7 +29,8 @@ describe('legal pages', () => {
     const screen = await render(<PrivacyScreen />);
 
     expect(screen.getByText('杯语隐私说明')).toBeTruthy();
-    expect(screen.getByText(/身份证号仅用于本次年龄判断/)).toBeTruthy();
+    expect(screen.getByText(/姓名与身份证号仅用于本次年龄或实名表单校验/)).toBeTruthy();
+    expect(screen.getByText(/不会把姓名和身份证号写入本机持久化存储/)).toBeTruthy();
 
     await fireEvent.press(screen.getByTestId('legal-back-button'));
     expect(mockBack).toHaveBeenCalledTimes(1);

@@ -26,7 +26,7 @@ export default function PrivacyScreen() {
           </Text>
           <Text style={styles.sectionTitle}>实名认证</Text>
           <Text style={styles.paragraph}>
-            身份证号仅用于本次年龄判断。当前版本不会把姓名和身份证号写入本机持久化存储、设备日志或 AI 对话上下文。
+            姓名与身份证号仅用于本次年龄或实名表单校验。当前版本不会把姓名和身份证号写入本机持久化存储、设备日志或 AI 对话上下文；正式上线实名能力需接入服务端实名核验服务。
           </Text>
           <Text style={styles.sectionTitle}>AI 对话</Text>
           <Text style={styles.paragraph}>

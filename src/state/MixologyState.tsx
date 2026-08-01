@@ -79,7 +79,7 @@ function accountSecurityFromBootstrap(response: BootstrapResponse): AccountSecur
     wechatAccount: response.accountSecurity.wechatAccount ?? '',
     passwordSet: response.accountSecurity.passwordSet ?? false,
     realnameVerified: response.accountSecurity.realnameVerified ?? false,
-    realnameName: response.accountSecurity.realnameName ?? '',
+    realnameName: '',
     officialVerified: response.accountSecurity.officialVerified ?? false,
     officialType: response.accountSecurity.officialType ?? '',
     devices: response.accountSecurity.devices.map((device) => ({
@@ -549,11 +549,11 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
   );
 
   const verifyRealname = useCallback(
-    async (name: string) => {
+    async () => {
       const next: AccountSecurity = {
         ...accountSecurityRef.current,
         realnameVerified: true,
-        realnameName: name,
+        realnameName: '',
       };
       await commitAccountSecurity(next);
     },

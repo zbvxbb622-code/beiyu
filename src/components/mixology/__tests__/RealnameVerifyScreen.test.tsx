@@ -106,7 +106,8 @@ describe('RealnameVerifyScreen', () => {
     const screen = await render(<RealnameVerifyScreen />);
 
     expect(screen.getByText('已通过实名认证')).toBeTruthy();
-    expect(screen.getByText('李四')).toBeTruthy();
+    expect(screen.getByText('认证信息不会在本机展示或保存')).toBeTruthy();
+    expect(screen.queryByText('李四')).toBeNull();
   });
 
   it('returns to account-security on back', async () => {

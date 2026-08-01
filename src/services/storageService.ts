@@ -80,6 +80,13 @@ export const anonymousAccountSecurity: AccountSecurity = {
   devices: [],
 };
 
+function sanitizeAccountSecurity(accountSecurity: AccountSecurity): AccountSecurity {
+  return {
+    ...accountSecurity,
+    realnameName: '',
+  };
+}
+
 function accountKey(userId: string, name: string) {
   return `mixology.account.${encodeURIComponent(userId)}.${name}.v1`;
 }
@@ -141,11 +148,11 @@ export async function saveUserProfile(profile: UserProfile) {
 
 export async function loadAccountSecurity(): Promise<AccountSecurity> {
   const stored = await readJson<Partial<AccountSecurity>>(ACCOUNT_SECURITY_KEY, defaultAccountSecurity);
-  return { ...defaultAccountSecurity, ...stored };
+  return sanitizeAccountSecurity({ ...defaultAccountSecurity, ...stored });
 }
 
 export async function saveAccountSecurity(accountSecurity: AccountSecurity) {
-  await writeJson(ACCOUNT_SECURITY_KEY, accountSecurity);
+  await writeJson(ACCOUNT_SECURITY_KEY, sanitizeAccountSecurity(accountSecurity));
 }
 
 export async function saveAuthenticatedState({
@@ -165,7 +172,7 @@ export async function saveAuthenticatedState({
       [accountKey(userId, 'cellarIngredientIds'), JSON.stringify(localState.cellarIngredientIds)],
       [accountKey(userId, 'privacySettings'), JSON.stringify(localState.privacySettings)],
       [accountKey(userId, 'userProfile'), JSON.stringify(userProfile)],
-      [accountKey(userId, 'accountSecurity'), JSON.stringify(accountSecurity)],
+      [accountKey(userId, 'accountSecurity'), JSON.stringify(sanitizeAccountSecurity(accountSecurity))],
     ]);
   } catch {
     // Keep UI usable in Expo Go even if native storage is unavailable.
@@ -187,7 +194,7 @@ export async function loadAuthenticatedState(userId: string): Promise<{
   return {
     localState: { ageVerified, cellarIngredientIds, privacySettings },
     userProfile: { ...defaultUserProfile, ...userProfile },
-    accountSecurity: { ...anonymousAccountSecurity, ...accountSecurity },
+    accountSecurity: sanitizeAccountSecurity({ ...anonymousAccountSecurity, ...accountSecurity }),
   };
 }
 

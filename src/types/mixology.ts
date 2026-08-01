@@ -231,7 +231,7 @@ export type AccountSecurity = {
   wechatAccount: string; // 绑定后展示的微信账号
   passwordSet: boolean;
   realnameVerified: boolean;
-  realnameName: string; // 认证后展示的姓名（脱敏）
+  realnameName: string; // 兼容历史字段；当前不写入或展示实名姓名
   officialVerified: boolean;
   officialType: string; // 官方认证类型，如「个人职业资质」
   devices: LoginDevice[];
