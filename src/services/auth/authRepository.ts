@@ -19,7 +19,13 @@ import {
   type BootstrapResponse,
   type DeviceInput,
 } from '@/services/auth/authSchemas';
+import {
+  communityCommentSchema,
+  communityPostListSchema,
+  communityPostSchema,
+} from '@/services/community/communitySchemas';
 import { tokenStore } from '@/services/auth/tokenStore';
+import type { CommunityPost, FeedCategory, PostImage, PostVisibility } from '@/types/mixology';
 
 const emptyResponseSchema = z.undefined();
 
@@ -49,6 +55,18 @@ export type CellarItemInput = Pick<
 >;
 
 export type CellarItemPatch = Partial<Pick<CellarItemInput, 'amountLabel' | 'note'>>;
+
+export type CommunityPostCreateInput = {
+  title: string;
+  body: string;
+  category: FeedCategory;
+  imageKey?: string;
+  images?: Extract<PostImage, { kind: 'asset' }>[];
+  topics?: string[];
+  venueId?: string;
+  visibility?: PostVisibility;
+  allowComments?: boolean;
+};
 
 function jsonRequest(method: string, body: unknown): RequestInit {
   return {
@@ -195,6 +213,41 @@ export class AuthRepository {
       '/cellar/items/batch',
       jsonRequest('POST', { ingredientIds }),
       cellarListResponseSchema
+    );
+  }
+
+  listCommunityPosts(category?: FeedCategory) {
+    const path = category
+      ? `/community/posts?category=${encodeURIComponent(category)}`
+      : '/community/posts';
+    return this.options.authenticatedClient.request(
+      path,
+      { method: 'GET' },
+      communityPostListSchema
+    );
+  }
+
+  createCommunityPost(input: CommunityPostCreateInput): Promise<CommunityPost> {
+    return this.options.authenticatedClient.request(
+      '/community/posts',
+      jsonRequest('POST', input),
+      communityPostSchema
+    );
+  }
+
+  getCommunityPost(postId: string): Promise<CommunityPost> {
+    return this.options.authenticatedClient.request(
+      `/community/posts/${encodeURIComponent(postId)}`,
+      { method: 'GET' },
+      communityPostSchema
+    );
+  }
+
+  addCommunityComment(postId: string, text: string) {
+    return this.options.authenticatedClient.request(
+      `/community/posts/${encodeURIComponent(postId)}/comments`,
+      jsonRequest('POST', { text }),
+      communityCommentSchema
     );
   }
 }

@@ -839,6 +839,8 @@ def test_migrations_upgrade_ai_core_from_0003_and_downgrade() -> None:
                 "auth_sessions",
                 "bars",
                 "cellar_items",
+                "community_comments",
+                "community_posts",
                 "content_versions",
                 "drink_knowledge_entries",
                 "home_banners",
@@ -881,7 +883,7 @@ def test_migrations_upgrade_ai_core_from_0003_and_downgrade() -> None:
                     ),
                     {"enum_names": list(AI_ENUM_VALUES)},
                 ).all()
-            assert revision == "20260729_0004"
+            assert revision == "20260802_0005"
             assert {enum_name: list(values) for enum_name, values in enum_values} == AI_ENUM_VALUES
         finally:
             command.downgrade(config, "20260729_0003")

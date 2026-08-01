@@ -78,7 +78,7 @@ describe('PublishPostScreen 图片管理', () => {
     });
   });
 
-  it('labels publishing as a local beta workflow before community backend is available', async () => {
+  it('labels publishing as the active community backend workflow', async () => {
     const screen = await render(
       <ContentTestProvider>
         <PublishPostScreen />
@@ -86,8 +86,8 @@ describe('PublishPostScreen 图片管理', () => {
     );
     await act(async () => {});
 
-    expect(screen.getByText('社区发布内测')).toBeTruthy();
-    expect(screen.getByText(/当前笔记只保存在本机/)).toBeTruthy();
-    expect(screen.getByText('保存本机笔记')).toBeTruthy();
+    expect(screen.queryByText('社区发布内测')).toBeNull();
+    expect(screen.queryByText(/当前笔记只保存在本机/)).toBeNull();
+    expect(screen.getAllByText('发布笔记').length).toBeGreaterThanOrEqual(1);
   });
 });

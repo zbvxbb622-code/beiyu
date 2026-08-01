@@ -32,6 +32,24 @@ const validLoginResponse = {
   },
 };
 
+const validCommunityPost = {
+  id: 'post-1',
+  category: 'recommended',
+  title: '后端社区笔记',
+  authorId: 'author-1',
+  authorName: '杯语用户',
+  authorAvatarKey: 'avatarOne',
+  imageKey: 'communityGrid',
+  body: '社区帖子已经走后端。',
+  date: '2026-08-02',
+  likes: 0,
+  comments: [],
+  images: [{ id: 'cover', kind: 'asset', assetKey: 'communityGrid' }],
+  topics: ['调酒'],
+  visibility: 'public',
+  allowComments: true,
+};
+
 function jsonResponse(body: unknown, status = 200): Response {
   return {
     ok: status >= 200 && status < 300,
@@ -143,5 +161,68 @@ describe('AuthRepository', () => {
       })
     ).resolves.toEqual(validLoginResponse);
     expect(setRefreshToken).toHaveBeenCalledWith('next-refresh-token');
+  });
+
+  it('lists community posts through the authenticated client with category filters', async () => {
+    const request = jest.fn(async () => ({ items: [validCommunityPost] })) as unknown as AuthenticatedClient['request'];
+    const repository = createRepository(jest.fn<FetchLike>(), { request });
+
+    await expect(repository.listCommunityPosts('recommended')).resolves.toEqual({ items: [validCommunityPost] });
+    expect(request).toHaveBeenCalledWith('/community/posts?category=recommended', { method: 'GET' }, expect.anything());
+  });
+
+  it('creates community posts and comments through the authenticated client', async () => {
+    const validComment = {
+      id: 'comment-1',
+      authorName: '杯语用户',
+      authorAvatarKey: 'avatarOne',
+      text: '看起来不错',
+      date: '2026-08-02',
+    };
+    const requestMock = jest.fn<() => Promise<unknown>>()
+      .mockResolvedValueOnce(validCommunityPost)
+      .mockResolvedValueOnce(validComment);
+    const request = requestMock as unknown as AuthenticatedClient['request'];
+    const repository = createRepository(jest.fn<FetchLike>(), { request });
+
+    await expect(repository.createCommunityPost({
+      title: '后端社区笔记',
+      body: '社区帖子已经走后端。',
+      category: 'recommended',
+      imageKey: 'communityGrid',
+      images: [{ id: 'cover', kind: 'asset', assetKey: 'communityGrid' }],
+      topics: ['调酒'],
+      visibility: 'public',
+      allowComments: true,
+    })).resolves.toEqual(validCommunityPost);
+    await expect(repository.addCommunityComment('post-1', '看起来不错')).resolves.toEqual(validComment);
+
+    expect(requestMock).toHaveBeenNthCalledWith(
+      1,
+      '/community/posts',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          title: '后端社区笔记',
+          body: '社区帖子已经走后端。',
+          category: 'recommended',
+          imageKey: 'communityGrid',
+          images: [{ id: 'cover', kind: 'asset', assetKey: 'communityGrid' }],
+          topics: ['调酒'],
+          visibility: 'public',
+          allowComments: true,
+        }),
+      }),
+      expect.anything()
+    );
+    expect(requestMock).toHaveBeenNthCalledWith(
+      2,
+      '/community/posts/post-1/comments',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ text: '看起来不错' }),
+      }),
+      expect.anything()
+    );
   });
 });

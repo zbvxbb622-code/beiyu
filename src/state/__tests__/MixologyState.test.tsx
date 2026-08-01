@@ -17,6 +17,9 @@ const mockRepository = {
   patchProfile: jest.fn<AuthRepository['patchProfile']>(),
   patchPrivacy: jest.fn<AuthRepository['patchPrivacy']>(),
   batchCellarItems: jest.fn<AuthRepository['batchCellarItems']>(),
+  listCommunityPosts: jest.fn<AuthRepository['listCommunityPosts']>(),
+  createCommunityPost: jest.fn<AuthRepository['createCommunityPost']>(),
+  addCommunityComment: jest.fn<AuthRepository['addCommunityComment']>(),
 };
 let mockAuthSnapshot: {
   status: 'signedOut' | 'signedIn';
@@ -127,6 +130,7 @@ describe('MixologyProvider', () => {
     await AsyncStorage.clear();
     mockAuthSnapshot = { status: 'signedOut', repository: mockRepository };
     Object.values(mockRepository).forEach((method) => method.mockReset());
+    mockRepository.listCommunityPosts.mockResolvedValue({ items: [] });
   });
 
   it('preserves rapid interaction updates from the same rendered snapshot', async () => {
@@ -294,5 +298,96 @@ describe('MixologyProvider', () => {
     expect(mockRepository.batchCellarItems).toHaveBeenNthCalledWith(1, ['gin']);
     expect(mockRepository.batchCellarItems).toHaveBeenNthCalledWith(2, ['gin']);
     expect(currentValue?.localState.cellarIngredientIds).toEqual(['gin']);
+  });
+
+  it('uses backend community posts for signed-in publishing and refreshes visible posts', async () => {
+    const remotePost = {
+      id: 'remote-post-1',
+      category: 'recommended' as const,
+      title: '云端笔记',
+      authorId: bootstrap.user.id,
+      authorName: bootstrap.profile.nickname,
+      authorAvatarKey: bootstrap.profile.avatarKey,
+      imageKey: 'communityGrid',
+      body: '这条帖子来自后端。',
+      date: '2026-08-02',
+      likes: 0,
+      comments: [],
+      images: [{ id: 'cover', kind: 'asset' as const, assetKey: 'communityGrid' }],
+      topics: ['调酒'],
+      visibility: 'public' as const,
+      allowComments: true,
+    };
+    mockAuthSnapshot = { status: 'signedIn', repository: mockRepository };
+    mockRepository.createCommunityPost.mockResolvedValueOnce(remotePost);
+    const screen = await render(<MixologyProvider><Probe /></MixologyProvider>);
+    await screen.findByText('hydrated');
+
+    await act(async () => {
+      await currentValue!.publishPost({
+        title: ' 云端笔记 ',
+        body: ' 这条帖子来自后端。 ',
+        imageKey: 'communityGrid',
+        images: [
+          { id: 'cover', kind: 'asset', assetKey: 'communityGrid' },
+          { id: 'local', kind: 'uri', uri: 'file:///tmp/local.jpg' },
+        ],
+        topics: ['调酒'],
+      });
+    });
+
+    expect(mockRepository.createCommunityPost).toHaveBeenCalledWith({
+      title: '云端笔记',
+      body: '这条帖子来自后端。',
+      category: 'recommended',
+      imageKey: 'communityGrid',
+      images: [{ id: 'cover', kind: 'asset', assetKey: 'communityGrid' }],
+      topics: ['调酒'],
+      visibility: 'public',
+      allowComments: true,
+    });
+    expect(currentValue?.interactionState.localCommunityPosts[0]).toEqual(remotePost);
+    await expect(AsyncStorage.getItem('beiyu.interactions')).resolves.toBeNull();
+  });
+
+  it('uses backend comments for signed-in community posts', async () => {
+    const remotePost = {
+      id: 'remote-post-2',
+      category: 'recommended' as const,
+      title: '可评论笔记',
+      authorId: bootstrap.user.id,
+      authorName: bootstrap.profile.nickname,
+      authorAvatarKey: bootstrap.profile.avatarKey,
+      imageKey: 'communityGrid',
+      body: '评论应写入后端。',
+      date: '2026-08-02',
+      likes: 0,
+      comments: [],
+      images: [{ id: 'cover', kind: 'asset' as const, assetKey: 'communityGrid' }],
+      topics: ['调酒'],
+      visibility: 'public' as const,
+      allowComments: true,
+    };
+    const remoteComment = {
+      id: 'remote-comment-1',
+      authorName: bootstrap.profile.nickname,
+      authorAvatarKey: bootstrap.profile.avatarKey,
+      text: '后端评论',
+      date: '2026-08-02',
+    };
+    mockAuthSnapshot = { status: 'signedIn', repository: mockRepository };
+    mockRepository.listCommunityPosts.mockResolvedValueOnce({ items: [remotePost] });
+    mockRepository.addCommunityComment.mockResolvedValueOnce(remoteComment);
+    const screen = await render(<MixologyProvider><Probe /></MixologyProvider>);
+    await screen.findByText('hydrated');
+    await waitFor(() => expect(currentValue?.interactionState.localCommunityPosts).toEqual([remotePost]));
+
+    await act(async () => {
+      await currentValue!.addPostComment('remote-post-2', ' 后端评论 ');
+    });
+
+    expect(mockRepository.addCommunityComment).toHaveBeenCalledWith('remote-post-2', '后端评论');
+    expect(currentValue?.interactionState.localCommunityPosts[0].comments).toEqual([remoteComment]);
+    await expect(AsyncStorage.getItem('beiyu.interactions')).resolves.toBeNull();
   });
 });

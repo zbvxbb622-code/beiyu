@@ -2331,6 +2331,321 @@
         "title": "CocktailIngredientResponse",
         "type": "object"
       },
+      "CommunityCommentCreate": {
+        "properties": {
+          "text": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "CommunityCommentCreate",
+        "type": "object"
+      },
+      "CommunityCommentResponse": {
+        "properties": {
+          "authorAvatarKey": {
+            "title": "Authoravatarkey",
+            "type": "string"
+          },
+          "authorId": {
+            "title": "Authorid",
+            "type": "string"
+          },
+          "authorName": {
+            "title": "Authorname",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "authorId",
+          "authorName",
+          "authorAvatarKey",
+          "text",
+          "date",
+          "createdAt"
+        ],
+        "title": "CommunityCommentResponse",
+        "type": "object"
+      },
+      "CommunityFeedCategory": {
+        "enum": [
+          "recommended",
+          "following",
+          "nearby"
+        ],
+        "title": "CommunityFeedCategory",
+        "type": "string"
+      },
+      "CommunityPostCreate": {
+        "properties": {
+          "allowComments": {
+            "default": true,
+            "title": "Allowcomments",
+            "type": "boolean"
+          },
+          "body": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          },
+          "category": {
+            "default": "recommended",
+            "enum": [
+              "recommended",
+              "following",
+              "nearby"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "imageKey": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagekey"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/CommunityPostImage"
+            },
+            "maxItems": 9,
+            "title": "Images",
+            "type": "array"
+          },
+          "title": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "topics": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Topics",
+            "type": "array"
+          },
+          "venueId": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Venueid"
+          },
+          "visibility": {
+            "default": "public",
+            "enum": [
+              "public",
+              "private"
+            ],
+            "title": "Visibility",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "body"
+        ],
+        "title": "CommunityPostCreate",
+        "type": "object"
+      },
+      "CommunityPostImage": {
+        "properties": {
+          "assetKey": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Assetkey",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "asset",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "assetKey"
+        ],
+        "title": "CommunityPostImage",
+        "type": "object"
+      },
+      "CommunityPostListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CommunityPostResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "CommunityPostListResponse",
+        "type": "object"
+      },
+      "CommunityPostResponse": {
+        "properties": {
+          "allowComments": {
+            "default": true,
+            "title": "Allowcomments",
+            "type": "boolean"
+          },
+          "authorAvatarKey": {
+            "title": "Authoravatarkey",
+            "type": "string"
+          },
+          "authorId": {
+            "title": "Authorid",
+            "type": "string"
+          },
+          "authorName": {
+            "title": "Authorname",
+            "type": "string"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "category": {
+            "enum": [
+              "recommended",
+              "following",
+              "nearby"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "comments": {
+            "items": {
+              "$ref": "#/components/schemas/CommunityCommentResponse"
+            },
+            "title": "Comments",
+            "type": "array"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageKey": {
+            "title": "Imagekey",
+            "type": "string"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/CommunityPostImage"
+            },
+            "title": "Images",
+            "type": "array"
+          },
+          "likes": {
+            "minimum": 0.0,
+            "title": "Likes",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "topics": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Topics",
+            "type": "array"
+          },
+          "venueId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Venueid"
+          },
+          "visibility": {
+            "default": "public",
+            "enum": [
+              "public",
+              "private"
+            ],
+            "title": "Visibility",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "category",
+          "title",
+          "authorId",
+          "authorName",
+          "authorAvatarKey",
+          "imageKey",
+          "body",
+          "date",
+          "likes",
+          "comments",
+          "createdAt"
+        ],
+        "title": "CommunityPostResponse",
+        "type": "object"
+      },
       "ContentVersionListResponse": {
         "properties": {
           "items": {
@@ -8945,6 +9260,226 @@
         "tags": [
           "api",
           "cellar"
+        ]
+      }
+    },
+    "/api/v1/community/posts": {
+      "get": {
+        "operationId": "community_posts_api_v1_community_posts_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CommunityFeedCategory"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityPostListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Community Posts",
+        "tags": [
+          "api",
+          "community"
+        ]
+      },
+      "post": {
+        "operationId": "create_community_post_api_v1_community_posts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommunityPostCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityPostResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Community Post",
+        "tags": [
+          "api",
+          "community"
+        ]
+      }
+    },
+    "/api/v1/community/posts/{post_id}": {
+      "get": {
+        "operationId": "community_post_detail_api_v1_community_posts__post_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "post_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Post Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityPostResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Community Post Detail",
+        "tags": [
+          "api",
+          "community"
+        ]
+      }
+    },
+    "/api/v1/community/posts/{post_id}/comments": {
+      "post": {
+        "operationId": "create_community_comment_api_v1_community_posts__post_id__comments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "post_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Post Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommunityCommentCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityCommentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Community Comment",
+        "tags": [
+          "api",
+          "community"
         ]
       }
     },

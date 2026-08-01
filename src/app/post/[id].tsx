@@ -119,7 +119,6 @@ export default function CommunityPostDetailScreen() {
       <View style={styles.bottomBar}>
         {commentsEnabled ? (
           <View style={styles.commentArea}>
-            <Text style={styles.commentBetaNotice}>评论仅本机保存，正式社区后端上线前不会同步。</Text>
             <View style={styles.commentInputWrap}>
               <TextInput
                 placeholder="说点什么…"
@@ -291,13 +290,6 @@ const styles = StyleSheet.create({
   commentArea: {
     flex: 1,
     minWidth: 0,
-    gap: 5,
-  },
-  commentBetaNotice: {
-    color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 14,
-    paddingLeft: 4,
   },
   commentInputWrap: {
     minHeight: 46,

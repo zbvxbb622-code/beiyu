@@ -26,6 +26,12 @@ from app.db.models.ai import (
     AiUsageLog,
 )
 from app.db.models.cellar import CellarItem, CellarItemSource
+from app.db.models.community import (
+    CommunityComment,
+    CommunityFeedCategory,
+    CommunityPost,
+    CommunityPostVisibility,
+)
 from app.db.models.content import (
     Bar,
     ContentAction,
@@ -64,6 +70,10 @@ __all__ = [
     "ContentStatus",
     "ContentType",
     "ContentVersion",
+    "CommunityComment",
+    "CommunityFeedCategory",
+    "CommunityPost",
+    "CommunityPostVisibility",
     "DevicePlatform",
     "DrinkKnowledgeEntry",
     "HomeBanner",

@@ -39,6 +39,7 @@ type MixologyContextValue = {
   toggleAuthorFollow: (authorId: string) => Promise<void>;
   toggleCellarCardLike: (cardId: string) => Promise<void>;
   toggleVenueFavorite: (venueId: string) => Promise<void>;
+  refreshCommunityPosts: () => Promise<void>;
   addPostComment: (postId: string, text: string) => Promise<CommunityComment>;
   publishPost: (input: PublishPostInput) => Promise<CommunityPost>;
   addSearchHistory: (query: string) => Promise<void>;
@@ -350,6 +351,12 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
     await saveInteractionState(nextState);
   }, []);
 
+  const commitRemoteCommunityState = useCallback((updater: (state: LocalInteractionState) => LocalInteractionState) => {
+    const nextState = updater(interactionStateRef.current);
+    interactionStateRef.current = nextState;
+    setInteractionState(nextState);
+  }, []);
+
   const togglePostLike = useCallback(
     async (postId: string) => {
       await updateInteractions((state) => ({
@@ -390,11 +397,39 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
     [updateInteractions]
   );
 
+  const refreshCommunityPosts = useCallback(async () => {
+    const expected = captureSession();
+    if (!expected) return;
+    const response = await repository.listCommunityPosts();
+    if (!isSessionActive(expected)) return;
+    commitRemoteCommunityState((state) => ({
+      ...state,
+      localCommunityPosts: response.items,
+    }));
+  }, [captureSession, commitRemoteCommunityState, isSessionActive, repository]);
+
+  useEffect(() => {
+    if (!isHydrated || status !== 'signedIn') return;
+    void refreshCommunityPosts().catch(() => undefined);
+  }, [isHydrated, refreshCommunityPosts, status]);
+
   const addPostComment = useCallback(
     async (postId: string, text: string) => {
       const trimmed = text.trim();
       if (!trimmed) {
         throw new Error('评论内容不能为空');
+      }
+      const expected = captureSession();
+      if (expected) {
+        const comment = await repository.addCommunityComment(postId, trimmed);
+        if (!isSessionActive(expected)) return comment;
+        commitRemoteCommunityState((state) => ({
+          ...state,
+          localCommunityPosts: state.localCommunityPosts.map((post) => post.id === postId
+            ? { ...post, comments: [...post.comments, comment] }
+            : post),
+        }));
+        return comment;
       }
       const comment: CommunityComment = {
         id: `local-comment-${Date.now()}`,
@@ -412,7 +447,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       }));
       return comment;
     },
-    [updateInteractions, userProfile]
+    [captureSession, commitRemoteCommunityState, isSessionActive, repository, updateInteractions, userProfile]
   );
 
   const publishPost = useCallback(
@@ -430,6 +465,27 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
         : input.imageKey
           ? [{ id: 'cover', kind: 'asset', assetKey: input.imageKey } as PostImage]
           : [];
+      const expected = captureSession();
+      if (expected) {
+        const assetImages = images.filter((image): image is Extract<PostImage, { kind: 'asset' }> => image.kind === 'asset');
+        const post = await repository.createCommunityPost({
+          title,
+          body,
+          category: input.category ?? 'recommended',
+          imageKey: input.imageKey ?? deriveCoverImageKey(assetImages),
+          images: assetImages.length ? assetImages : undefined,
+          topics: input.topics?.length ? input.topics : undefined,
+          venueId: input.venueId,
+          visibility: input.visibility ?? 'public',
+          allowComments: input.allowComments ?? true,
+        });
+        if (!isSessionActive(expected)) return post;
+        commitRemoteCommunityState((state) => ({
+          ...state,
+          localCommunityPosts: [post, ...state.localCommunityPosts.filter((item) => item.id !== post.id)],
+        }));
+        return post;
+      }
       const post: CommunityPost = {
         id: `local-post-${Date.now()}`,
         category: input.category ?? 'recommended',
@@ -454,7 +510,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       }));
       return post;
     },
-    [updateInteractions, userProfile]
+    [captureSession, commitRemoteCommunityState, isSessionActive, repository, updateInteractions, userProfile]
   );
 
   const addSearchHistory = useCallback(
@@ -603,6 +659,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       toggleAuthorFollow,
       toggleCellarCardLike,
       toggleVenueFavorite,
+      refreshCommunityPosts,
       addPostComment,
       publishPost,
       addSearchHistory,
@@ -637,6 +694,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       toggleAuthorFollow,
       toggleCellarCardLike,
       toggleVenueFavorite,
+      refreshCommunityPosts,
       addPostComment,
       publishPost,
       addSearchHistory,
