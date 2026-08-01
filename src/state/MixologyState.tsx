@@ -435,7 +435,10 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
         throw new Error('评论内容不能为空');
       }
       const expected = captureSession();
-      if (expected) {
+      const remotePost = expected
+        ? interactionStateRef.current.localCommunityPosts.find((post) => post.id === postId)
+        : undefined;
+      if (expected && remotePost?.likedByMe !== undefined) {
         const comment = await repository.addCommunityComment(postId, trimmed);
         if (!isSessionActive(expected)) return comment;
         commitRemoteCommunityState((state) => ({

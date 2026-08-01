@@ -395,6 +395,25 @@ describe('MixologyProvider', () => {
     await expect(AsyncStorage.getItem('beiyu.interactions')).resolves.toBeNull();
   });
 
+  it('keeps comments local for signed-in static community posts that are not on the backend', async () => {
+    mockAuthSnapshot = { status: 'signedIn', repository: mockRepository };
+    const screen = await render(<MixologyProvider><Probe /></MixologyProvider>);
+    await screen.findByText('hydrated');
+
+    await act(async () => {
+      await currentValue!.addPostComment('static-community-post', ' 静态帖子评论 ');
+    });
+
+    expect(mockRepository.addCommunityComment).not.toHaveBeenCalled();
+    expect(currentValue?.interactionState.localPostComments.staticCommunityPost).toBeUndefined();
+    expect(currentValue?.interactionState.localPostComments['static-community-post']).toEqual([
+      expect.objectContaining({
+        authorName: currentValue?.userProfile.nickname,
+        text: '静态帖子评论',
+      }),
+    ]);
+  });
+
   it('uses backend likes for signed-in community posts without persisting local liked ids', async () => {
     const remotePost = {
       id: 'remote-post-like',
