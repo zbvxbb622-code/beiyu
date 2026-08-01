@@ -16,7 +16,7 @@ describe('AiHistoryDrawer', () => {
     jest.clearAllMocks();
   });
 
-  it('groups conversations by Beijing recency and caps panel width', async () => {
+  it('groups conversations by Beijing recency and keeps the panel compact on phone screens', async () => {
     const screen = await render(
       <AiHistoryDrawer
         visible
@@ -38,11 +38,33 @@ describe('AiHistoryDrawer', () => {
       />
     );
 
-    expect(StyleSheet.flatten(screen.getByTestId('ai-history-drawer').props.style).width).toBe(340);
+    expect(StyleSheet.flatten(screen.getByTestId('ai-history-drawer').props.style).width).toBeLessThanOrEqual(320);
     expect(screen.getByText('今天')).toBeTruthy();
     expect(screen.getByText('昨天')).toBeTruthy();
     expect(screen.getByText('过去 7 天')).toBeTruthy();
     expect(screen.getByText('更早')).toBeTruthy();
+  });
+
+  it('closes from an explicit drawer button', async () => {
+    const onClose = jest.fn();
+    const screen = await render(
+      <AiHistoryDrawer
+        visible
+        width={390}
+        avatarSource={avatarSource}
+        displayName="lan Bai"
+        conversations={[]}
+        selectedConversationId={null}
+        now={now}
+        onClose={onClose}
+        onNewChat={jest.fn()}
+        onPick={jest.fn()}
+        onDelete={jest.fn()}
+      />
+    );
+
+    await fireEvent.press(screen.getByTestId('ai-history-close-button'));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('confirms deletion before calling delete', async () => {

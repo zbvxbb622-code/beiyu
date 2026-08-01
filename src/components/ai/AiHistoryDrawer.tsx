@@ -1,6 +1,6 @@
 import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ImageSourcePropType } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronRight, Plus, Search, Trash2 } from 'lucide-react-native';
+import { Plus, Search, Trash2, X } from 'lucide-react-native';
 
 import type { ConversationResponse } from '@/services/ai/aiSchemas';
 import { colors } from '@/styles/mixologyTheme';
@@ -73,7 +73,7 @@ export function AiHistoryDrawer({
   onPick: (conversation: ConversationResponse) => void;
   onDelete: (conversationId: string) => void;
 }) {
-  const panelWidth = Math.min(width * 0.82, 340);
+  const panelWidth = Math.min(Math.max(width - 96, 280), 320);
   const groups = groupConversationsByBeijingDay(conversations, now);
 
   const confirmDelete = (conversation: ConversationResponse) => {
@@ -91,9 +91,15 @@ export function AiHistoryDrawer({
             <View style={styles.drawerProfileRow}>
               <Image source={avatarSource} style={styles.drawerAvatar} />
               <Text style={styles.drawerName} numberOfLines={1}>{displayName}</Text>
-              <ChevronRight color="#f7f7f7" size={24} strokeWidth={2.6} />
               <Pressable onPress={onNewChat} style={styles.drawerNewChatButton} accessibilityLabel="新对话">
                 <Plus color={colors.text} size={20} strokeWidth={2.6} />
+              </Pressable>
+              <Pressable
+                testID="ai-history-close-button"
+                onPress={onClose}
+                style={({ pressed }) => [styles.drawerCloseButton, pressed ? styles.pressed : null]}
+                accessibilityLabel="关闭历史对话">
+                <X color={colors.text} size={20} strokeWidth={2.5} />
               </Pressable>
             </View>
 
@@ -175,6 +181,7 @@ const styles = StyleSheet.create({
   },
   drawerName: {
     flex: 1,
+    minWidth: 0,
     color: colors.text,
     fontSize: 18,
     fontWeight: '900',
@@ -186,6 +193,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.pink,
+  },
+  drawerCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   searchBox: {
     minHeight: 48,

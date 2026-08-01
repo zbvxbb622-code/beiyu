@@ -1,10 +1,10 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { AudioLines, Mic, Plus, Send } from 'lucide-react-native';
+import { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import type { AiUsageResponse } from '@/services/ai/aiSchemas';
 import type { AiChatMode, AiViewStatus } from '@/state/AiState';
-import { colors, gradients } from '@/styles/mixologyTheme';
+import { colors } from '@/styles/mixologyTheme';
 
 export function AiInputDock({
   draft,
@@ -20,13 +20,27 @@ export function AiInputDock({
   mode: AiChatMode;
   usage: AiUsageResponse | null;
   onChangeDraft: (value: string) => void;
-  onSend: () => void;
+  onSend: (content?: string) => void;
   onOpenTools: () => void;
 }) {
+  const draftRef = useRef(draft);
   const sending = status === 'sending';
   const exhausted = status === 'quotaExhausted' || usage?.remaining === 0;
   const lowQuota = usage && usage.remaining > 0 && usage.remaining <= 10;
   const canSend = !sending && !exhausted;
+
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+
+  const changeDraft = (value: string) => {
+    draftRef.current = value;
+    onChangeDraft(value);
+  };
+
+  const sendDraft = () => {
+    if (canSend) onSend(draftRef.current);
+  };
 
   return (
     <View testID="ai-input-dock" style={styles.inputDock}>
@@ -42,12 +56,10 @@ export function AiInputDock({
         </Pressable>
         <TextInput
           value={draft}
-          onChangeText={onChangeDraft}
+          onChangeText={changeDraft}
           placeholder="询问饮品配方或寻求推荐…"
           placeholderTextColor={colors.textMuted}
-          onSubmitEditing={() => {
-            if (canSend) onSend();
-          }}
+          onSubmitEditing={sendDraft}
           returnKeyType="send"
           style={styles.input}
           editable={!sending && !exhausted}
@@ -55,19 +67,17 @@ export function AiInputDock({
         <Mic color="#b7b3be" size={25} strokeWidth={2.3} />
         <Pressable
           testID="ai-send-button"
-          onPress={() => {
-            if (canSend) onSend();
-          }}
+          onPress={sendDraft}
           style={({ pressed }) => [styles.voiceButton, pressed && canSend ? styles.pressed : null, !canSend ? styles.disabled : null]}
           accessibilityLabel="发送"
         >
-          <LinearGradient colors={gradients.cta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.voiceGradient}>
+          <View testID="ai-send-button-surface" style={styles.voiceSurface}>
             {draft.trim() ? (
               <Send color="#ffffff" size={21} strokeWidth={2.6} />
             ) : (
               <AudioLines color="#ffffff" size={25} strokeWidth={2.4} />
             )}
-          </LinearGradient>
+          </View>
         </Pressable>
       </View>
     </View>
@@ -121,12 +131,16 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    overflow: 'hidden',
-  },
-  voiceGradient: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  voiceSurface: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.pink,
   },
   disabled: {
     opacity: 0.45,

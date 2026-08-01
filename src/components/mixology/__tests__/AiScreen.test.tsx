@@ -7,6 +7,7 @@ import type { AiStateValue } from '@/state/AiState';
 
 let mockParams: { prompt?: string } = {};
 const mockPush = jest.fn();
+const mockBack = jest.fn();
 const mockSend = jest.fn<AiStateValue['send']>().mockResolvedValue(undefined);
 const mockStartNewChat = jest.fn<AiStateValue['startNewChat']>();
 const mockStartTemporaryChat = jest.fn<AiStateValue['startTemporaryChat']>();
@@ -22,7 +23,7 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({
     navigate: jest.fn(),
     push: mockPush,
-    back: jest.fn(),
+    back: mockBack,
   }),
 }));
 
@@ -122,8 +123,21 @@ describe('AiScreen', () => {
     expect(screen.getByPlaceholderText('询问饮品配方或寻求推荐…')).toBeTruthy();
     expect(screen.getByTestId('ai-menu-button')).toBeTruthy();
     expect(screen.getByTestId('ai-temp-chat-button')).toBeTruthy();
+    const tempSurface = StyleSheet.flatten(screen.getByTestId('ai-temp-chat-button-surface').props.style);
+    expect(tempSurface.width).toBe(42);
+    expect(tempSurface.height).toBe(42);
+    expect(tempSurface.borderRadius).toBe(21);
+    expect(screen.getByTestId('ai-close-button')).toBeTruthy();
     expect(screen.getByTestId('ai-input-dock')).toBeTruthy();
     expect(screen.getByText('今日还剩 10 次')).toBeTruthy();
+  });
+
+  it('exits the AI chat from the header close button', async () => {
+    const screen = await render(<AiScreen />);
+
+    await fireEvent.press(screen.getByTestId('ai-close-button'));
+
+    expect(mockBack).toHaveBeenCalledTimes(1);
   });
 
   it('opens real grouped history and keeps the drawer within the phone viewport', async () => {

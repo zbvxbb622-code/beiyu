@@ -1,7 +1,6 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Crypto from 'expo-crypto';
-import { ChevronDown, MessageCirclePlus, Menu } from 'lucide-react-native';
+import { ChevronDown, MessageCirclePlus, Menu, X } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -20,7 +19,7 @@ import { AiMessageList } from '@/components/ai/AiMessageList';
 import { useContent } from '@/state/ContentState';
 import { useAi } from '@/state/AiState';
 import { useMixology } from '@/state/MixologyState';
-import { colors, gradients } from '@/styles/mixologyTheme';
+import { colors } from '@/styles/mixologyTheme';
 import { resolveAvatarSource } from '@/utils/profileFeed';
 
 function promptClientId() {
@@ -80,6 +79,10 @@ export default function AiScreen() {
     setDrawerOpen(false);
   };
 
+  const exitAiChat = () => {
+    router.back();
+  };
+
   return (
     <View style={styles.root}>
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -104,16 +107,26 @@ export default function AiScreen() {
               </View>
             </Pressable>
 
-            <Pressable
-              testID="ai-temp-chat-button"
-              onPress={startTemporaryChat}
-              style={({ pressed }) => [styles.headerActionButton, pressed ? styles.pressed : null]}
-              hitSlop={12}
-              accessibilityLabel="临时聊天">
-              <LinearGradient colors={gradients.cta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerActionGradient}>
-                <MessageCirclePlus color={colors.text} size={21} strokeWidth={2.3} />
-              </LinearGradient>
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable
+                testID="ai-temp-chat-button"
+                onPress={startTemporaryChat}
+                style={({ pressed }) => [styles.headerActionButton, pressed ? styles.pressed : null]}
+                hitSlop={10}
+                accessibilityLabel="临时聊天">
+                <View testID="ai-temp-chat-button-surface" style={styles.headerActionSurface}>
+                  <MessageCirclePlus color={colors.text} size={21} strokeWidth={2.3} />
+                </View>
+              </Pressable>
+              <Pressable
+                testID="ai-close-button"
+                onPress={exitAiChat}
+                style={({ pressed }) => [styles.closeButton, pressed ? styles.pressed : null]}
+                hitSlop={10}
+                accessibilityLabel="退出 AI 聊天">
+                <X color={colors.text} size={22} strokeWidth={2.5} />
+              </Pressable>
+            </View>
           </View>
 
           <View style={styles.body}>
@@ -206,7 +219,7 @@ const styles = StyleSheet.create({
   },
   modelTitle: {
     color: colors.text,
-    fontSize: 22,
+    fontSize: 21,
     fontWeight: '900',
     letterSpacing: 0,
   },
@@ -217,21 +230,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   headerActionButton: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    overflow: 'hidden',
-    shadowColor: colors.pink,
-    shadowOpacity: 0.26,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
-  },
-  headerActionGradient: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  headerActionSurface: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.pink,
+  },
+  closeButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   body: {
     flex: 1,

@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render } from '@testing-library/react-native';
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
+import { StyleSheet } from 'react-native';
 
 import { AiInputDock } from '@/components/ai/AiInputDock';
 
@@ -8,7 +9,7 @@ describe('AiInputDock', () => {
     cleanup();
   });
 
-  it('shows low quota and sends controlled input', async () => {
+  it('shows low quota, keeps send control circular, and sends the latest input', async () => {
     const onChangeDraft = jest.fn();
     const onSend = jest.fn();
     const screen = await render(
@@ -24,10 +25,15 @@ describe('AiInputDock', () => {
     );
 
     expect(screen.getByText('今日还剩 10 次')).toBeTruthy();
+    const sendSurface = StyleSheet.flatten(screen.getByTestId('ai-send-button-surface').props.style);
+    expect(sendSurface.width).toBe(42);
+    expect(sendSurface.height).toBe(42);
+    expect(sendSurface.borderRadius).toBe(21);
+
     await fireEvent.changeText(screen.getByPlaceholderText('询问饮品配方或寻求推荐…'), '玛格丽特');
     await fireEvent.press(screen.getByTestId('ai-send-button'));
     expect(onChangeDraft).toHaveBeenCalledWith('玛格丽特');
-    expect(onSend).toHaveBeenCalledTimes(1);
+    expect(onSend).toHaveBeenCalledWith('玛格丽特');
   });
 
   it('disables sending while sending', async () => {
