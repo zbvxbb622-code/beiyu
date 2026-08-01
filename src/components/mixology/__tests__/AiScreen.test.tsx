@@ -128,10 +128,12 @@ describe('AiScreen', () => {
     expect(screen.getByTestId('ai-temp-chat-timer-icon')).toBeTruthy();
     expect(screen.queryByTestId('ai-temp-chat-plus-icon')).toBeNull();
     const tempSurface = StyleSheet.flatten(screen.getByTestId('ai-temp-chat-button-surface').props.style);
-    expect(tempSurface.width).toBe(42);
-    expect(tempSurface.height).toBe(42);
-    expect(tempSurface.borderRadius).toBe(21);
+    expect(tempSurface.width).toBe(38);
+    expect(tempSurface.height).toBe(38);
+    expect(tempSurface.borderRadius).toBe(19);
     expect(tempSurface.backgroundColor).not.toBe(colors.pink);
+    expect(tempSurface.borderColor).toBe('rgba(255,255,255,0.12)');
+    expect(tempSurface.backgroundColor).toBe('rgba(255,255,255,0.08)');
     expect(tempSurface.borderWidth).toBe(1);
     expect(screen.getByTestId('ai-close-button')).toBeTruthy();
     expect(screen.getByTestId('ai-input-dock')).toBeTruthy();
