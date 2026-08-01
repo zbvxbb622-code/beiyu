@@ -246,6 +246,9 @@ def test_aliyun_provider_uses_canonical_payload_and_exact_transport_contract() -
         "content": serialize_generation_request(request),
     }
     assert "replyText" in payload["messages"][0]["content"]
+    assert payload["response_format"] == {"type": "json_object"}
+    assert payload["enable_thinking"] is False
+    assert payload["max_tokens"] == 900
     assert payload["stream"] is False
     assert result.recipe_ids == [recipe_id]
     assert result.input_tokens == 12
@@ -477,6 +480,29 @@ def test_aliyun_accepts_structured_content_and_non_negative_usage_metadata() -> 
     assert result.output_tokens == 7
     assert result.cost_estimate is None
     assert all(value is None or value >= 0 for value in (result.input_tokens, result.output_tokens, result.cost_estimate))
+
+
+def test_aliyun_normalizes_lowercase_safety_label_from_compatible_models() -> None:
+    response = completion_response(
+        content=json.dumps(
+            {
+                "replyText": "你好呀，先从一杯清爽的金汤力开始吧。",
+                "recipeIds": [],
+                "memoryCandidates": [],
+                "safetyLabel": "safe",
+            }
+        )
+    )
+
+    with mock_client(lambda _: response) as client:
+        result = AliyunAiProvider(
+            base_url=BASE_URL,
+            api_key=SecretStr(API_KEY),
+            model=MODEL,
+            client=client,
+        ).generate(generation_request())
+
+    assert result.safety_label is AiSafetyLabel.SAFE
 
 
 def test_aliyun_rejects_negative_usage_metadata() -> None:

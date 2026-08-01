@@ -21,6 +21,7 @@ REQUEST_TIMEOUT_SECONDS = 20.0
 STRUCTURED_OUTPUT_INSTRUCTION = (
     "Return only a JSON object with replyText, recipeIds, memoryCandidates, and safetyLabel."
 )
+MAX_CHAT_COMPLETION_TOKENS = 900
 
 
 class AliyunAiProvider:
@@ -65,6 +66,9 @@ class AliyunAiProvider:
                         {"role": "system", "content": STRUCTURED_OUTPUT_INSTRUCTION},
                         {"role": "user", "content": serialize_generation_request(request)},
                     ],
+                    "enable_thinking": False,
+                    "max_tokens": MAX_CHAT_COMPLETION_TOKENS,
+                    "response_format": {"type": "json_object"},
                     "stream": False,
                 },
                 timeout=REQUEST_TIMEOUT_SECONDS,
@@ -92,7 +96,7 @@ class AliyunAiProvider:
             structured = json.loads(content) if isinstance(content, str) else content
             if not isinstance(structured, Mapping):
                 raise ValueError("structured content is not an object")
-            result_payload: dict[str, Any] = dict(structured)
+            result_payload = self._normalize_result_payload(structured)
             result_payload.update(
                 provider="aliyun",
                 model=self._model,
@@ -117,6 +121,15 @@ class AliyunAiProvider:
         if not isinstance(content, (str, Mapping)):
             raise ValueError("response content is invalid")
         return content if isinstance(content, str) else cast(Mapping[str, object], content)
+
+    @staticmethod
+    def _normalize_result_payload(payload: Mapping[str, object]) -> dict[str, Any]:
+        result_payload: dict[str, Any] = dict(payload)
+        for key in ("safetyLabel", "safety_label"):
+            value = result_payload.get(key)
+            if isinstance(value, str):
+                result_payload[key] = value.strip().upper()
+        return result_payload
 
     @staticmethod
     def _usage(payload: object) -> dict[str, object]:
