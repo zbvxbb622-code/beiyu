@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
 import { Heart, Send } from 'lucide-react-native';
 import { useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 
 import { TopBar } from '@/components/mixology/TopBar';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
@@ -47,6 +47,8 @@ export default function CommunityPostDetailScreen() {
     try {
       await addPostComment(post.id, draft);
       setDraft('');
+    } catch (error) {
+      Alert.alert('评论失败', error instanceof Error ? error.message : '请稍后重试');
     } finally {
       setSending(false);
     }

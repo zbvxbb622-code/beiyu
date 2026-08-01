@@ -1,6 +1,6 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { StyleSheet } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 
 import CommunityPostDetailScreen from '@/app/post/[id]';
 import type { CommunityPost } from '@/types/mixology';
@@ -58,6 +58,7 @@ describe('CommunityPostDetailScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockAddPostComment.mockResolvedValue(undefined);
+    jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
   });
 
   it('caps the cover image height so it does not dominate the detail page', async () => {
@@ -85,5 +86,18 @@ describe('CommunityPostDetailScreen', () => {
     await waitFor(() => {
       expect(mockAddPostComment).toHaveBeenCalledWith('test-post', '这家看起来不错');
     });
+  });
+
+  it('shows a recoverable alert when sending a comment fails', async () => {
+    mockAddPostComment.mockRejectedValueOnce(new Error('network failed'));
+    const screen = await render(<CommunityPostDetailScreen />);
+
+    await fireEvent.changeText(screen.getByPlaceholderText('说点什么…'), '这家看起来不错');
+    await fireEvent.press(screen.getByTestId('community-comment-send-button'));
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith('评论失败', 'network failed');
+    });
+    expect(screen.getByPlaceholderText('说点什么…').props.value).toBe('这家看起来不错');
   });
 });
