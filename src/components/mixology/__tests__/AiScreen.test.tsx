@@ -4,6 +4,7 @@ import { StyleSheet } from 'react-native';
 
 import AiScreen from '@/app/ai';
 import type { AiStateValue } from '@/state/AiState';
+import { colors } from '@/styles/mixologyTheme';
 
 let mockParams: { prompt?: string } = {};
 const mockPush = jest.fn();
@@ -165,6 +166,18 @@ describe('AiScreen', () => {
     await fireEvent.press(screen.getByTestId('ai-temp-chat-button'));
 
     expect(mockStartTemporaryChat).toHaveBeenCalledTimes(1);
+  });
+
+  it('toggles out of temporary chat from the same top action', async () => {
+    mockAiState = baseAiState({ mode: 'temporary' });
+    const screen = await render(<AiScreen />);
+
+    expect(screen.getByTestId('ai-temp-chat-button').props.accessibilityLabel).toBe('退出临时聊天');
+    expect(screen.getByTestId('ai-temp-chat-timer-icon').props.color).toBe(colors.pink);
+    await fireEvent.press(screen.getByTestId('ai-temp-chat-button'));
+
+    expect(mockStartNewChat).toHaveBeenCalledTimes(1);
+    expect(mockStartTemporaryChat).not.toHaveBeenCalled();
   });
 
   it('sends normal input through the provider and disables duplicate sends', async () => {

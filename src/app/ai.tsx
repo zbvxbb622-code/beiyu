@@ -79,6 +79,14 @@ export default function AiScreen() {
     setDrawerOpen(false);
   };
 
+  const toggleTemporaryChat = () => {
+    if (ai.mode === 'temporary') {
+      startNewChat();
+      return;
+    }
+    startTemporaryChat();
+  };
+
   const exitAiChat = () => {
     router.back();
   };
@@ -110,13 +118,13 @@ export default function AiScreen() {
             <View style={styles.headerActions}>
               <Pressable
                 testID="ai-temp-chat-button"
-                onPress={startTemporaryChat}
+                onPress={toggleTemporaryChat}
                 style={({ pressed }) => [styles.headerActionButton, pressed ? styles.pressed : null]}
                 hitSlop={10}
-                accessibilityLabel="开启临时聊天"
-                accessibilityHint="本次对话不会保存到历史">
+                accessibilityLabel={ai.mode === 'temporary' ? '退出临时聊天' : '开启临时聊天'}
+                accessibilityHint={ai.mode === 'temporary' ? '返回普通新对话' : '本次对话不会保存到历史'}>
                 <View testID="ai-temp-chat-button-surface" style={styles.headerActionSurface}>
-                  <TimerReset testID="ai-temp-chat-timer-icon" color={colors.text} size={21} strokeWidth={2.3} />
+                  <TimerReset testID="ai-temp-chat-timer-icon" color={ai.mode === 'temporary' ? colors.pink : colors.text} size={21} strokeWidth={2.3} />
                 </View>
               </Pressable>
               <Pressable
