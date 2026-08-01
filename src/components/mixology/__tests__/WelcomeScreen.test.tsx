@@ -1,38 +1,47 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { WelcomeScreen } from '@/components/mixology/WelcomeScreen';
 
 const mockReplace = jest.fn();
+const mockPush = jest.fn();
 const mockVerifyAge = jest.fn<() => Promise<void>>();
 
-jest.mock('expo-router', () => ({ useRouter: () => ({ replace: mockReplace, push: jest.fn() }) }));
+jest.mock('expo-router', () => ({ useRouter: () => ({ replace: mockReplace, push: mockPush }) }));
 jest.mock('@/state/MixologyState', () => ({ useMixology: () => ({ verifyAge: mockVerifyAge }) }));
 
 describe('WelcomeScreen', () => {
   beforeEach(() => {
+    mockPush.mockClear();
     mockReplace.mockClear();
     mockVerifyAge.mockReset();
     mockVerifyAge.mockResolvedValue(undefined);
   });
 
-  it('saves first-run age consent and routes to login without claiming guests can skip', async () => {
+  it('routes first-run age consent into realname age verification before phone login', async () => {
     const screen = await render(<WelcomeScreen />);
 
     expect(screen.queryByText(/游客可跳过/)).toBeNull();
+    expect(screen.queryByText('已有账号，手机号登录')).toBeNull();
     await fireEvent.press(screen.getByTestId('welcome-age-consent'));
 
-    expect(mockVerifyAge).toHaveBeenCalledTimes(1);
-    expect(mockReplace).toHaveBeenCalledWith('/login');
+    expect(mockVerifyAge).not.toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/realname-verify',
+      params: { purpose: 'age-gate', next: '/login' },
+    });
+    expect(mockReplace).not.toHaveBeenCalledWith('/login');
   });
 
-  it('shows a retryable error instead of leaking a rejected age confirmation', async () => {
-    mockVerifyAge.mockRejectedValueOnce(new Error('offline'));
+  it('routes the header shortcut through the same realname age check', async () => {
     const screen = await render(<WelcomeScreen />);
 
-    await fireEvent.press(screen.getByTestId('welcome-age-consent'));
+    await fireEvent.press(screen.getByTestId('welcome-realname-shortcut'));
 
-    await waitFor(() => expect(screen.getByText('验证失败，请重试')).toBeTruthy());
-    expect(mockReplace).not.toHaveBeenCalledWith('/login');
+    expect(mockVerifyAge).not.toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/realname-verify',
+      params: { purpose: 'age-gate', next: '/login' },
+    });
   });
 });

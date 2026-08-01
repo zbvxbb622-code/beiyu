@@ -1,5 +1,8 @@
 import { act, fireEvent, render } from '@testing-library/react-native';
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import type { ReactNode } from 'react';
+import * as mockReact from 'react';
+import { Text as mockRouterLinkText } from 'react-native';
 
 import LoginScreen from '@/app/login';
 import { useAuth } from '@/state/AuthState';
@@ -8,6 +11,10 @@ const mockReplace = jest.fn();
 const mockPush = jest.fn();
 const mockRequestSmsCode = jest.fn<(phone: string) => Promise<{ expiresIn: number; retryAfter: number }>>();
 const mockLogin = jest.fn<(phone: string, code: string) => Promise<void>>();
+const mockLinkText = mockRouterLinkText as unknown as mockReact.ComponentType<{
+  href: string;
+  children?: ReactNode;
+} & Record<string, unknown>>;
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -19,7 +26,13 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-jest.mock('expo-router', () => ({ useRouter: () => ({ replace: mockReplace, push: mockPush }) }));
+jest.mock('expo-router', () => {
+  return {
+    Link: ({ href, children, ...props }: { href: string; children: ReactNode }) =>
+      mockReact.createElement(mockLinkText, { href, ...props }, children),
+    useRouter: () => ({ replace: mockReplace, push: mockPush }),
+  };
+});
 jest.mock('@/state/AuthState', () => ({ useAuth: jest.fn() }));
 
 describe('LoginScreen', () => {
@@ -44,6 +57,16 @@ describe('LoginScreen', () => {
 
     expect(screen.getByTestId('login-code').props.value).toBe('123456');
     expect(submit.props.accessibilityState.disabled).toBe(false);
+  });
+
+  it('shows separate service agreement and privacy policy links before login', async () => {
+    const screen = await render(<LoginScreen />);
+
+    expect(screen.getByText('我已经阅读并同意')).toBeTruthy();
+    expect(screen.getByTestId('login-terms-link').props.href).toBe('/terms');
+    expect(screen.getByText('《服务协议》')).toBeTruthy();
+    expect(screen.getByTestId('login-privacy-link').props.href).toBe('/privacy');
+    expect(screen.getByText('《隐私说明》')).toBeTruthy();
   });
 
   it('shows request failures and counts down retryAfter before allowing another code request', async () => {

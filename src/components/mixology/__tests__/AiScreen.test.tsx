@@ -4,6 +4,7 @@ import { StyleSheet } from 'react-native';
 
 import AiScreen from '@/app/ai';
 import type { AiStateValue } from '@/state/AiState';
+import { colors } from '@/styles/mixologyTheme';
 
 let mockParams: { prompt?: string } = {};
 const mockPush = jest.fn();
@@ -130,6 +131,8 @@ describe('AiScreen', () => {
     expect(tempSurface.width).toBe(42);
     expect(tempSurface.height).toBe(42);
     expect(tempSurface.borderRadius).toBe(21);
+    expect(tempSurface.backgroundColor).not.toBe(colors.pink);
+    expect(tempSurface.borderWidth).toBe(1);
     expect(screen.getByTestId('ai-close-button')).toBeTruthy();
     expect(screen.getByTestId('ai-input-dock')).toBeTruthy();
     expect(screen.getByText('今日还剩 10 次')).toBeTruthy();

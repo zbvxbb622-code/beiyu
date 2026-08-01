@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { Circle, CircleCheck } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { ImageBackground, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -88,7 +88,7 @@ export default function LoginScreen() {
             <Text style={styles.title}>欢迎来到杯语</Text>
             <Text style={styles.script}>Beiyu</Text>
           </View>
-          <Text style={styles.subtitle}>未注册的手机号验证通过后将自动注册</Text>
+          <Text style={styles.subtitle}>通过实名认证后，手机号验证可登录或创建账号</Text>
         </View>
 
         <View style={styles.form}>
@@ -132,15 +132,20 @@ export default function LoginScreen() {
               <Text style={styles.loginLabel}>{isSubmitting ? '登录中...' : '确认登录'}</Text>
             </LinearGradient>
           </Pressable>
-          <Pressable
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: agreed }}
-            onPress={() => setAgreed((current) => !current)}
-            style={styles.agreementRow}
-            testID="login-agreement">
-            {agreed ? <CircleCheck color={colors.text} fill={colors.pink} size={17} /> : <Circle color={colors.textMuted} size={17} />}
-            <Text style={styles.agreement}>我已经阅读并同意《服务协议》《隐私说明》</Text>
-          </Pressable>
+          <View style={styles.agreementRow}>
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: agreed }}
+              onPress={() => setAgreed((current) => !current)}
+              style={styles.agreementToggle}
+              testID="login-agreement">
+              {agreed ? <CircleCheck color={colors.text} fill={colors.pink} size={17} /> : <Circle color={colors.textMuted} size={17} />}
+            </Pressable>
+            <Text style={styles.agreement}>我已经阅读并同意</Text>
+            <Link href="/terms" style={styles.agreementLink} testID="login-terms-link">《服务协议》</Link>
+            <Text style={styles.agreement}>和</Text>
+            <Link href="/privacy" style={styles.agreementLink} testID="login-privacy-link">《隐私说明》</Link>
+          </View>
         </View>
       </LinearGradient>
     </ImageBackground>
@@ -246,11 +251,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    flexWrap: 'wrap',
     gap: 7,
     marginTop: 6,
+  },
+  agreementToggle: {
+    minWidth: 28,
+    minHeight: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   agreement: {
     color: colors.textMuted,
     fontSize: 13,
+  },
+  agreementLink: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

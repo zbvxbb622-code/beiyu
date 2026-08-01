@@ -14,6 +14,7 @@ import { AiProvider } from '@/state/AiState';
 import { AuthProvider, useAuth } from '@/state/AuthState';
 import { MixologyProvider, useMixology } from '@/state/MixologyState';
 import { colors } from '@/styles/mixologyTheme';
+import { canAccessBeforeAgeVerification } from '@/utils/ageGateAccess';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -37,7 +38,7 @@ function RootContent() {
     );
   }
 
-  if (!localState.ageVerified) {
+  if (!localState.ageVerified && !canAccessBeforeAgeVerification(pathname)) {
     return <WelcomeScreen />;
   }
 

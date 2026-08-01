@@ -90,6 +90,8 @@ const hiddenRouteOptions = {
 
 export const hiddenTabRouteNames = [
   'login',
+  'terms',
+  'privacy',
   'cellar',
   'private-cellar',
   'cellar-ingredients',

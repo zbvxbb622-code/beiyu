@@ -116,7 +116,7 @@ export default function AiScreen() {
                 accessibilityLabel="开启临时聊天"
                 accessibilityHint="本次对话不会保存到历史">
                 <View testID="ai-temp-chat-button-surface" style={styles.headerActionSurface}>
-                  <TimerReset testID="ai-temp-chat-timer-icon" color={colors.text} size={22} strokeWidth={2.3} />
+                  <TimerReset testID="ai-temp-chat-timer-icon" color={colors.pink} size={22} strokeWidth={2.3} />
                 </View>
               </Pressable>
               <Pressable
@@ -248,7 +248,9 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.pink,
+    borderWidth: 1,
+    borderColor: 'rgba(255,47,159,0.55)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   closeButton: {
     width: 38,
