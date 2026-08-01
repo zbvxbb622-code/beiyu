@@ -1,4 +1,4 @@
-import { Mic, Plus, Send } from 'lucide-react-native';
+import { Mic, Send } from 'lucide-react-native';
 import { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -13,7 +13,6 @@ export function AiInputDock({
   usage,
   onChangeDraft,
   onSend,
-  onOpenTools,
 }: {
   draft: string;
   status: AiViewStatus;
@@ -21,7 +20,6 @@ export function AiInputDock({
   usage: AiUsageResponse | null;
   onChangeDraft: (value: string) => void;
   onSend: (content?: string) => void;
-  onOpenTools: () => void;
 }) {
   const draftRef = useRef(draft);
   const sending = status === 'sending';
@@ -53,9 +51,6 @@ export function AiInputDock({
         <Text style={styles.statusText}>今日还剩 {usage.remaining} 次</Text>
       ) : null}
       <View style={styles.inputPill}>
-        <Pressable onPress={onOpenTools} style={styles.plusButton} accessibilityLabel="更多">
-          <Plus color="#ffffff" size={29} strokeWidth={2.2} />
-        </Pressable>
         <TextInput
           value={draft}
           onChangeText={changeDraft}
@@ -105,18 +100,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,47,159,0.24)',
     backgroundColor: colors.inputDark,
-    paddingLeft: 7,
+    paddingLeft: 18,
     paddingRight: 7,
-  },
-  plusButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   input: {
     flex: 1,

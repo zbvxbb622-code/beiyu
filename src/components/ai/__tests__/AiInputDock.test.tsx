@@ -9,6 +9,21 @@ describe('AiInputDock', () => {
     cleanup();
   });
 
+  it('does not render the unused tools plus button in the input bar', async () => {
+    const screen = await render(
+      <AiInputDock
+        draft=""
+        status="idle"
+        mode="normal"
+        usage={{ limit: 50, used: 1, remaining: 49, resetsAt: '2026-07-29T16:00:00Z' }}
+        onChangeDraft={jest.fn()}
+        onSend={jest.fn()}
+      />
+    );
+
+    expect(screen.queryByLabelText('更多')).toBeNull();
+  });
+
   it('shows low quota, keeps send control circular, and sends the latest input', async () => {
     const onChangeDraft = jest.fn();
     const onSend = jest.fn();
@@ -20,7 +35,6 @@ describe('AiInputDock', () => {
         usage={{ limit: 50, used: 40, remaining: 10, resetsAt: '2026-07-29T16:00:00Z' }}
         onChangeDraft={onChangeDraft}
         onSend={onSend}
-        onOpenTools={jest.fn()}
       />
     );
 
@@ -46,7 +60,6 @@ describe('AiInputDock', () => {
         usage={{ limit: 50, used: 1, remaining: 49, resetsAt: '2026-07-29T16:00:00Z' }}
         onChangeDraft={jest.fn()}
         onSend={onSend}
-        onOpenTools={jest.fn()}
       />
     );
     await fireEvent.press(sending.getByTestId('ai-send-button'));
@@ -63,7 +76,6 @@ describe('AiInputDock', () => {
         usage={{ limit: 50, used: 1, remaining: 49, resetsAt: '2026-07-29T16:00:00Z' }}
         onChangeDraft={jest.fn()}
         onSend={onSend}
-        onOpenTools={jest.fn()}
       />
     );
 
@@ -82,7 +94,6 @@ describe('AiInputDock', () => {
         usage={{ limit: 50, used: 50, remaining: 0, resetsAt: '2026-07-29T16:00:00Z' }}
         onChangeDraft={jest.fn()}
         onSend={onSend}
-        onOpenTools={jest.fn()}
       />
     );
     expect(exhausted.getByText('今日次数已用完')).toBeTruthy();

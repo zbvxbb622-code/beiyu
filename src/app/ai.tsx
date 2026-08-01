@@ -150,7 +150,6 @@ export default function AiScreen() {
             usage={ai.usage}
             onChangeDraft={ai.setDraft}
             onSend={ai.send}
-            onOpenTools={() => setDrawerOpen(true)}
           />
         </KeyboardAvoidingView>
       </SafeAreaView>
