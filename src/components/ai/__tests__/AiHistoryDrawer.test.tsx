@@ -118,9 +118,47 @@ describe('AiHistoryDrawer', () => {
     );
 
     const titlePressable = StyleSheet.flatten(screen.getByTestId('ai-history-title-long').props.style);
+    const row = StyleSheet.flatten(screen.getByTestId('ai-history-row-long').props.style);
     const deleteButton = StyleSheet.flatten(screen.getByTestId('ai-history-delete-long').props.style);
 
+    expect(row.width).toBe('100%');
     expect(titlePressable.minWidth).toBe(0);
+    expect(titlePressable.flexShrink).toBe(1);
+    expect(deleteButton.flexShrink).toBe(0);
     expect(deleteButton.width).toBeGreaterThanOrEqual(36);
+  });
+
+  it('keeps the drawer, header, and list content inside a narrow phone viewport', async () => {
+    const screen = await render(
+      <AiHistoryDrawer
+        visible
+        width={320}
+        avatarSource={avatarSource}
+        displayName="游客调酒师名字特别特别长"
+        conversations={[
+          {
+            id: 'narrow',
+            title: '测试 AI 聊天发送 ui-send-1785567444177 以及一段很长很长的历史标题',
+            lastMessageAt: '2026-07-30T03:00:00Z',
+            createdAt: '2026-07-30T03:00:00Z',
+          },
+        ]}
+        selectedConversationId={null}
+        now={now}
+        onClose={jest.fn()}
+        onNewChat={jest.fn()}
+        onPick={jest.fn()}
+        onDelete={jest.fn()}
+      />
+    );
+
+    const drawer = StyleSheet.flatten(screen.getByTestId('ai-history-drawer').props.style);
+    const safe = StyleSheet.flatten(screen.getByTestId('ai-history-safe-area').props.style);
+    const search = StyleSheet.flatten(screen.getByTestId('ai-history-search-box').props.style);
+
+    expect(drawer.width).toBeLessThanOrEqual(248);
+    expect(safe.paddingTop).toBeGreaterThanOrEqual(44);
+    expect(search.width).toBe('100%');
+    expect(screen.getByTestId('ai-history-delete-narrow')).toBeTruthy();
   });
 });

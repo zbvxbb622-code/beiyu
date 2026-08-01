@@ -1,5 +1,6 @@
+import { useContext } from 'react';
 import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ImageSourcePropType } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaInsetsContext, SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Search, Trash2, X } from 'lucide-react-native';
 
 import type { ConversationResponse } from '@/services/ai/aiSchemas';
@@ -73,8 +74,13 @@ export function AiHistoryDrawer({
   onPick: (conversation: ConversationResponse) => void;
   onDelete: (conversationId: string) => void;
 }) {
-  const panelWidth = Math.min(Math.max(width - 96, 280), 320);
+  const insets = useContext(SafeAreaInsetsContext) ?? { top: 0, right: 0, bottom: 0, left: 0 };
+  const panelWidth = Math.min(320, Math.max(236, width * 0.76), Math.max(236, width - 72));
   const groups = groupConversationsByBeijingDay(conversations, now);
+  const drawerSafeStyle = [
+    styles.drawerSafe,
+    { paddingTop: Math.max(insets.top, 44) },
+  ];
 
   const confirmDelete = (conversation: ConversationResponse) => {
     Alert.alert('删除对话', `删除「${conversation.title}」？`, [
@@ -87,7 +93,7 @@ export function AiHistoryDrawer({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.drawerScene}>
         <View testID="ai-history-drawer" style={[styles.drawerPanel, { width: panelWidth }]}>
-          <SafeAreaView style={styles.drawerSafe} edges={['top', 'bottom']}>
+          <SafeAreaView testID="ai-history-safe-area" style={drawerSafeStyle} edges={['bottom']}>
             <View style={styles.drawerProfileRow}>
               <Image source={avatarSource} style={styles.drawerAvatar} />
               <Text style={styles.drawerName} numberOfLines={1}>{displayName}</Text>
@@ -103,7 +109,7 @@ export function AiHistoryDrawer({
               </Pressable>
             </View>
 
-            <View style={styles.searchBox}>
+            <View testID="ai-history-search-box" style={styles.searchBox}>
               <Search color="#777280" size={26} strokeWidth={2.2} />
               <TextInput placeholder="搜索" placeholderTextColor="#777280" style={styles.searchInput} />
             </View>
@@ -115,7 +121,7 @@ export function AiHistoryDrawer({
                   {group.items.map((conversation) => {
                     const selected = selectedConversationId === conversation.id;
                     return (
-                      <View key={conversation.id} style={[styles.drawerItem, selected ? styles.drawerItemSelected : null]}>
+                      <View key={conversation.id} testID={`ai-history-row-${conversation.id}`} style={[styles.drawerItem, selected ? styles.drawerItemSelected : null]}>
                         <Pressable
                           testID={`ai-history-title-${conversation.id}`}
                           onPress={() => onPick(conversation)}
@@ -159,6 +165,7 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderRightColor: 'rgba(255,47,159,0.16)',
     backgroundColor: colors.bgDeep,
+    overflow: 'hidden',
     shadowColor: '#000000',
     shadowOpacity: 0.34,
     shadowRadius: 16,
@@ -166,39 +173,43 @@ const styles = StyleSheet.create({
   },
   drawerSafe: {
     flex: 1,
-    paddingHorizontal: 18,
+    width: '100%',
+    overflow: 'hidden',
+    paddingHorizontal: 14,
   },
   drawerProfileRow: {
-    minHeight: 68,
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   drawerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.panelStrong,
   },
   drawerName: {
     flex: 1,
     minWidth: 0,
     color: colors.text,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
   },
   drawerNewChatButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    flexShrink: 0,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.pink,
   },
   drawerCloseButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    flexShrink: 0,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -206,6 +217,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.08)',
   },
   searchBox: {
+    width: '100%',
     minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
@@ -224,9 +236,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   drawerList: {
+    width: '100%',
     paddingBottom: 24,
   },
   historyGroup: {
+    width: '100%',
     marginBottom: 18,
   },
   historyGroupTitle: {
@@ -236,18 +250,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   drawerItem: {
+    width: '100%',
     minHeight: 42,
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 10,
     marginBottom: 4,
-    paddingLeft: 8,
+    paddingLeft: 6,
+    paddingRight: 2,
   },
   drawerItemSelected: {
     backgroundColor: 'rgba(255,47,159,0.12)',
   },
   drawerItemTitlePressable: {
     flex: 1,
+    flexShrink: 1,
     minWidth: 0,
     minHeight: 42,
     justifyContent: 'center',
@@ -262,6 +279,7 @@ const styles = StyleSheet.create({
   deleteButton: {
     width: 36,
     height: 36,
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },

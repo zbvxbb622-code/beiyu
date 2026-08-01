@@ -3,18 +3,20 @@ import { type Href, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { FlaskConical, PackageOpen, Share2, Sparkles } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { BlindBoxCard } from '@/components/mixology/BlindBoxCard';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
 import { TopBar } from '@/components/mixology/TopBar';
-import { rarityConfig } from '@/data/blindBoxCards';
+import { blindBoxCards, rarityConfig } from '@/data/blindBoxCards';
+import { getImageAsset } from '@/data/imageAssets';
 import { canDrawToday, drawCard as drawRandomCard, todayKey } from '@/services/blindBoxService';
 import { useMixology } from '@/state/MixologyState';
 import { colors, gradients, radii } from '@/styles/mixologyTheme';
 import type { BlindBoxCard as BlindBoxCardType } from '@/types/mixology';
 
 const cardDrawVideo = require('@/assets/mixology/online/card-draw.mp4');
+const fallbackAnimationCards = blindBoxCards.slice(0, 5);
 
 type DrawPhase = 'idle' | 'drawing' | 'revealed';
 
@@ -29,10 +31,15 @@ export default function BlindBoxScreen() {
 
   const [revealScale] = useState(() => new Animated.Value(0.3));
   const [revealOpacity] = useState(() => new Animated.Value(0));
+  const [fallbackMotion] = useState(() => new Animated.Value(0));
+  const [videoReady, setVideoReady] = useState(false);
   const fallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 视频播放器（预加载视频源，常驻挂载，仅在 drawing 阶段可见）
-  const player = useVideoPlayer(cardDrawVideo);
+  const player = useVideoPlayer(cardDrawVideo, (nextPlayer) => {
+    nextPlayer.muted = true;
+    nextPlayer.loop = false;
+  });
 
   const revealCard = useCallback(() => {
     if (fallbackTimer.current) {
@@ -103,6 +110,20 @@ export default function BlindBoxScreen() {
     []
   );
 
+  useEffect(() => {
+    if (phase !== 'drawing') {
+      return;
+    }
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(fallbackMotion, { toValue: 1, duration: 620, useNativeDriver: true }),
+        Animated.timing(fallbackMotion, { toValue: 0, duration: 620, useNativeDriver: true }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [fallbackMotion, phase]);
+
   // 今天已抽过：直接展示今日卡牌
   const drawnToday = !canDrawToday(interactionState.lastDrawDate);
   const todayCard =
@@ -113,11 +134,14 @@ export default function BlindBoxScreen() {
   // 统一的"视频过场 → 揭示"流程
   const startRevealFlow = (drawn: BlindBoxCardType) => {
     setCard(drawn);
+    setVideoReady(false);
+    fallbackMotion.setValue(0);
     setPhase('drawing');
     // 兜底：若 playToEnd 未触发（异常/平台差异），8.5s 后强制揭示
     fallbackTimer.current = setTimeout(() => revealCard(), 8500);
     try {
       player.replay();
+      player.play();
     } catch {
       revealCard();
     }
@@ -174,98 +198,147 @@ export default function BlindBoxScreen() {
   const cardBackHeight = cardBackWrapHeight - 24;
   const cardBackWidth = cardBackHeight * 0.7;
   const cardBackSize = { width: cardBackWidth, height: cardBackHeight };
+  const fallbackRotate = fallbackMotion.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['-7deg', '7deg'],
+  });
+  const fallbackScale = fallbackMotion.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.96, 1.04],
+  });
 
   return (
     <ScreenShell>
       <TopBar title="经典盲盒" backHref={'/' as Href} />
 
-      <View testID="blind-box-stage" style={[styles.stage, { height: stageHeight }]}>
-        {/* 抽卡过场视频 */}
-        {phase === 'drawing' ? (
-          <Pressable testID="blind-box-video-wrap" onPress={revealCard} style={[styles.videoWrap, { width: videoWidth, height: videoHeight }]}>
-            <VideoView player={player} style={styles.video} contentFit="cover" nativeControls={false} />
-            <Text style={styles.skipHint}>轻触跳过</Text>
-          </Pressable>
-        ) : null}
-
-        {/* 待抽取 / 结果展示 */}
-        {phase !== 'drawing' ? (
-          shownCard ? (
-            <Animated.View
-              testID="blind-box-card-frame"
-              style={{
-                width: revealedCardWidth,
-                height: revealedCardHeight,
-                alignItems: 'center',
-                justifyContent: 'center',
-                transform: [{ scale: phase === 'revealed' ? revealScale : 1 }],
-                opacity: phase === 'revealed' ? revealOpacity : 1,
-              }}
-            >
-              <BlindBoxCard card={shownCard} compact width={revealedCardWidth} imageHeight={revealedImageHeight} />
-            </Animated.View>
-          ) : (
-            <View testID="blind-box-card-back-wrap" style={[styles.cardBackWrap, { width: cardBackWidth + 24, height: cardBackWrapHeight }]}>
-              <View style={[styles.cardBack, cardBackSize, styles.cardBackRear]} />
-              <View style={[styles.cardBack, cardBackSize, styles.cardBackMid]} />
-              <LinearGradient colors={gradients.card} style={[styles.cardBack, cardBackSize, styles.cardBackFront]}>
-                <PackageOpen color={colors.pink} size={56} />
-                <Text style={styles.cardBackText}>今日酒卡待开启</Text>
-              </LinearGradient>
-            </View>
-          )
-        ) : null}
-      </View>
-
-      {/* 底部操作区 */}
-      <View style={styles.footer}>
-        {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
-
-        {phase === 'idle' && !shownCard ? (
-          <>
-            <Text style={styles.quotaText}>每日可抽取 1 张酒卡</Text>
-            <Pressable onPress={handleDraw} style={styles.drawButton} testID="draw-button">
-              <LinearGradient colors={gradients.cta} style={styles.drawButtonGradient}>
-                <Sparkles color={colors.text} size={20} />
-                <Text style={styles.drawButtonText}>开启今日盲盒</Text>
-              </LinearGradient>
-            </Pressable>
-            <Pressable onPress={handleTestDraw} style={styles.testButton} testID="test-draw-button">
-              <FlaskConical color={colors.textMuted} size={15} />
-              <Text style={styles.testButtonText}>测试抽卡 · 不限次数</Text>
-            </Pressable>
-          </>
-        ) : null}
-
-        {phase !== 'drawing' && shownCard ? (
-          <>
-            <Text style={styles.quotaText}>
-              {card ? '抽卡成功！' : '今日已抽卡，明天再来吧'}
-            </Text>
-            <View style={styles.actionRow}>
-              <Pressable onPress={handleShare} style={styles.actionButton} testID="share-button">
-                <Share2 color={colors.text} size={18} />
-                <Text style={styles.actionButtonText}>分享到社区</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => router.push({ pathname: '/recipe/[id]', params: { id: shownCard.recipeId } } as unknown as Href)}
-                style={[styles.actionButton, styles.actionButtonGhost]}
+      <View testID="blind-box-main-content" style={styles.mainContent}>
+        <View testID="blind-box-stage" style={[styles.stage, { height: stageHeight }]}>
+          {/* 抽卡过场视频 */}
+          {phase === 'drawing' ? (
+            <Pressable testID="blind-box-video-wrap" onPress={revealCard} style={[styles.videoWrap, { width: videoWidth, height: videoHeight }]}>
+              <VideoView
+                player={player}
+                style={styles.video}
+                contentFit="cover"
+                nativeControls={false}
+                onFirstFrameRender={() => setVideoReady(true)}
+              />
+              <View
+                testID="blind-box-fallback-animation"
+                pointerEvents="none"
+                style={[styles.videoFallback, videoReady ? styles.videoFallbackHidden : null]}
               >
-                <Text style={styles.actionButtonText}>查看酒谱</Text>
-              </Pressable>
-            </View>
-            <Pressable onPress={handleTestDraw} style={styles.testButton} testID="test-draw-button">
-              <FlaskConical color={colors.textMuted} size={15} />
-              <Text style={styles.testButtonText}>再抽一次（测试）</Text>
+                <Animated.View style={[styles.fallbackDeck, { transform: [{ rotate: fallbackRotate }, { scale: fallbackScale }] }]}>
+                  {fallbackAnimationCards.map((fallbackCard, index) => (
+                    <View
+                      key={fallbackCard.id}
+                      testID={`blind-box-fallback-card-${index}`}
+                      style={[
+                        styles.fallbackCard,
+                        {
+                          transform: [
+                            { translateX: (index - 2) * 20 },
+                            { rotate: `${(index - 2) * -7}deg` },
+                            { scale: 1 - Math.abs(index - 2) * 0.04 },
+                          ],
+                          zIndex: fallbackAnimationCards.length - index,
+                        },
+                      ]}
+                    >
+                      <Image source={getImageAsset(fallbackCard.imageKey)} style={styles.fallbackCardImage} />
+                    </View>
+                  ))}
+                </Animated.View>
+                <Text style={styles.videoFallbackText}>正在洗牌...</Text>
+              </View>
+              <Text style={styles.skipHint}>轻触跳过</Text>
             </Pressable>
-          </>
-        ) : null}
+          ) : null}
+
+          {/* 待抽取 / 结果展示 */}
+          {phase !== 'drawing' ? (
+            shownCard ? (
+              <Animated.View
+                testID="blind-box-card-frame"
+                style={{
+                  width: revealedCardWidth,
+                  height: revealedCardHeight,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transform: [{ scale: phase === 'revealed' ? revealScale : 1 }],
+                  opacity: phase === 'revealed' ? revealOpacity : 1,
+                }}
+              >
+                <BlindBoxCard card={shownCard} compact width={revealedCardWidth} imageHeight={revealedImageHeight} />
+              </Animated.View>
+            ) : (
+              <View testID="blind-box-card-back-wrap" style={[styles.cardBackWrap, { width: cardBackWidth + 24, height: cardBackWrapHeight }]}>
+                <View style={[styles.cardBack, cardBackSize, styles.cardBackRear]} />
+                <View style={[styles.cardBack, cardBackSize, styles.cardBackMid]} />
+                <LinearGradient colors={gradients.card} style={[styles.cardBack, cardBackSize, styles.cardBackFront]}>
+                  <PackageOpen color={colors.pink} size={56} />
+                  <Text style={styles.cardBackText}>今日酒卡待开启</Text>
+                </LinearGradient>
+              </View>
+            )
+          ) : null}
+        </View>
+
+        {/* 底部操作区 */}
+        <View style={styles.footer}>
+          {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
+          {phase === 'idle' && !shownCard ? (
+            <>
+              <Text style={styles.quotaText}>每日可抽取 1 张酒卡</Text>
+              <Pressable onPress={handleDraw} style={styles.drawButton} testID="draw-button">
+                <LinearGradient colors={gradients.cta} style={styles.drawButtonGradient}>
+                  <Sparkles color={colors.text} size={20} />
+                  <Text style={styles.drawButtonText}>开启今日盲盒</Text>
+                </LinearGradient>
+              </Pressable>
+              <Pressable onPress={handleTestDraw} style={styles.testButton} testID="test-draw-button">
+                <FlaskConical color={colors.textMuted} size={15} />
+                <Text style={styles.testButtonText}>测试抽卡 · 不限次数</Text>
+              </Pressable>
+            </>
+          ) : null}
+
+          {phase !== 'drawing' && shownCard ? (
+            <>
+              <Text style={styles.quotaText}>
+                {card ? '抽卡成功！' : '今日已抽卡，明天再来吧'}
+              </Text>
+              <View style={styles.actionRow}>
+                <Pressable onPress={handleShare} style={styles.actionButton} testID="share-button">
+                  <Share2 color={colors.text} size={18} />
+                  <Text style={styles.actionButtonText}>分享到社区</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => router.push({ pathname: '/recipe/[id]', params: { id: shownCard.recipeId } } as unknown as Href)}
+                  style={[styles.actionButton, styles.actionButtonGhost]}
+                >
+                  <Text style={styles.actionButtonText}>查看酒谱</Text>
+                </Pressable>
+              </View>
+              <Pressable onPress={handleTestDraw} style={styles.testButton} testID="test-draw-button">
+                <FlaskConical color={colors.textMuted} size={15} />
+                <Text style={styles.testButtonText}>再抽一次（测试）</Text>
+              </Pressable>
+            </>
+          ) : null}
+        </View>
       </View>
     </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
+  mainContent: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingBottom: 24,
+  },
   stage: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -278,6 +351,41 @@ const styles = StyleSheet.create({
   },
   video: {
     flex: 1,
+  },
+  videoFallback: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#050203',
+  },
+  videoFallbackHidden: {
+    opacity: 0,
+  },
+  fallbackDeck: {
+    width: 190,
+    height: 130,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fallbackCard: {
+    position: 'absolute',
+    width: 78,
+    height: 112,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.58)',
+    overflow: 'hidden',
+    backgroundColor: colors.panel,
+  },
+  fallbackCardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  videoFallbackText: {
+    color: colors.textSoft,
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 8,
   },
   skipHint: {
     position: 'absolute',

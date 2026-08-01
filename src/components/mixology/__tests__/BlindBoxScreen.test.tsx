@@ -106,6 +106,18 @@ describe('BlindBoxScreen', () => {
     expect(videoFrame.height / videoFrame.width).toBeLessThanOrEqual(0.6);
   });
 
+  it('keeps a visible draw animation fallback until native video paints a frame', async () => {
+    const screen = await render(<BlindBoxScreen />);
+
+    fireEvent.press(screen.getByTestId('test-draw-button'));
+    await waitFor(() => {
+      expect(screen.getByText('轻触跳过')).toBeTruthy();
+    });
+
+    expect(screen.getByTestId('blind-box-fallback-animation')).toBeTruthy();
+    expect(screen.getAllByTestId(/blind-box-fallback-card-/).length).toBeGreaterThanOrEqual(3);
+  });
+
   it('keeps the revealed card inside its stage so action buttons sit below it', async () => {
     const screen = await render(<BlindBoxScreen />);
 
@@ -124,6 +136,24 @@ describe('BlindBoxScreen', () => {
 
     expect(cardFrame.height).toBeLessThanOrEqual(stage.height);
     expect(cardFrame.height).toBeLessThanOrEqual(430);
+  });
+
+  it('centers the revealed card and actions in the available phone height', async () => {
+    const screen = await render(<BlindBoxScreen />);
+
+    fireEvent.press(screen.getByTestId('test-draw-button'));
+    await waitFor(() => {
+      expect(screen.getByText('轻触跳过')).toBeTruthy();
+    });
+    fireEvent.press(screen.getByTestId('blind-box-video-wrap'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('blind-box-card-frame')).toBeTruthy();
+    });
+
+    const mainContent = StyleSheet.flatten(screen.getByTestId('blind-box-main-content').props.style);
+    expect(mainContent.flex).toBe(1);
+    expect(mainContent.justifyContent).toBe('center');
   });
 
   it('keeps the unopened card compact so the draw button is reachable on phone screens', async () => {
