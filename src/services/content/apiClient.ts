@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 
+import { normalizeApiV1BaseUrl } from '@/services/api/apiBaseUrl';
 import {
   barListSchema,
   contentSnapshotSchema,
@@ -21,14 +22,6 @@ type ApiClientOptions = {
   timeoutMs: number;
 };
 
-function normalizeApiBaseUrl(value: string): string {
-  const normalized = value.trim().replace(/\/+$/, '');
-  if (!/^https?:\/\/[^/]+/i.test(normalized)) {
-    throw new Error('invalid-api-url');
-  }
-  return normalized;
-}
-
 async function readJson<Schema extends z.ZodType>(
   options: ApiClientOptions,
   path: string,
@@ -38,7 +31,7 @@ async function readJson<Schema extends z.ZodType>(
   const timeout = setTimeout(() => controller.abort(), options.timeoutMs);
 
   try {
-    const response = await options.fetch(`${normalizeApiBaseUrl(options.apiBaseUrl)}${path}`, {
+    const response = await options.fetch(`${normalizeApiV1BaseUrl(options.apiBaseUrl)}${path}`, {
       headers: { Accept: 'application/json' },
       signal: controller.signal,
     });
@@ -55,11 +48,11 @@ export async function fetchContentSnapshot(
   options: ApiClientOptions
 ): Promise<ContentSnapshot> {
   const [home, ingredientList, recipeList, barList, knowledgeList] = await Promise.all([
-    readJson(options, '/api/v1/home', homeResponseSchema),
-    readJson(options, '/api/v1/ingredients?page=1&pageSize=100', ingredientListSchema),
-    readJson(options, '/api/v1/recipes?page=1&pageSize=100', recipeListSchema),
-    readJson(options, '/api/v1/bars?page=1&pageSize=100', barListSchema),
-    readJson(options, '/api/v1/knowledge?page=1&pageSize=100', knowledgeListSchema),
+    readJson(options, '/home', homeResponseSchema),
+    readJson(options, '/ingredients?page=1&pageSize=100', ingredientListSchema),
+    readJson(options, '/recipes?page=1&pageSize=100', recipeListSchema),
+    readJson(options, '/bars?page=1&pageSize=100', barListSchema),
+    readJson(options, '/knowledge?page=1&pageSize=100', knowledgeListSchema),
   ]);
 
   return contentSnapshotSchema.parse({

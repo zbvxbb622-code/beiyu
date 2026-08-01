@@ -19,6 +19,12 @@ uv run python -m app.cli seed-content
 make dev
 ```
 
+如果要用 Expo Web、浏览器调试页或局域网 demo 域名访问 API，请在启动后端前把这些来源加入 `.env`。原生 iOS/Android fetch 不依赖浏览器 CORS，但 Web/demo 页面会依赖：
+
+```bash
+BEIYU_CORS_ALLOWED_ORIGINS=http://localhost:8081,http://127.0.0.1:8081,http://192.168.1.10:8081
+```
+
 浏览器打开：
 
 - Swagger：`http://localhost:8000/docs`
@@ -273,12 +279,16 @@ EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api/v1 \
   npx expo start --ios
 ```
 
+`EXPO_PUBLIC_API_BASE_URL` 可以写成 `http://127.0.0.1:8000` 或 `http://127.0.0.1:8000/api/v1`；App 会统一规范到 `/api/v1`。推荐在 `.env` 中写带 `/api/v1` 的完整地址，减少人工排查成本。
+
 如需真机扫码访问同一台电脑上的 API，请把 `127.0.0.1` 换成电脑在局域网内的地址。示例：
 
 ```bash
 EXPO_PUBLIC_API_BASE_URL=http://192.168.1.10:8000/api/v1 \
   npx expo start
 ```
+
+`make dev` 会让后端监听 `0.0.0.0:8000`，适合真机局域网 demo；`docker compose up api` 的端口映射默认只绑定 `127.0.0.1:8000`，仅适合本机访问。
 
 手机端登录使用本地开发短信 Provider：请求验证码后输入固定验证码 `123456`。刷新令牌只进入 SecureStore，访问令牌只保存在运行时内存；AI 普通聊天、临时聊天和记忆内容不应写入 AsyncStorage。
 

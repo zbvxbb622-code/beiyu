@@ -53,6 +53,7 @@ services:
       BEIYU_AI_BASE_URL: ${BEIYU_AI_BASE_URL:-}
       BEIYU_AI_API_KEY: ${BEIYU_AI_API_KEY:-}
       BEIYU_AI_MEMORY_HMAC_KEY: ${BEIYU_AI_MEMORY_HMAC_KEY:-beiyu-development-memory-hmac-key}
+      BEIYU_CORS_ALLOWED_ORIGINS: ${BEIYU_CORS_ALLOWED_ORIGINS:-}
     depends_on:
       db:
         condition: service_healthy

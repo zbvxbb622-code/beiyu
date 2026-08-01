@@ -1,5 +1,6 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
+import { normalizeApiV1BaseUrl } from '@/services/api/apiBaseUrl';
 import { ApiError, createAuthenticatedClient, type AuthenticatedClient } from '@/services/api/authenticatedClient';
 import { AuthRepository, type LocalSyncInput } from '@/services/auth/authRepository';
 import type { BootstrapResponse, DeviceInput } from '@/services/auth/authSchemas';
@@ -67,7 +68,7 @@ export function createAuthRuntime(): AuthRuntime {
     },
     onUnauthorized: async () => unauthorizedHandler(),
   };
-  const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL ?? '';
+  const apiBaseUrl = normalizeApiV1BaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL ?? '');
 
   const authenticatedClient = createAuthenticatedClient({
     apiBaseUrl,

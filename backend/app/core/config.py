@@ -1,6 +1,7 @@
 import re
 from enum import StrEnum
 from functools import lru_cache
+from typing import Annotated
 from urllib.parse import urlparse
 
 from pydantic import (
@@ -11,7 +12,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 MIN_SECRET_KEY_LENGTH = 32
 DEVELOPMENT_AI_MODEL = "beiyu-development-v1"
@@ -111,6 +112,18 @@ class Settings(BaseSettings):
     ai_base_url: str | None = None
     ai_api_key: SecretStr | None = None
     ai_memory_hmac_key: SecretStr = SecretStr(DEVELOPMENT_MEMORY_HMAC_KEY)
+    cors_allowed_origins: Annotated[tuple[str, ...], NoDecode] = ()
+
+    @field_validator("cors_allowed_origins", mode="before")
+    @classmethod
+    def parse_cors_allowed_origins(cls, value: object) -> object:
+        if value is None:
+            return ()
+        if isinstance(value, str):
+            return tuple(origin.strip() for origin in value.split(",") if origin.strip())
+        if isinstance(value, (list, tuple, set)):
+            return tuple(value)
+        return value
 
     @field_validator("ai_model", mode="before")
     @classmethod
@@ -147,6 +160,8 @@ class Settings(BaseSettings):
     def require_generated_secret_outside_dev(self) -> "Settings":
         if self.api_v1_prefix != "/api/v1":
             raise ValueError("api_v1_prefix must be /api/v1")
+        if self.environment is not Environment.DEV and "*" in self.cors_allowed_origins:
+            raise ValueError("wildcard CORS origins are only allowed in dev")
         if self.environment is not Environment.DEV and (
             self.secret_key == "change-me"
             or len(self.secret_key.strip()) < MIN_SECRET_KEY_LENGTH

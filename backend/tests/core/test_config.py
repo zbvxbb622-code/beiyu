@@ -1,5 +1,6 @@
 import pytest
 from pydantic import SecretStr, ValidationError
+from starlette.testclient import TestClient
 
 from app.core.config import AiProvider, Environment, Settings, get_settings
 from app.main import create_app
@@ -28,6 +29,35 @@ def test_settings_default_to_dev() -> None:
     assert settings.ai_api_key is None
     assert isinstance(settings.ai_memory_hmac_key, SecretStr)
     assert settings.ai_memory_hmac_key.get_secret_value()
+    assert settings.cors_allowed_origins == ()
+
+
+def test_cors_allowed_origins_parse_comma_separated_env_value() -> None:
+    settings = Settings(
+        database_url="postgresql+psycopg://user:pass@db/beiyu",
+        cors_allowed_origins="http://localhost:8081, https://demo.example.test ",
+    )
+
+    assert settings.cors_allowed_origins == (
+        "http://localhost:8081",
+        "https://demo.example.test",
+    )
+
+
+def test_non_dev_rejects_wildcard_cors_origins() -> None:
+    with pytest.raises(ValidationError):
+        Settings(
+            environment=Environment.PROD,
+            database_url="postgresql+psycopg://user:pass@db/beiyu",
+            secret_key="s" * 32,
+            sms_provider="aliyun",
+            ai_provider=AiProvider.ALIYUN,
+            ai_model="qwen-plus",
+            ai_base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            ai_api_key=SecretStr("provider-key"),
+            ai_memory_hmac_key=SecretStr("m" * 32),
+            cors_allowed_origins="*",
+        )
 
 
 def test_prod_rejects_placeholder_secret() -> None:
@@ -325,3 +355,26 @@ def test_app_creation_rejects_prod_placeholder_secret(
             create_app()
     finally:
         get_settings.cache_clear()
+
+
+def test_app_preflight_allows_configured_cors_origin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("BEIYU_DATABASE_URL", "postgresql+psycopg://user:pass@db/beiyu")
+    monkeypatch.setenv("BEIYU_CORS_ALLOWED_ORIGINS", "http://localhost:8081")
+    get_settings.cache_clear()
+
+    try:
+        with TestClient(create_app()) as client:
+            response = client.options(
+                "/api/v1",
+                headers={
+                    "Origin": "http://localhost:8081",
+                    "Access-Control-Request-Method": "GET",
+                },
+            )
+    finally:
+        get_settings.cache_clear()
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:8081"

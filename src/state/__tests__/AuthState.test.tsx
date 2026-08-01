@@ -135,6 +135,10 @@ function jsonResponse(body: unknown, status = 200): Response {
   } as unknown as Response;
 }
 
+function apiPath(input: string | URL | Request) {
+  return new URL(input.toString()).pathname.replace(/^\/api\/v1(?=\/|$)/, '');
+}
+
 function loginResponseFor(data: ReturnType<typeof bootstrapFor>, accessToken: string, refreshToken: string) {
   return {
     accessToken,
@@ -399,7 +403,7 @@ describe('AuthProvider', () => {
     let refreshCalls = 0;
     let bootstrapCalls = 0;
     const fetchMock = jest.fn(async (input: string | URL | Request) => {
-      const path = new URL(input.toString()).pathname;
+      const path = apiPath(input);
       if (path === '/auth/refresh') {
         refreshCalls += 1;
         return refreshCalls === 1
@@ -449,7 +453,7 @@ describe('AuthProvider', () => {
     let bootstrapCalls = 0;
     let bAuthorization: string | null = null;
     const fetchMock = jest.fn(async (input: string | URL | Request, init?: RequestInit) => {
-      const path = new URL(input.toString()).pathname;
+      const path = apiPath(input);
       if (path === '/auth/refresh') {
         refreshCalls += 1;
         return refreshCalls === 1
@@ -510,7 +514,7 @@ describe('AuthProvider', () => {
     let bootstrapCalls = 0;
     let protectedCalls = 0;
     const fetchMock = jest.fn(async (input: string | URL | Request) => {
-      const path = new URL(input.toString()).pathname;
+      const path = apiPath(input);
       if (path === '/auth/refresh') {
         refreshCalls += 1;
         return refreshCalls === 1
@@ -566,7 +570,7 @@ describe('AuthProvider', () => {
     let refreshCalls = 0;
     const protectedCalls = new Map<string, number>();
     const fetchMock = jest.fn(async (input: string | URL | Request) => {
-      const path = new URL(input.toString()).pathname;
+      const path = apiPath(input);
       if (path === '/auth/refresh') {
         refreshCalls += 1;
         return refreshCalls === 1
@@ -613,7 +617,7 @@ describe('AuthProvider', () => {
     const delayedLogout = deferred<Response>();
     let bootstrapCalls = 0;
     const fetchMock = jest.fn(async (input: string | URL | Request) => {
-      const path = new URL(input.toString()).pathname;
+      const path = apiPath(input);
       if (path === '/auth/refresh') return jsonResponse({ accessToken: 'a-access', refreshToken: 'a-refresh-rotated', expiresIn: 900, refreshExpiresIn: 2_592_000 });
       if (path === '/me/bootstrap') {
         bootstrapCalls += 1;
@@ -659,7 +663,7 @@ describe('AuthProvider', () => {
     const delayedLogout = deferred<Response>();
     let bootstrapCalls = 0;
     const fetchMock = jest.fn(async (input: string | URL | Request) => {
-      const path = new URL(input.toString()).pathname;
+      const path = apiPath(input);
       if (path === '/auth/refresh') return jsonResponse({ accessToken: 'a-access', refreshToken: 'a-refresh-rotated', expiresIn: 900, refreshExpiresIn: 2_592_000 });
       if (path === '/me/bootstrap') {
         bootstrapCalls += 1;

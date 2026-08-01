@@ -108,6 +108,21 @@ describe('content repository', () => {
     );
   });
 
+  it('accepts a versioned API base URL without duplicating the API prefix', async () => {
+    const fetchMock = successfulFetch();
+    const repository = createContentRepository({
+      apiBaseUrl: 'http://127.0.0.1:8000/api/v1',
+      fetch: fetchMock,
+      storage: createStorage(),
+    });
+
+    await expect(repository.refresh()).resolves.toEqual({ ok: true, source: 'remote' });
+
+    for (const [input] of fetchMock.mock.calls) {
+      expect(String(input)).not.toContain('/api/v1/api/v1/');
+    }
+  });
+
   it.each([
     ['server error', async () => ({ ok: false, status: 500, json: async () => ({}) }) as Response],
     ['invalid json', async () => ({ ok: true, status: 200, json: async () => Promise.reject(new Error('bad json')) }) as unknown as Response],

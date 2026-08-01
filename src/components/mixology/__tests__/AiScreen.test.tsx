@@ -15,6 +15,7 @@ const mockDeleteConversation = jest.fn<AiStateValue['deleteConversation']>().moc
 let mockAiState: AiStateValue;
 
 const recipeId = 'd9f72d47-7f0e-40db-87ab-f84f54e2fbcf';
+const oneDayMs = 24 * 60 * 60 * 1000;
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => mockParams,
@@ -64,6 +65,7 @@ jest.mock('@/state/AiState', () => ({
 }));
 
 function baseAiState(overrides: Partial<AiStateValue> = {}): AiStateValue {
+  const yesterday = new Date(Date.now() - oneDayMs).toISOString();
   return {
     status: 'idle',
     mode: 'normal',
@@ -71,8 +73,8 @@ function baseAiState(overrides: Partial<AiStateValue> = {}): AiStateValue {
       {
         id: '0f38f737-b8e9-4f75-8bb3-0b5a53f93afc',
         title: '昨天的金汤力',
-        lastMessageAt: '2026-07-29T14:45:00Z',
-        createdAt: '2026-07-29T14:40:00Z',
+        lastMessageAt: yesterday,
+        createdAt: yesterday,
       },
     ],
     selectedConversation: null,
