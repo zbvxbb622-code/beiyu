@@ -1,8 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
-import { Heart } from 'lucide-react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { Heart, Send } from 'lucide-react-native';
 import { useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 
 import { TopBar } from '@/components/mixology/TopBar';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
@@ -13,12 +13,16 @@ import { colors, gradients, radii } from '@/styles/mixologyTheme';
 import { getPostImages, resolvePostImageSource } from '@/utils/postImages';
 
 export default function CommunityPostDetailScreen() {
-  const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { interactionState, togglePostLike, toggleAuthorFollow, addPostComment } = useMixology();
+  const { width } = useWindowDimensions();
   const post = getCommunityPostById(String(id), interactionState.localCommunityPosts);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const contentWidth = width - 32;
+  const detailImageHeight = Math.min(Math.max(contentWidth * 0.68, 190), 260);
+  const galleryImageWidth = Math.min(contentWidth, 300);
+  const galleryImageHeight = Math.min(Math.max(galleryImageWidth * 0.68, 190), 240);
 
   if (!post) {
     return (
@@ -34,6 +38,7 @@ export default function CommunityPostDetailScreen() {
   const comments = mergePostComments(post, interactionState.localPostComments);
   const postImages = getPostImages(post);
   const commentsEnabled = post.allowComments !== false;
+  const canSendComment = commentsEnabled && draft.trim().length > 0 && !sending;
 
   const handleSend = async () => {
     if (!draft.trim() || sending) return;
@@ -68,7 +73,7 @@ export default function CommunityPostDetailScreen() {
                   testID={index === 0 ? 'community-detail-image' : `community-detail-image-${index}`}
                   source={resolvePostImageSource(image)}
                   resizeMode="cover"
-                  style={styles.galleryImage}
+                  style={[styles.galleryImage, { width: galleryImageWidth, height: galleryImageHeight }]}
                 />
               ))}
             </ScrollView>
@@ -81,7 +86,7 @@ export default function CommunityPostDetailScreen() {
             testID="community-detail-image"
             source={resolvePostImageSource(postImages[0])}
             resizeMode="cover"
-            style={styles.image}
+            style={[styles.image, { height: detailImageHeight }]}
           />
         )}
         <Text style={styles.body}>
@@ -110,24 +115,29 @@ export default function CommunityPostDetailScreen() {
               </View>
             ))
           : null}
-        {post.venueId ? (
-          <Pressable onPress={() => router.push({ pathname: '/bar/[id]', params: { id: post.venueId } } as unknown as Href)} style={styles.venueLink}>
-            <Text style={styles.venueLinkText}>查看关联酒吧</Text>
-          </Pressable>
-        ) : null}
       </ScrollView>
       <View style={styles.bottomBar}>
         {commentsEnabled ? (
-          <TextInput
-            placeholder="说点什么…"
-            placeholderTextColor="#8a7a83"
-            style={styles.commentInput}
-            value={draft}
-            onChangeText={setDraft}
-            onSubmitEditing={handleSend}
-            returnKeyType="send"
-            editable={!sending}
-          />
+          <View style={styles.commentInputWrap}>
+            <TextInput
+              placeholder="说点什么…"
+              placeholderTextColor="#8a7a83"
+              style={styles.commentInput}
+              value={draft}
+              onChangeText={setDraft}
+              onSubmitEditing={handleSend}
+              returnKeyType="send"
+              editable={!sending}
+            />
+            <Pressable
+              testID="community-comment-send-button"
+              onPress={handleSend}
+              disabled={!canSendComment}
+              style={({ pressed }) => [styles.commentSendButton, pressed && canSendComment ? styles.pressed : null, !canSendComment ? styles.disabled : null]}
+              accessibilityLabel="发送评论">
+              <Send color={colors.text} size={18} strokeWidth={2.5} />
+            </Pressable>
+          </View>
         ) : (
           <View style={styles.commentsOff}>
             <Text style={styles.commentsOffText}>作者已关闭评论</Text>
@@ -186,7 +196,6 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    aspectRatio: 0.85,
     borderRadius: radii.md,
     backgroundColor: colors.panel,
   },
@@ -194,8 +203,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   galleryImage: {
-    width: 300,
-    aspectRatio: 0.85,
     borderRadius: radii.md,
     backgroundColor: colors.panel,
   },
@@ -265,18 +272,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginTop: 4,
   },
-  venueLink: {
-    minHeight: 48,
-    borderRadius: radii.pill,
-    backgroundColor: colors.panelSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 24,
-  },
-  venueLinkText: {
-    color: colors.text,
-    fontWeight: '900',
-  },
   bottomBar: {
     position: 'absolute',
     left: 0,
@@ -284,20 +279,37 @@ const styles = StyleSheet.create({
     bottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 12,
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 18,
     backgroundColor: 'rgba(7,0,4,0.96)',
   },
-  commentInput: {
+  commentInputWrap: {
     flex: 1,
     minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
     borderRadius: radii.pill,
     backgroundColor: colors.inputDark,
+    paddingLeft: 18,
+    paddingRight: 5,
+  },
+  commentInput: {
+    flex: 1,
+    minWidth: 0,
     color: colors.text,
-    paddingHorizontal: 18,
     fontSize: 15,
+    paddingVertical: 10,
+  },
+  commentSendButton: {
+    width: 36,
+    height: 36,
+    flexShrink: 0,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.pink,
   },
   commentsOff: {
     flex: 1,
@@ -319,5 +331,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 12,
     marginTop: 2,
+  },
+  pressed: {
+    opacity: 0.78,
+  },
+  disabled: {
+    opacity: 0.45,
   },
 });

@@ -1,4 +1,4 @@
-import { AudioLines, Mic, Plus, Send } from 'lucide-react-native';
+import { Mic, Plus, Send } from 'lucide-react-native';
 import { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -27,7 +27,8 @@ export function AiInputDock({
   const sending = status === 'sending';
   const exhausted = status === 'quotaExhausted' || usage?.remaining === 0;
   const lowQuota = usage && usage.remaining > 0 && usage.remaining <= 10;
-  const canSend = !sending && !exhausted;
+  const canUseInput = !sending && !exhausted;
+  const canSend = canUseInput && draft.trim().length > 0;
 
   useEffect(() => {
     draftRef.current = draft;
@@ -39,7 +40,8 @@ export function AiInputDock({
   };
 
   const sendDraft = () => {
-    if (canSend) onSend(draftRef.current);
+    const latestDraft = draftRef.current;
+    if (canUseInput && latestDraft.trim()) onSend(latestDraft);
   };
 
   return (
@@ -62,7 +64,7 @@ export function AiInputDock({
           onSubmitEditing={sendDraft}
           returnKeyType="send"
           style={styles.input}
-          editable={!sending && !exhausted}
+          editable={canUseInput}
         />
         <Mic color="#b7b3be" size={25} strokeWidth={2.3} />
         <Pressable
@@ -72,11 +74,7 @@ export function AiInputDock({
           accessibilityLabel="发送"
         >
           <View testID="ai-send-button-surface" style={styles.voiceSurface}>
-            {draft.trim() ? (
-              <Send color="#ffffff" size={21} strokeWidth={2.6} />
-            ) : (
-              <AudioLines color="#ffffff" size={25} strokeWidth={2.4} />
-            )}
+            <Send color="#ffffff" size={21} strokeWidth={2.6} />
           </View>
         </Pressable>
       </View>

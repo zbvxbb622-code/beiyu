@@ -30,22 +30,34 @@ const DESIGN_WIDTH = 375;
 // 设计稿页面左右边距 30px = 15pt
 const PAGE_PADDING = 15;
 
-// 最新酒单卡片的配方 id（与设计稿四张卡一一对应）
-const MOSAIC_IDS = {
-  wide: 'italian-lady',
-  bottomLeft: 'old-fashioned',
-  bottomMiddle: 'gin-sour',
-  tall: 'blue-love',
-} as const;
-
-// 设计稿 1:1 裁剪素材（含烘焙好的酒名文字，无需代码文字浮层）
-const MOSAIC_IMAGE_KEYS = {
-  wide: 'homeItalianLady',
-  bottomLeft: 'homeOldFashioned',
-  bottomMiddle: 'homeGinSour',
-  tall: 'homeBlueLove',
-} as const;
 const retiredShortcutIds = new Set(['shared-cellar']);
+const BEIJING_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+function beijingDateKey(date: Date) {
+  const beijingDate = new Date(date.getTime() + BEIJING_OFFSET_MS);
+  const year = beijingDate.getUTCFullYear();
+  const month = String(beijingDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(beijingDate.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function hashText(value: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+export function getDailyMenuRecipes(sourceRecipes: CocktailRecipe[], date = new Date()) {
+  const pool = (sourceRecipes.length >= 4 ? sourceRecipes : bundledContent.recipes)
+    .filter((recipe, index, recipes) => recipes.findIndex((item) => item.id === recipe.id) === index);
+  const dayKey = beijingDateKey(date);
+  return [...pool]
+    .sort((left, right) => hashText(`${dayKey}:${left.id}`) - hashText(`${dayKey}:${right.id}`))
+    .slice(0, 4);
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -67,17 +79,15 @@ export default function HomeScreen() {
   const bannerHeight = Math.min(Math.max(width * (460 / 750), 220), 250);
   const bannerFrame = { width, height: bannerHeight };
 
-  const findMosaicRecipe = (id: string) =>
-    snapshot.recipes.find((recipe) => recipe.id === id) ??
-    bundledContent.recipes.find((recipe) => recipe.id === id);
+  const dailyMenuRecipes = getDailyMenuRecipes(snapshot.recipes);
   const recipes = {
-    wide: findMosaicRecipe(MOSAIC_IDS.wide),
-    bottomLeft: findMosaicRecipe(MOSAIC_IDS.bottomLeft),
-    bottomMiddle: findMosaicRecipe(MOSAIC_IDS.bottomMiddle),
-    tall: findMosaicRecipe(MOSAIC_IDS.tall),
+    wide: dailyMenuRecipes[0],
+    bottomLeft: dailyMenuRecipes[1],
+    bottomMiddle: dailyMenuRecipes[2],
+    tall: dailyMenuRecipes[3],
   };
 
-  // 最新酒单：不用 aspectRatio/flex 推算，直接按设计稿像素算死宽高，避免 Expo 原生端高度塌成 0
+  // 每日酒单：不用 aspectRatio/flex 推算，直接按设计稿像素算死宽高，避免 Expo 原生端高度塌成 0
   // 设计稿：左列 448 + 右列 225，列间距 15px；左列宽卡 448x200，行间距 20px，小卡 216x210，右卡 225x430
   const contentWidth = width - PAGE_PADDING * 2;
   const mosaicGap = 7.5 * s;
@@ -257,9 +267,9 @@ export default function HomeScreen() {
             ))}
           </View>
 
-          {/* ===== 最新酒单（设计稿标题 34px 粗体 + 右侧灰色查看全部）===== */}
+          {/* ===== 每日酒单（按北京时间日期稳定轮换）===== */}
           <View style={[styles.sectionHeader, { marginTop: 22 * s, marginBottom: 20 * s }]}>
-            <Text style={styles.sectionTitle}>最新酒单</Text>
+            <Text style={styles.sectionTitle}>每日酒单</Text>
             <Text style={styles.sectionAction}>查看全部 &gt;</Text>
           </View>
 
@@ -274,7 +284,7 @@ export default function HomeScreen() {
                     { width: mosaicLeftWidth, height: wideCardHeight, borderRadius: 8 * s },
                     pressed ? styles.pressed : null,
                   ]}>
-                  <MosaicTile recipe={recipes.wide!} imageKey={MOSAIC_IMAGE_KEYS.wide} width={mosaicLeftWidth} height={wideCardHeight} radius={8 * s} />
+                  <MosaicTile recipe={recipes.wide!} width={mosaicLeftWidth} height={wideCardHeight} radius={8 * s} />
                 </Pressable>
                 <View style={[styles.mosaicBottomRow, { marginTop: mosaicRowGap }]}>
                   <Pressable
@@ -284,7 +294,7 @@ export default function HomeScreen() {
                       { width: smallCardWidth, height: smallCardHeight, borderRadius: 8 * s },
                       pressed ? styles.pressed : null,
                     ]}>
-                    <MosaicTile recipe={recipes.bottomLeft!} imageKey={MOSAIC_IMAGE_KEYS.bottomLeft} width={smallCardWidth} height={smallCardHeight} radius={8 * s} />
+                    <MosaicTile recipe={recipes.bottomLeft!} width={smallCardWidth} height={smallCardHeight} radius={8 * s} compact />
                   </Pressable>
                   <Pressable
                     onPress={() => openRecipe(recipes.bottomMiddle!)}
@@ -293,7 +303,7 @@ export default function HomeScreen() {
                       { width: smallCardWidth, height: smallCardHeight, borderRadius: 8 * s, marginLeft: smallCardGap },
                       pressed ? styles.pressed : null,
                     ]}>
-                    <MosaicTile recipe={recipes.bottomMiddle!} imageKey={MOSAIC_IMAGE_KEYS.bottomMiddle} width={smallCardWidth} height={smallCardHeight} radius={8 * s} />
+                    <MosaicTile recipe={recipes.bottomMiddle!} width={smallCardWidth} height={smallCardHeight} radius={8 * s} compact />
                   </Pressable>
                 </View>
               </View>
@@ -304,7 +314,7 @@ export default function HomeScreen() {
                   { width: mosaicRightWidth, height: tallCardHeight, borderRadius: 8 * s },
                   pressed ? styles.pressed : null,
                 ]}>
-                <MosaicTile recipe={recipes.tall!} imageKey={MOSAIC_IMAGE_KEYS.tall} width={mosaicRightWidth} height={tallCardHeight} radius={8 * s} />
+                <MosaicTile recipe={recipes.tall!} width={mosaicRightWidth} height={tallCardHeight} radius={8 * s} />
               </Pressable>
             </View>
           ) : null}
@@ -316,26 +326,30 @@ export default function HomeScreen() {
 
 function MosaicTile({
   recipe,
-  imageKey,
   width,
   height,
   radius,
+  compact = false,
 }: {
   recipe: CocktailRecipe;
-  imageKey: string;
   width: number;
   height: number;
   radius: number;
+  compact?: boolean;
 }) {
-  // 设计稿 1:1 裁图，酒名/英文名已烘焙进图片，直接铺图即可；
-  // 宽高显式传入——Image 用百分比尺寸在 Expo 原生端会塌成空白
   return (
-    <Image
-      source={getImageAsset(imageKey)}
-      accessibilityLabel={`${recipe.name} ${recipe.englishName}`}
-      resizeMode="cover"
-      style={{ width, height, borderRadius: radius, backgroundColor: '#1c0a11' }}
-    />
+    <View style={{ width, height, borderRadius: radius, overflow: 'hidden', backgroundColor: '#1c0a11' }}>
+      <Image
+        source={getImageAsset(recipe.imageKey)}
+        accessibilityLabel={`${recipe.name} ${recipe.englishName}`}
+        resizeMode="cover"
+        style={{ width, height, borderRadius: radius, backgroundColor: '#1c0a11' }}
+      />
+      <LinearGradient colors={['rgba(0,0,0,0.04)', 'rgba(0,0,0,0.72)']} style={styles.mosaicOverlay}>
+        <Text style={[styles.mosaicName, compact ? styles.mosaicNameCompact : null]} numberOfLines={1}>{recipe.name}</Text>
+        {!compact ? <Text style={styles.mosaicEnglish} numberOfLines={1}>{recipe.englishName}</Text> : null}
+      </LinearGradient>
+    </View>
   );
 }
 
@@ -472,5 +486,24 @@ const styles = StyleSheet.create({
   },
   mosaicCard: {
     overflow: 'hidden',
+  },
+  mosaicOverlay: {
+    ...StyleSheet.absoluteFill,
+    justifyContent: 'flex-end',
+    padding: 10,
+  },
+  mosaicName: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  mosaicNameCompact: {
+    fontSize: 12,
+  },
+  mosaicEnglish: {
+    color: 'rgba(255,255,255,0.74)',
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 2,
   },
 });

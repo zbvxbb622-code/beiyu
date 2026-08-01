@@ -46,7 +46,7 @@ jest.mock('@/state/MixologyState', () => ({
 }));
 
 describe('ProfileScreen', () => {
-  it('renders the redesigned profile: identity, stats, AI rec, tabs, settings button', async () => {
+  it('renders the redesigned profile without the retired recommendation block', async () => {
     const screen = await render(<ProfileScreen />);
 
     // 身份区
@@ -57,8 +57,9 @@ describe('ProfileScreen', () => {
     expect(screen.getByText('关注')).toBeTruthy();
     expect(screen.getByText('粉丝')).toBeTruthy();
     expect(screen.getByText('获赞与收藏')).toBeTruthy();
-    // AI 推荐
-    expect(screen.getByText('AI 调酒师')).toBeTruthy();
+    // 已下线的为你推荐模块
+    expect(screen.queryByText('为你推荐')).toBeNull();
+    expect(screen.queryByText('AI 调酒师')).toBeNull();
     // 三 Tab（testID 断言，避免与统计行重名）
     expect(screen.getByTestId('profile-tab-posts')).toBeTruthy();
     expect(screen.getByTestId('profile-tab-favorites')).toBeTruthy();

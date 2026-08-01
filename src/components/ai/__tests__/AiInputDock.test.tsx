@@ -53,6 +53,25 @@ describe('AiInputDock', () => {
     expect(onSend).not.toHaveBeenCalled();
   });
 
+  it('does not send when the input is empty', async () => {
+    const onSend = jest.fn();
+    const screen = await render(
+      <AiInputDock
+        draft=""
+        status="idle"
+        mode="normal"
+        usage={{ limit: 50, used: 1, remaining: 49, resetsAt: '2026-07-29T16:00:00Z' }}
+        onChangeDraft={jest.fn()}
+        onSend={onSend}
+        onOpenTools={jest.fn()}
+      />
+    );
+
+    await fireEvent.press(screen.getByTestId('ai-send-button'));
+
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
   it('shows exhausted quota and disables sending', async () => {
     const onSend = jest.fn();
     const exhausted = await render(

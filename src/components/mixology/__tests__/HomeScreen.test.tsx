@@ -1,9 +1,9 @@
-import { render } from '@testing-library/react-native';
-import { describe, expect, it, jest } from '@jest/globals';
+import { cleanup, render } from '@testing-library/react-native';
+import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import HomeScreen from '@/app/index';
+import HomeScreen, { getDailyMenuRecipes } from '@/app/index';
 import {
   ContentTestProvider,
   createContentTestSnapshot,
@@ -18,6 +18,10 @@ jest.mock('expo-router', () => ({
 }));
 
 describe('HomeScreen', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   it('uses concrete dimensions for the first banner image so it renders in Expo native', async () => {
     const screen = await render(
       <SafeAreaProvider
@@ -120,5 +124,34 @@ describe('HomeScreen', () => {
 
     expect(screen.queryByTestId('home-banner')).toBeNull();
     expect(screen.queryByText('经典盲盒')).toBeNull();
+  });
+
+  it('renames the latest menu section to the daily menu', async () => {
+    const screen = await render(
+      <SafeAreaProvider
+        initialMetrics={{
+          frame: { x: 0, y: 0, width: 390, height: 844 },
+          insets: { top: 0, bottom: 0, left: 0, right: 0 },
+        }}>
+        <ContentTestProvider>
+          <HomeScreen />
+        </ContentTestProvider>
+      </SafeAreaProvider>
+    );
+
+    expect(screen.getByText('每日酒单')).toBeTruthy();
+    expect(screen.queryByText('最新酒单')).toBeNull();
+  });
+
+  it('rotates the daily menu recipe set by date', async () => {
+    const snapshot = createContentTestSnapshot();
+    const firstLabels = getDailyMenuRecipes(snapshot.recipes, new Date('2026-07-29T10:00:00+08:00'))
+      .map((recipe) => `${recipe.name} ${recipe.englishName}`);
+    const secondLabels = getDailyMenuRecipes(snapshot.recipes, new Date('2026-07-30T10:00:00+08:00'))
+      .map((recipe) => `${recipe.name} ${recipe.englishName}`);
+
+    expect(firstLabels).toHaveLength(4);
+    expect(secondLabels).toHaveLength(4);
+    expect(firstLabels).not.toEqual(secondLabels);
   });
 });

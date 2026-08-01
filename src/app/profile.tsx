@@ -5,7 +5,6 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ScreenShell } from '@/components/mixology/ScreenShell';
 import { MyDrinkCards } from '@/components/profile/MyDrinkCards';
-import { ProfileAIRecommendation } from '@/components/profile/ProfileAIRecommendation';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileTabs } from '@/components/profile/ProfileTabs';
 import { useMixology } from '@/state/MixologyState';
@@ -24,7 +23,6 @@ export default function ProfileScreen() {
         <ProfileHeader profile={userProfile} stats={stats} />
 
         <View style={styles.body}>
-          <ProfileAIRecommendation />
           <MyDrinkCards drawnCards={interactionState.drawnCards} />
           <ProfileTabs interactionState={interactionState} />
 
