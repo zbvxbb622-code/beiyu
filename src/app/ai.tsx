@@ -243,14 +243,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerActionSurface: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   closeButton: {
     width: 38,

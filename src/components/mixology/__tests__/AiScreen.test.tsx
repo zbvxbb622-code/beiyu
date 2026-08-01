@@ -4,7 +4,6 @@ import { StyleSheet } from 'react-native';
 
 import AiScreen from '@/app/ai';
 import type { AiStateValue } from '@/state/AiState';
-import { colors } from '@/styles/mixologyTheme';
 
 let mockParams: { prompt?: string } = {};
 const mockPush = jest.fn();
@@ -128,13 +127,10 @@ describe('AiScreen', () => {
     expect(screen.getByTestId('ai-temp-chat-timer-icon')).toBeTruthy();
     expect(screen.queryByTestId('ai-temp-chat-plus-icon')).toBeNull();
     const tempSurface = StyleSheet.flatten(screen.getByTestId('ai-temp-chat-button-surface').props.style);
-    expect(tempSurface.width).toBe(38);
-    expect(tempSurface.height).toBe(38);
-    expect(tempSurface.borderRadius).toBe(19);
-    expect(tempSurface.backgroundColor).not.toBe(colors.pink);
-    expect(tempSurface.borderColor).toBe('rgba(255,255,255,0.12)');
-    expect(tempSurface.backgroundColor).toBe('rgba(255,255,255,0.08)');
-    expect(tempSurface.borderWidth).toBe(1);
+    expect(tempSurface.backgroundColor).toBeUndefined();
+    expect(tempSurface.borderColor).toBeUndefined();
+    expect(tempSurface.borderRadius).toBeUndefined();
+    expect(tempSurface.borderWidth).toBeUndefined();
     expect(screen.getByTestId('ai-close-button')).toBeTruthy();
     expect(screen.getByTestId('ai-input-dock')).toBeTruthy();
     expect(screen.getByText('今日还剩 10 次')).toBeTruthy();
