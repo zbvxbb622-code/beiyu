@@ -1,5 +1,5 @@
 import { type Href, useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, SquarePen } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
@@ -53,7 +53,14 @@ export default function CommunityScreen() {
               </Pressable>
             ))}
           </View>
-          <View style={styles.back} />
+          <Pressable
+            testID="community-publish-button"
+            onPress={() => router.push('/publish-post' as Href)}
+            hitSlop={10}
+            style={({ pressed }) => [styles.publishButton, pressed ? styles.pressed : null]}
+            accessibilityLabel="发布笔记">
+            <SquarePen color={colors.text} size={20} strokeWidth={2.4} />
+          </Pressable>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.feed}>
@@ -108,6 +115,14 @@ const styles = StyleSheet.create({
   back: {
     width: 40,
   },
+  publishButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.pink,
+  },
   tabs: {
     flex: 1,
     flexDirection: 'row',
@@ -150,5 +165,8 @@ const styles = StyleSheet.create({
   },
   column: {
     gap: 12,
+  },
+  pressed: {
+    opacity: 0.78,
   },
 });

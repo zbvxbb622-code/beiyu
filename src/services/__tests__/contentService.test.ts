@@ -27,7 +27,6 @@ describe('contentService', () => {
       'blind-box',
       'drink-knowledge',
       'classic-series',
-      'shared-cellar',
     ]);
   });
 

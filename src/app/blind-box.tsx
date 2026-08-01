@@ -20,7 +20,7 @@ type DrawPhase = 'idle' | 'drawing' | 'revealed';
 
 export default function BlindBoxScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const { interactionState, drawBlindBoxCard } = useMixology();
 
   const [phase, setPhase] = useState<DrawPhase>('idle');
@@ -161,12 +161,17 @@ export default function BlindBoxScreen() {
 
   const shownCard = card ?? todayCard;
   const videoSize = Math.min(width - 48, 380);
+  const stageHeight = Math.min(410, Math.max(330, height * 0.46));
+  const cardBackWrapHeight = Math.min(360, Math.max(320, height * 0.42));
+  const cardBackHeight = cardBackWrapHeight - 24;
+  const cardBackWidth = cardBackHeight * 0.7;
+  const cardBackSize = { width: cardBackWidth, height: cardBackHeight };
 
   return (
     <ScreenShell>
       <TopBar title="经典盲盒" backHref={'/' as Href} />
 
-      <View style={styles.stage}>
+      <View testID="blind-box-stage" style={[styles.stage, { height: stageHeight }]}>
         {/* 抽卡过场视频 */}
         {phase === 'drawing' ? (
           <Pressable onPress={revealCard} style={[styles.videoWrap, { width: videoSize, height: videoSize }]}>
@@ -187,10 +192,10 @@ export default function BlindBoxScreen() {
               <BlindBoxCard card={shownCard} />
             </Animated.View>
           ) : (
-            <View style={styles.cardBackWrap}>
-              <View style={[styles.cardBack, styles.cardBackRear]} />
-              <View style={[styles.cardBack, styles.cardBackMid]} />
-              <LinearGradient colors={gradients.card} style={[styles.cardBack, styles.cardBackFront]}>
+            <View testID="blind-box-card-back-wrap" style={[styles.cardBackWrap, { width: cardBackWidth + 24, height: cardBackWrapHeight }]}>
+              <View style={[styles.cardBack, cardBackSize, styles.cardBackRear]} />
+              <View style={[styles.cardBack, cardBackSize, styles.cardBackMid]} />
+              <LinearGradient colors={gradients.card} style={[styles.cardBack, cardBackSize, styles.cardBackFront]}>
                 <PackageOpen color={colors.pink} size={56} />
                 <Text style={styles.cardBackText}>今日酒卡待开启</Text>
               </LinearGradient>
@@ -249,7 +254,6 @@ export default function BlindBoxScreen() {
 
 const styles = StyleSheet.create({
   stage: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
@@ -270,15 +274,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   cardBackWrap: {
-    width: 300,
-    height: 420,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardBack: {
     position: 'absolute',
-    width: 280,
-    height: 400,
     borderRadius: radii.md,
     borderWidth: 2,
     borderColor: 'rgba(255,47,159,0.35)',

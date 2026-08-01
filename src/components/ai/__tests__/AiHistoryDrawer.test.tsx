@@ -92,4 +92,35 @@ describe('AiHistoryDrawer', () => {
     expect(alert).toHaveBeenCalled();
     expect(onDelete).toHaveBeenCalledWith('1');
   });
+
+  it('keeps the delete button reachable when a conversation title is long', async () => {
+    const screen = await render(
+      <AiHistoryDrawer
+        visible
+        width={390}
+        avatarSource={avatarSource}
+        displayName="lan Bai"
+        conversations={[
+          {
+            id: 'long',
+            title: '测试 AI 聊天发送 ui-send-1785567444177 以及一段很长很长的历史标题',
+            lastMessageAt: '2026-07-30T03:00:00Z',
+            createdAt: '2026-07-30T03:00:00Z',
+          },
+        ]}
+        selectedConversationId={null}
+        now={now}
+        onClose={jest.fn()}
+        onNewChat={jest.fn()}
+        onPick={jest.fn()}
+        onDelete={jest.fn()}
+      />
+    );
+
+    const titlePressable = StyleSheet.flatten(screen.getByTestId('ai-history-title-long').props.style);
+    const deleteButton = StyleSheet.flatten(screen.getByTestId('ai-history-delete-long').props.style);
+
+    expect(titlePressable.minWidth).toBe(0);
+    expect(deleteButton.width).toBeGreaterThanOrEqual(36);
+  });
 });

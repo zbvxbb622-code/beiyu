@@ -93,6 +93,21 @@ describe('content-driven screens', () => {
     expect(screen.getByText('后台酒品知识')).toBeTruthy();
   });
 
+  it('renders drink knowledge cards with a concrete cover image', async () => {
+    const snapshot = createContentTestSnapshot();
+    snapshot.knowledge = [
+      { ...snapshot.knowledge[0], id: 'remote-knowledge', name: '后台酒品知识', imageKey: 'margarita', imageUrl: null },
+    ];
+
+    const screen = await render(
+      <ContentTestProvider snapshot={snapshot}>
+        <DrinkKnowledgeScreen />
+      </ContentTestProvider>
+    );
+
+    expect(screen.getByTestId('knowledge-cover-image')).toBeTruthy();
+  });
+
   it('renders remote ingredients in the cellar selector', async () => {
     const snapshot = createContentTestSnapshot();
     snapshot.ingredients = [

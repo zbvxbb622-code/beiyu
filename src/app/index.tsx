@@ -45,6 +45,7 @@ const MOSAIC_IMAGE_KEYS = {
   bottomMiddle: 'homeGinSour',
   tall: 'homeBlueLove',
 } as const;
+const retiredShortcutIds = new Set(['shared-cellar']);
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -58,7 +59,7 @@ export default function HomeScreen() {
     activeHeroIndex,
     Math.max(0, heroSlides.length - 1)
   );
-  const shortcuts = snapshot.shortcuts;
+  const shortcuts = snapshot.shortcuts.filter((shortcut) => !retiredShortcutIds.has(shortcut.id));
 
   // 设计稿等比缩放因子
   const s = width / DESIGN_WIDTH;

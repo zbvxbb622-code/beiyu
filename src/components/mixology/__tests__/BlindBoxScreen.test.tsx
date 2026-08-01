@@ -1,5 +1,6 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
-import { describe, expect, it, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { StyleSheet } from 'react-native';
 
 import BlindBoxScreen from '@/app/blind-box';
 import { blindBoxCards } from '@/data/blindBoxCards';
@@ -7,6 +8,8 @@ import { blindBoxCards } from '@/data/blindBoxCards';
 const mockRouterPush = jest.fn();
 const mockDrawBlindBoxCard = jest.fn();
 const drawnCard = blindBoxCards[0];
+let mockLastDrawDate: string | null | undefined;
+let mockDrawnCards: unknown[] = [];
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({
@@ -40,8 +43,8 @@ jest.mock('@/state/MixologyState', () => {
     useMixology: () => ({
       isHydrated: true,
       interactionState: {
-        lastDrawDate: getTodayKey(),
-        drawnCards: [{ card: cards[0], drawnAt: new Date().toISOString() }],
+        lastDrawDate: mockLastDrawDate === undefined ? getTodayKey() : mockLastDrawDate,
+        drawnCards: mockDrawnCards.length > 0 ? mockDrawnCards : [{ card: cards[0], drawnAt: new Date().toISOString() }],
       },
       drawBlindBoxCard: mockDrawBlindBoxCard,
     }),
@@ -49,6 +52,16 @@ jest.mock('@/state/MixologyState', () => {
 });
 
 describe('BlindBoxScreen', () => {
+  beforeEach(() => {
+    mockRouterPush.mockClear();
+    mockDrawBlindBoxCard.mockClear();
+    const { todayKey: getTodayKey } = jest.requireActual('@/services/blindBoxService') as {
+      todayKey: () => string;
+    };
+    mockLastDrawDate = getTodayKey();
+    mockDrawnCards = [{ card: drawnCard, drawnAt: new Date().toISOString() }];
+  });
+
   it('点分享跳转发布页并预填卡牌内容（不直接发帖）', async () => {
     const screen = await render(<BlindBoxScreen />);
 
@@ -78,5 +91,16 @@ describe('BlindBoxScreen', () => {
     });
     // 未调用受限的每日抽卡接口
     expect(mockDrawBlindBoxCard).not.toHaveBeenCalled();
+  });
+
+  it('keeps the unopened card compact so the draw button is reachable on phone screens', async () => {
+    mockLastDrawDate = null;
+    mockDrawnCards = [];
+
+    const screen = await render(<BlindBoxScreen />);
+    const cardBack = StyleSheet.flatten(screen.getByTestId('blind-box-card-back-wrap').props.style);
+
+    expect(screen.getByTestId('draw-button')).toBeTruthy();
+    expect(cardBack.height).toBeLessThanOrEqual(360);
   });
 });

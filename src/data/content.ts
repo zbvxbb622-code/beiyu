@@ -78,13 +78,6 @@ export const homeShortcuts: HomeShortcut[] = [
     icon: 'cards',
     route: '/recipes',
   },
-  {
-    id: 'shared-cellar',
-    title: '共享酒柜',
-    description: '看看大家在喝什么',
-    icon: 'cellar',
-    route: '/cellar',
-  },
 ];
 
 export const communityPosts: CommunityPost[] = [

@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 
-import { ContentImageBackground } from '@/components/content/ContentImage';
+import { ContentImage } from '@/components/content/ContentImage';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
 import { TopBar } from '@/components/mixology/TopBar';
 import { useContent } from '@/state/ContentState';
@@ -44,13 +44,14 @@ export default function DrinkKnowledgeScreen() {
 
         {entries.map((entry) => (
           <View key={entry.id} style={styles.card} testID="knowledge-card">
-            <ContentImageBackground
-              imageKey={entry.imageKey}
-              imageUrl={entry.imageUrl}
-              resizeMode="cover"
-              style={styles.cover}
-              imageStyle={styles.coverRadius}
-            >
+            <View style={styles.cover}>
+              <ContentImage
+                testID="knowledge-cover-image"
+                imageKey={entry.imageKey}
+                imageUrl={entry.imageUrl}
+                resizeMode="cover"
+                style={styles.coverImage}
+              />
               <LinearGradient colors={gradients.overlayTop} style={styles.coverOverlay}>
                 <View style={styles.eraBadge}>
                   <Text style={styles.eraText}>{entry.era}</Text>
@@ -60,7 +61,7 @@ export default function DrinkKnowledgeScreen() {
                   <Text style={styles.englishName}>{entry.englishName}</Text>
                 </View>
               </LinearGradient>
-            </ContentImageBackground>
+            </View>
 
             <View style={styles.body}>
               <View style={styles.meaningRow}>
@@ -123,10 +124,15 @@ const styles = StyleSheet.create({
   },
   cover: {
     height: 150,
+    overflow: 'hidden',
+    backgroundColor: colors.panelStrong,
   },
-  coverRadius: {
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
+  coverImage: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
   },
   coverOverlay: {
     flex: 1,

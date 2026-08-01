@@ -66,6 +66,53 @@ const hiddenRouteOptions = {
   tabBarStyle: { display: 'none' },
 } as const;
 
+export const hiddenTabRouteNames = [
+  'login',
+  'cellar',
+  'private-cellar',
+  'cellar-ingredients',
+  'recipes',
+  'recipe/[id]',
+  'post/[id]',
+  'bar/[id]',
+  'cellar-card/[id]',
+  'search',
+  'publish-post',
+  'blind-box',
+  'drink-knowledge',
+  'edit-profile',
+  'settings',
+  'settings-ai-memory',
+  'account-security',
+  'settings-general',
+  'settings-notifications',
+  'settings-notifications-comments',
+  'settings-notifications-messages',
+  'settings-notifications-author',
+  'settings-language',
+  'settings-privacy',
+  'settings-privacy-find-me',
+  'settings-privacy-recommend-to-me',
+  'settings-privacy-recommend-me-to',
+  'settings-privacy-block-from-view',
+  'settings-privacy-block-view',
+  'settings-privacy-blacklist',
+  'settings-privacy-one-click-protection',
+  'settings-privacy-who-can-dm',
+  'settings-privacy-who-can-comment',
+  'settings-privacy-who-can-at',
+  'settings-privacy-chat-tag',
+  'settings-privacy-online-status',
+  'settings-privacy-follow-fans',
+  'settings-privacy-favorites',
+  'settings-privacy-system-permissions',
+  'settings-privacy-personalize',
+  'device-management',
+  'realname-verify',
+  'official-verify',
+  'account-recovery',
+] as const;
+
 export default function AppTabs() {
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 8);
@@ -121,49 +168,9 @@ export default function AppTabs() {
           tabBarIcon: ({ color }) => <TabGlyph icon="profile" color={color} />,
         }}
       />
-      <Tabs.Screen name="login" options={hiddenRouteOptions} />
-      <Tabs.Screen name="cellar" options={hiddenRouteOptions} />
-      <Tabs.Screen name="private-cellar" options={hiddenRouteOptions} />
-      <Tabs.Screen name="cellar-ingredients" options={hiddenRouteOptions} />
-      <Tabs.Screen name="recipes" options={hiddenRouteOptions} />
-      <Tabs.Screen name="recipe/[id]" options={hiddenRouteOptions} />
-      <Tabs.Screen name="post/[id]" options={hiddenRouteOptions} />
-      <Tabs.Screen name="bar/[id]" options={hiddenRouteOptions} />
-      <Tabs.Screen name="cellar-card/[id]" options={hiddenRouteOptions} />
-      <Tabs.Screen name="search" options={hiddenRouteOptions} />
-      <Tabs.Screen name="publish-post" options={hiddenRouteOptions} />
-      <Tabs.Screen name="blind-box" options={hiddenRouteOptions} />
-      <Tabs.Screen name="drink-knowledge" options={hiddenRouteOptions} />
-      <Tabs.Screen name="edit-profile" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings" options={hiddenRouteOptions} />
-      <Tabs.Screen name="account-security" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-general" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-notifications" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-notifications-comments" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-notifications-messages" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-notifications-author" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-language" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-find-me" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-recommend-to-me" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-recommend-me-to" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-block-from-view" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-block-view" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-blacklist" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-one-click-protection" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-who-can-dm" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-who-can-comment" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-who-can-at" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-chat-tag" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-online-status" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-follow-fans" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-favorites" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-system-permissions" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-personalize" options={hiddenRouteOptions} />
-      <Tabs.Screen name="device-management" options={hiddenRouteOptions} />
-      <Tabs.Screen name="realname-verify" options={hiddenRouteOptions} />
-      <Tabs.Screen name="official-verify" options={hiddenRouteOptions} />
-      <Tabs.Screen name="account-recovery" options={hiddenRouteOptions} />
+      {hiddenTabRouteNames.map((routeName) => (
+        <Tabs.Screen key={routeName} name={routeName} options={hiddenRouteOptions} />
+      ))}
     </Tabs>
   );
 }

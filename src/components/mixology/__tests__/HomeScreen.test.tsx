@@ -60,6 +60,47 @@ describe('HomeScreen', () => {
     expect(screen.getByText('后台发布的盲盒')).toBeTruthy();
   });
 
+  it('does not show the shared cellar shortcut in the bundled home shortcuts', async () => {
+    const screen = await render(
+      <SafeAreaProvider
+        initialMetrics={{
+          frame: { x: 0, y: 0, width: 390, height: 844 },
+          insets: { top: 0, bottom: 0, left: 0, right: 0 },
+        }}>
+        <ContentTestProvider>
+          <HomeScreen />
+        </ContentTestProvider>
+      </SafeAreaProvider>
+    );
+
+    expect(screen.queryByText('共享酒柜')).toBeNull();
+  });
+
+  it('filters the retired shared cellar shortcut even when stale backend content returns it', async () => {
+    const snapshot = createContentTestSnapshot();
+    snapshot.shortcuts.push({
+      id: 'shared-cellar',
+      title: '共享酒柜',
+      description: '看看大家在喝什么',
+      icon: 'cellar',
+      route: '/cellar',
+    });
+
+    const screen = await render(
+      <SafeAreaProvider
+        initialMetrics={{
+          frame: { x: 0, y: 0, width: 390, height: 844 },
+          insets: { top: 0, bottom: 0, left: 0, right: 0 },
+        }}>
+        <ContentTestProvider snapshot={snapshot}>
+          <HomeScreen />
+        </ContentTestProvider>
+      </SafeAreaProvider>
+    );
+
+    expect(screen.queryByText('共享酒柜')).toBeNull();
+  });
+
   it('does not restore bundled banners or shortcuts when remote content is empty', async () => {
     const snapshot = createContentTestSnapshot();
     snapshot.banners = [];

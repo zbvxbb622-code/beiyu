@@ -117,6 +117,7 @@ export function AiHistoryDrawer({
                     return (
                       <View key={conversation.id} style={[styles.drawerItem, selected ? styles.drawerItemSelected : null]}>
                         <Pressable
+                          testID={`ai-history-title-${conversation.id}`}
                           onPress={() => onPick(conversation)}
                           style={({ pressed }) => [styles.drawerItemTitlePressable, pressed ? styles.pressed : null]}
                         >
@@ -247,10 +248,12 @@ const styles = StyleSheet.create({
   },
   drawerItemTitlePressable: {
     flex: 1,
+    minWidth: 0,
     minHeight: 42,
     justifyContent: 'center',
   },
   drawerItemText: {
+    minWidth: 0,
     color: colors.textSoft,
     fontSize: 16,
     lineHeight: 22,
