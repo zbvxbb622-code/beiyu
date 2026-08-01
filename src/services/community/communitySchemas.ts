@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+const optionalStringFromNull = z.preprocess(
+  (value) => (value === null ? undefined : value),
+  z.string().optional()
+);
+
 export const communityPostImageSchema = z.discriminatedUnion('kind', [
   z.object({
     id: z.string(),
@@ -34,7 +39,7 @@ export const communityPostSchema = z.object({
   likes: z.number().int(),
   likedByMe: z.boolean().optional(),
   comments: z.array(communityCommentSchema),
-  venueId: z.string().optional(),
+  venueId: optionalStringFromNull,
   images: z.array(communityPostImageSchema).optional(),
   topics: z.array(z.string()).optional(),
   visibility: z.enum(['public', 'private']).optional(),
