@@ -7,6 +7,7 @@ from app.db.models import (
     CommunityComment,
     CommunityFeedCategory,
     CommunityPost,
+    CommunityPostLike,
     CommunityPostVisibility,
     User,
     UserProfile,
@@ -70,9 +71,15 @@ def _post_response(
     session: Session,
     post: CommunityPost,
     *,
+    user: User,
     include_comments: bool,
 ) -> CommunityPostResponse:
     author_name, avatar_key = _author_snapshot(session, post.author_id)
+    liked_by_me = session.exec(
+        select(CommunityPostLike)
+        .where(CommunityPostLike.post_id == post.id)
+        .where(CommunityPostLike.user_id == user.id)
+    ).first() is not None
     comments = (
         session.exec(
             select(CommunityComment)
@@ -93,6 +100,7 @@ def _post_response(
         body=post.body,
         date=_date(post.created_at),
         likes=post.like_count,
+        liked_by_me=liked_by_me,
         comments=[_comment_response(session, comment) for comment in comments],
         venue_id=post.venue_id,
         images=[CommunityPostImage.model_validate(image) for image in post.images],
@@ -139,7 +147,7 @@ def list_posts(
     posts = session.exec(statement).all()
     return CommunityPostListResponse(
         items=[
-            _post_response(session, post, include_comments=True)
+            _post_response(session, post, user=user, include_comments=True)
             for post in posts
         ]
     )
@@ -147,7 +155,7 @@ def list_posts(
 
 def get_post(session: Session, *, user: User, post_id: UUID) -> CommunityPostResponse:
     post = _get_visible_post(session, post_id, user)
-    return _post_response(session, post, include_comments=True)
+    return _post_response(session, post, user=user, include_comments=True)
 
 
 def create_post(
@@ -176,7 +184,7 @@ def create_post(
     session.add(post)
     session.commit()
     session.refresh(post)
-    return _post_response(session, post, include_comments=True)
+    return _post_response(session, post, user=user, include_comments=True)
 
 
 def add_comment(
@@ -198,3 +206,37 @@ def add_comment(
     session.commit()
     session.refresh(comment)
     return _comment_response(session, comment)
+
+
+def like_post(session: Session, *, user: User, post_id: UUID) -> CommunityPostResponse:
+    post = _get_visible_post(session, post_id, user)
+    existing = session.exec(
+        select(CommunityPostLike)
+        .where(CommunityPostLike.post_id == post.id)
+        .where(CommunityPostLike.user_id == user.id)
+    ).first()
+    if existing is None:
+        session.add(CommunityPostLike(post_id=post.id, user_id=user.id))
+        post.like_count += 1
+        post.updated_at = utc_now()
+        session.add(post)
+        session.commit()
+        session.refresh(post)
+    return _post_response(session, post, user=user, include_comments=True)
+
+
+def unlike_post(session: Session, *, user: User, post_id: UUID) -> CommunityPostResponse:
+    post = _get_visible_post(session, post_id, user)
+    existing = session.exec(
+        select(CommunityPostLike)
+        .where(CommunityPostLike.post_id == post.id)
+        .where(CommunityPostLike.user_id == user.id)
+    ).first()
+    if existing is not None:
+        session.delete(existing)
+        post.like_count = max(post.like_count - 1, 0)
+        post.updated_at = utc_now()
+        session.add(post)
+        session.commit()
+        session.refresh(post)
+    return _post_response(session, post, user=user, include_comments=True)

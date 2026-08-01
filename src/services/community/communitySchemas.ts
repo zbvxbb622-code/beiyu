@@ -32,6 +32,7 @@ export const communityPostSchema = z.object({
   body: z.string(),
   date: z.string(),
   likes: z.number().int(),
+  likedByMe: z.boolean().optional(),
   comments: z.array(communityCommentSchema),
   venueId: z.string().optional(),
   images: z.array(communityPostImageSchema).optional(),

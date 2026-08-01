@@ -106,6 +106,62 @@ def test_commenting_closed_post_is_rejected(
     assert commented.json()["error"]["code"] == "COMMUNITY_COMMENTS_CLOSED"
 
 
+def test_user_can_like_and_unlike_post_idempotently(
+    database_client: TestClient,
+) -> None:
+    login = create_login(database_client)
+    headers = bearer(login["accessToken"])
+    created = database_client.post(
+        "/api/v1/community/posts",
+        headers=headers,
+        json={"title": "可以点赞的笔记", "body": "点赞状态应该由后端保存。"},
+    )
+    assert created.status_code == 201, created.text
+    post_id = created.json()["id"]
+    assert created.json()["likes"] == 0
+    assert created.json()["likedByMe"] is False
+
+    liked = database_client.post(
+        f"/api/v1/community/posts/{post_id}/like",
+        headers=headers,
+    )
+
+    assert liked.status_code == 200, liked.text
+    assert liked.json()["likes"] == 1
+    assert liked.json()["likedByMe"] is True
+
+    liked_again = database_client.post(
+        f"/api/v1/community/posts/{post_id}/like",
+        headers=headers,
+    )
+    assert liked_again.status_code == 200, liked_again.text
+    assert liked_again.json()["likes"] == 1
+    assert liked_again.json()["likedByMe"] is True
+
+    listed = database_client.get("/api/v1/community/posts", headers=headers)
+    assert listed.status_code == 200, listed.text
+    listed_post = listed.json()["items"][0]
+    assert listed_post["id"] == post_id
+    assert listed_post["likes"] == 1
+    assert listed_post["likedByMe"] is True
+
+    unliked = database_client.delete(
+        f"/api/v1/community/posts/{post_id}/like",
+        headers=headers,
+    )
+    assert unliked.status_code == 200, unliked.text
+    assert unliked.json()["likes"] == 0
+    assert unliked.json()["likedByMe"] is False
+
+    unliked_again = database_client.delete(
+        f"/api/v1/community/posts/{post_id}/like",
+        headers=headers,
+    )
+    assert unliked_again.status_code == 200, unliked_again.text
+    assert unliked_again.json()["likes"] == 0
+    assert unliked_again.json()["likedByMe"] is False
+
+
 def test_deleted_user_posts_are_not_listed(
     database_client: TestClient,
     database_session: Session,

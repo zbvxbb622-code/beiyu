@@ -2592,6 +2592,11 @@
             "title": "Images",
             "type": "array"
           },
+          "likedByMe": {
+            "default": false,
+            "title": "Likedbyme",
+            "type": "boolean"
+          },
           "likes": {
             "minimum": 0.0,
             "title": "Likes",
@@ -9477,6 +9482,102 @@
           }
         ],
         "summary": "Create Community Comment",
+        "tags": [
+          "api",
+          "community"
+        ]
+      }
+    },
+    "/api/v1/community/posts/{post_id}/like": {
+      "delete": {
+        "operationId": "unlike_community_post_api_v1_community_posts__post_id__like_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "post_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Post Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityPostResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Unlike Community Post",
+        "tags": [
+          "api",
+          "community"
+        ]
+      },
+      "post": {
+        "operationId": "like_community_post_api_v1_community_posts__post_id__like_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "post_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Post Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityPostResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Like Community Post",
         "tags": [
           "api",
           "community"

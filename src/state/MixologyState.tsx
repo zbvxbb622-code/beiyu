@@ -359,12 +359,27 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
 
   const togglePostLike = useCallback(
     async (postId: string) => {
+      const expected = captureSession();
+      const remotePost = expected
+        ? interactionStateRef.current.localCommunityPosts.find((post) => post.id === postId)
+        : undefined;
+      if (expected && remotePost?.likedByMe !== undefined) {
+        const nextPost = remotePost.likedByMe
+          ? await repository.unlikeCommunityPost(postId)
+          : await repository.likeCommunityPost(postId);
+        if (!isSessionActive(expected)) return;
+        commitRemoteCommunityState((state) => ({
+          ...state,
+          localCommunityPosts: state.localCommunityPosts.map((post) => post.id === postId ? nextPost : post),
+        }));
+        return;
+      }
       await updateInteractions((state) => ({
         ...state,
         likedPostIds: toggleInteractionId(state.likedPostIds, postId),
       }));
     },
-    [updateInteractions]
+    [captureSession, commitRemoteCommunityState, isSessionActive, repository, updateInteractions]
   );
 
   const toggleAuthorFollow = useCallback(

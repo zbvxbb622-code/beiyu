@@ -71,7 +71,7 @@ export default function CommunityScreen() {
                   <CommunityPostCard
                     key={post.id}
                     post={post}
-                    liked={interactionState.likedPostIds.includes(post.id)}
+                    liked={post.likedByMe ?? interactionState.likedPostIds.includes(post.id)}
                     onToggleLike={() => togglePostLike(post.id)}
                     cardWidth={cardWidth}
                     imageWidth={cardWidth}
@@ -84,7 +84,7 @@ export default function CommunityScreen() {
                   <CommunityPostCard
                     key={post.id}
                     post={post}
-                    liked={interactionState.likedPostIds.includes(post.id)}
+                    liked={post.likedByMe ?? interactionState.likedPostIds.includes(post.id)}
                     onToggleLike={() => togglePostLike(post.id)}
                     cardWidth={cardWidth}
                     imageWidth={cardWidth}

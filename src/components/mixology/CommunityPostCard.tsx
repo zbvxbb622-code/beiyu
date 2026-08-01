@@ -23,6 +23,7 @@ export function CommunityPostCard({
   imageWidth?: number;
 }) {
   const router = useRouter();
+  const likeCount = post.likedByMe === undefined ? post.likes + (liked ? 1 : 0) : post.likes;
 
   return (
     <Pressable
@@ -51,7 +52,7 @@ export function CommunityPostCard({
           </View>
           <Pressable onPress={onToggleLike} hitSlop={10} style={styles.like}>
             <Heart color={liked ? colors.pink : colors.textMuted} fill={liked ? colors.pink : 'transparent'} size={15} />
-            <Text style={styles.likeText}>{post.likes + (liked ? 1 : 0)}</Text>
+            <Text style={styles.likeText}>{likeCount}</Text>
           </Pressable>
         </View>
       </View>

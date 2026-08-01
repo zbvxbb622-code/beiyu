@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import DateTime, Enum, Text
+from sqlalchemy import DateTime, Enum, Text, UniqueConstraint
 from sqlmodel import Column, Field, SQLModel
 
 from app.db.models.accounts import utc_now
@@ -86,6 +86,29 @@ class CommunityComment(SQLModel, table=True):
         index=True,
     )
     text: str = Field(sa_column=Column(Text(), nullable=False))
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
+    )
+
+
+class CommunityPostLike(SQLModel, table=True):
+    __tablename__ = "community_post_likes"
+    __table_args__ = (
+        UniqueConstraint("post_id", "user_id", name="uq_community_post_likes_post_user"),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    post_id: uuid.UUID = Field(
+        foreign_key="community_posts.id",
+        ondelete="CASCADE",
+        index=True,
+    )
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id",
+        ondelete="CASCADE",
+        index=True,
+    )
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), nullable=False, index=True),

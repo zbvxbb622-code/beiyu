@@ -36,6 +36,7 @@ class CommunityPostResponse(ApiModel):
     body: str
     date: str
     likes: int = Field(ge=0)
+    liked_by_me: bool = False
     comments: list[CommunityCommentResponse]
     venue_id: str | None = None
     images: list[CommunityPostImage] = Field(default_factory=list)

@@ -33,7 +33,8 @@ export default function CommunityPostDetailScreen() {
     );
   }
 
-  const liked = interactionState.likedPostIds.includes(post.id);
+  const liked = post.likedByMe ?? interactionState.likedPostIds.includes(post.id);
+  const likeCount = post.likedByMe === undefined ? post.likes + (liked ? 1 : 0) : post.likes;
   const followed = interactionState.followedAuthorIds.includes(post.authorId);
   const comments = mergePostComments(post, interactionState.localPostComments);
   const postImages = getPostImages(post);
@@ -147,7 +148,7 @@ export default function CommunityPostDetailScreen() {
         )}
         <Pressable onPress={() => togglePostLike(post.id)} style={styles.action} hitSlop={8}>
           <Heart color={colors.pink} fill={liked ? colors.pink : 'transparent'} size={25} />
-          <Text style={styles.actionText}>{post.likes + (liked ? 1 : 0)}</Text>
+          <Text style={styles.actionText}>{likeCount}</Text>
         </Pressable>
       </View>
     </ScreenShell>

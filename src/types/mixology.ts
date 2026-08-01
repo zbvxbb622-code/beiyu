@@ -99,6 +99,7 @@ export type CommunityPost = {
   body: string;
   date: string;
   likes: number;
+  likedByMe?: boolean;
   comments: CommunityComment[];
   venueId?: string;
   // 多图（含上传 uri），空表示单封面图

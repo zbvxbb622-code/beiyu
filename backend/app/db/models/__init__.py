@@ -30,6 +30,7 @@ from app.db.models.community import (
     CommunityComment,
     CommunityFeedCategory,
     CommunityPost,
+    CommunityPostLike,
     CommunityPostVisibility,
 )
 from app.db.models.content import (
@@ -73,6 +74,7 @@ __all__ = [
     "CommunityComment",
     "CommunityFeedCategory",
     "CommunityPost",
+    "CommunityPostLike",
     "CommunityPostVisibility",
     "DevicePlatform",
     "DrinkKnowledgeEntry",

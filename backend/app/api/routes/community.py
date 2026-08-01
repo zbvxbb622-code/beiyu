@@ -14,7 +14,14 @@ from app.modules.community.schemas import (
     CommunityPostListResponse,
     CommunityPostResponse,
 )
-from app.modules.community.service import add_comment, create_post, get_post, list_posts
+from app.modules.community.service import (
+    add_comment,
+    create_post,
+    get_post,
+    like_post,
+    list_posts,
+    unlike_post,
+)
 
 router = APIRouter(prefix="/community", tags=["community"])
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -50,6 +57,24 @@ def community_post_detail(
     session: SessionDep,
 ) -> CommunityPostResponse:
     return get_post(session, user=auth.user, post_id=post_id)
+
+
+@router.post("/posts/{post_id}/like", response_model=CommunityPostResponse)
+def like_community_post(
+    post_id: UUID,
+    auth: CurrentAuth,
+    session: SessionDep,
+) -> CommunityPostResponse:
+    return like_post(session, user=auth.user, post_id=post_id)
+
+
+@router.delete("/posts/{post_id}/like", response_model=CommunityPostResponse)
+def unlike_community_post(
+    post_id: UUID,
+    auth: CurrentAuth,
+    session: SessionDep,
+) -> CommunityPostResponse:
+    return unlike_post(session, user=auth.user, post_id=post_id)
 
 
 @router.post(

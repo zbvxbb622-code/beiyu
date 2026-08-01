@@ -225,4 +225,30 @@ describe('AuthRepository', () => {
       expect.anything()
     );
   });
+
+  it('likes and unlikes community posts through the authenticated client', async () => {
+    const likedPost = { ...validCommunityPost, likes: 1, likedByMe: true };
+    const unlikedPost = { ...validCommunityPost, likes: 0, likedByMe: false };
+    const requestMock = jest.fn<() => Promise<unknown>>()
+      .mockResolvedValueOnce(likedPost)
+      .mockResolvedValueOnce(unlikedPost);
+    const request = requestMock as unknown as AuthenticatedClient['request'];
+    const repository = createRepository(jest.fn<FetchLike>(), { request });
+
+    await expect(repository.likeCommunityPost('post-1')).resolves.toEqual(likedPost);
+    await expect(repository.unlikeCommunityPost('post-1')).resolves.toEqual(unlikedPost);
+
+    expect(requestMock).toHaveBeenNthCalledWith(
+      1,
+      '/community/posts/post-1/like',
+      { method: 'POST' },
+      expect.anything()
+    );
+    expect(requestMock).toHaveBeenNthCalledWith(
+      2,
+      '/community/posts/post-1/like',
+      { method: 'DELETE' },
+      expect.anything()
+    );
+  });
 });

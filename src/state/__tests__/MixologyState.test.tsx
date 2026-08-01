@@ -20,6 +20,8 @@ const mockRepository = {
   listCommunityPosts: jest.fn<AuthRepository['listCommunityPosts']>(),
   createCommunityPost: jest.fn<AuthRepository['createCommunityPost']>(),
   addCommunityComment: jest.fn<AuthRepository['addCommunityComment']>(),
+  likeCommunityPost: jest.fn<AuthRepository['likeCommunityPost']>(),
+  unlikeCommunityPost: jest.fn<AuthRepository['unlikeCommunityPost']>(),
 };
 let mockAuthSnapshot: {
   status: 'signedOut' | 'signedIn';
@@ -312,6 +314,7 @@ describe('MixologyProvider', () => {
       body: '这条帖子来自后端。',
       date: '2026-08-02',
       likes: 0,
+      likedByMe: false,
       comments: [],
       images: [{ id: 'cover', kind: 'asset' as const, assetKey: 'communityGrid' }],
       topics: ['调酒'],
@@ -362,6 +365,7 @@ describe('MixologyProvider', () => {
       body: '评论应写入后端。',
       date: '2026-08-02',
       likes: 0,
+      likedByMe: false,
       comments: [],
       images: [{ id: 'cover', kind: 'asset' as const, assetKey: 'communityGrid' }],
       topics: ['调酒'],
@@ -388,6 +392,51 @@ describe('MixologyProvider', () => {
 
     expect(mockRepository.addCommunityComment).toHaveBeenCalledWith('remote-post-2', '后端评论');
     expect(currentValue?.interactionState.localCommunityPosts[0].comments).toEqual([remoteComment]);
+    await expect(AsyncStorage.getItem('beiyu.interactions')).resolves.toBeNull();
+  });
+
+  it('uses backend likes for signed-in community posts without persisting local liked ids', async () => {
+    const remotePost = {
+      id: 'remote-post-like',
+      category: 'recommended' as const,
+      title: '点赞笔记',
+      authorId: bootstrap.user.id,
+      authorName: bootstrap.profile.nickname,
+      authorAvatarKey: bootstrap.profile.avatarKey,
+      imageKey: 'communityGrid',
+      body: '点赞应写入后端。',
+      date: '2026-08-02',
+      likes: 0,
+      likedByMe: false,
+      comments: [],
+      images: [{ id: 'cover', kind: 'asset' as const, assetKey: 'communityGrid' }],
+      topics: ['调酒'],
+      visibility: 'public' as const,
+      allowComments: true,
+    };
+    mockAuthSnapshot = { status: 'signedIn', repository: mockRepository };
+    mockRepository.listCommunityPosts.mockResolvedValueOnce({ items: [remotePost] });
+    mockRepository.likeCommunityPost.mockResolvedValueOnce({ ...remotePost, likes: 1, likedByMe: true });
+    mockRepository.unlikeCommunityPost.mockResolvedValueOnce(remotePost);
+    const screen = await render(<MixologyProvider><Probe /></MixologyProvider>);
+    await screen.findByText('hydrated');
+    await waitFor(() => expect(currentValue?.interactionState.localCommunityPosts).toEqual([remotePost]));
+
+    await act(async () => {
+      await currentValue!.togglePostLike('remote-post-like');
+    });
+
+    expect(mockRepository.likeCommunityPost).toHaveBeenCalledWith('remote-post-like');
+    expect(currentValue?.interactionState.localCommunityPosts[0]).toMatchObject({ likes: 1, likedByMe: true });
+    expect(currentValue?.interactionState.likedPostIds).toEqual([]);
+
+    await act(async () => {
+      await currentValue!.togglePostLike('remote-post-like');
+    });
+
+    expect(mockRepository.unlikeCommunityPost).toHaveBeenCalledWith('remote-post-like');
+    expect(currentValue?.interactionState.localCommunityPosts[0]).toMatchObject({ likes: 0, likedByMe: false });
+    expect(currentValue?.interactionState.likedPostIds).toEqual([]);
     await expect(AsyncStorage.getItem('beiyu.interactions')).resolves.toBeNull();
   });
 });

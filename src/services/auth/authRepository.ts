@@ -250,4 +250,20 @@ export class AuthRepository {
       communityCommentSchema
     );
   }
+
+  likeCommunityPost(postId: string): Promise<CommunityPost> {
+    return this.options.authenticatedClient.request(
+      `/community/posts/${encodeURIComponent(postId)}/like`,
+      { method: 'POST' },
+      communityPostSchema
+    );
+  }
+
+  unlikeCommunityPost(postId: string): Promise<CommunityPost> {
+    return this.options.authenticatedClient.request(
+      `/community/posts/${encodeURIComponent(postId)}/like`,
+      { method: 'DELETE' },
+      communityPostSchema
+    );
+  }
 }
