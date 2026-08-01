@@ -163,6 +163,32 @@ describe('AiProvider', () => {
     expect(currentValue?.draft).toBe('');
   });
 
+  it('shows the normal user message while the assistant reply is still pending', async () => {
+    const gate = deferred<SendMessageResponse>();
+    const repository = createRepository({
+      sendMessage: jest.fn<AiRepository['sendMessage']>().mockReturnValue(gate.promise),
+    });
+    const screen = await render(<AiProvider repository={repository}><Probe /></AiProvider>);
+    await screen.findByText('idle:normal:0:50');
+
+    let sending!: Promise<void>;
+    await act(async () => {
+      sending = currentValue!.send('第一条即时显示');
+      await Promise.resolve();
+    });
+
+    expect(currentValue?.status).toBe('sending');
+    expect(currentValue?.messages.map((item) => item.content)).toEqual(['第一条即时显示']);
+    expect(currentValue?.draft).toBe('');
+
+    await act(async () => {
+      gate.resolve(sendResponse({ content: '第一条即时显示' }));
+      await sending;
+    });
+
+    expect(currentValue?.messages.map((item) => item.content)).toEqual(['第一条即时显示', '来一杯清爽的金汤力。']);
+  });
+
   it('blocks duplicate sends while one send is in flight', async () => {
     const gate = deferred<SendMessageResponse>();
     const repository = createRepository({
@@ -279,6 +305,36 @@ describe('AiProvider', () => {
     expect(repository.sendTemporaryMessage).toHaveBeenLastCalledWith(expect.objectContaining({
       context: expect.arrayContaining([{ role: 'USER', content: '临时隐私 marker' }]),
     }));
+  });
+
+  it('shows the temporary user message while the assistant reply is still pending', async () => {
+    const gate = deferred<TemporaryMessageResponse>();
+    const repository = createRepository({
+      sendTemporaryMessage: jest.fn<AiRepository['sendTemporaryMessage']>().mockReturnValue(gate.promise),
+    });
+    const screen = await render(<AiProvider repository={repository}><Probe /></AiProvider>);
+    await screen.findByText('idle:normal:0:50');
+
+    let sending!: Promise<void>;
+    await act(async () => {
+      currentValue!.startTemporaryChat();
+      sending = currentValue!.send('临时即时显示');
+      await Promise.resolve();
+    });
+
+    expect(repository.sendTemporaryMessage).toHaveBeenCalledWith(expect.objectContaining({
+      content: '临时即时显示',
+      context: [],
+    }));
+    expect(currentValue?.status).toBe('sending');
+    expect(currentValue?.messages.map((item) => item.content)).toEqual(['临时即时显示']);
+
+    await act(async () => {
+      gate.resolve(temporaryResponse());
+      await sending;
+    });
+
+    expect(currentValue?.messages.map((item) => item.content)).toEqual(['临时即时显示', '这条回复只在本次会话显示。']);
   });
 
   it('clears runtime-only AI state on normal mode, unmount, logout, and session switch', async () => {

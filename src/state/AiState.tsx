@@ -321,12 +321,29 @@ export function AiProvider({ children, repository: providedRepository }: AiProvi
     setStatus('temporary');
   }, []);
 
-  const finishSend = useCallback((response: SendMessageResponse | TemporaryMessageResponse, userMessage?: AiMessageResponse) => {
+  const appendPendingUserMessage = useCallback((clientMessageId: string, content: string) => {
+    const existingMessage = messagesRef.current.find((message) => message.id === clientMessageId);
+    if (existingMessage) {
+      setDraft('');
+      return existingMessage;
+    }
+    const pendingUserMessage = userEchoMessage(clientMessageId, content);
+    const nextMessages = [...messagesRef.current, pendingUserMessage];
+    messagesRef.current = nextMessages;
+    setMessages(nextMessages);
+    setDraft('');
+    return pendingUserMessage;
+  }, []);
+
+  const finishSend = useCallback((response: SendMessageResponse | TemporaryMessageResponse, pendingUserMessage?: AiMessageResponse) => {
     if (!isMountedRef.current) return;
     const nextMessages = 'userMessage' in response
       ? [response.userMessage, response.assistantMessage]
-      : [userMessage!, response.assistantMessage];
-    const mergedMessages = [...messagesRef.current, ...nextMessages];
+      : [pendingUserMessage!, response.assistantMessage];
+    const baseMessages = pendingUserMessage
+      ? messagesRef.current.filter((message) => message.id !== pendingUserMessage.id)
+      : messagesRef.current;
+    const mergedMessages = [...baseMessages, ...nextMessages];
     messagesRef.current = mergedMessages;
     setMessages(mergedMessages);
     setUsage(response.usage);
@@ -355,16 +372,17 @@ export function AiProvider({ children, repository: providedRepository }: AiProvi
     setError(null);
     setPendingClientMessageId(clientMessageId);
     const currentMode = modeRef.current;
+    const messagesBeforeSend = messagesRef.current;
+    const pendingUserMessage = appendPendingUserMessage(clientMessageId, content);
     try {
       if (currentMode === 'temporary') {
-        const userMessage = userEchoMessage(clientMessageId, content);
         const response = await repositoryRef.current.sendTemporaryMessage({
           content,
           clientMessageId,
-          context: boundedTemporaryContext(messagesRef.current),
+          context: boundedTemporaryContext(messagesBeforeSend),
         });
         if (!isMountedRef.current || modeRef.current !== 'temporary') return;
-        finishSend(response, userMessage);
+        finishSend(response, pendingUserMessage);
         return;
       }
 
@@ -380,7 +398,7 @@ export function AiProvider({ children, repository: providedRepository }: AiProvi
 
       const response = await repositoryRef.current.sendMessage(conversationId, { content, clientMessageId });
       if (!isMountedRef.current || modeRef.current !== 'normal') return;
-      finishSend(response);
+      finishSend(response, pendingUserMessage);
     } catch (nextError) {
       retryRef.current = {
         content,
@@ -390,7 +408,7 @@ export function AiProvider({ children, repository: providedRepository }: AiProvi
       setDraft(content);
       await applyError(nextError);
     }
-  }, [applyError, finishSend]);
+  }, [appendPendingUserMessage, applyError, finishSend]);
 
   const send = useCallback(async (content?: string, clientMessageId?: string) => {
     if (sendPromiseRef.current) return;
