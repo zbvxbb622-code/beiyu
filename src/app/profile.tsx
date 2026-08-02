@@ -7,6 +7,7 @@ import { ScreenShell } from '@/components/mixology/ScreenShell';
 import { MyDrinkCards } from '@/components/profile/MyDrinkCards';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileTabs } from '@/components/profile/ProfileTabs';
+import { useAuth } from '@/state/AuthState';
 import { useMixology } from '@/state/MixologyState';
 import { colors, spacing } from '@/styles/mixologyTheme';
 import { getProfileStats } from '@/utils/profileFeed';
@@ -14,6 +15,7 @@ import { getProfileStats } from '@/utils/profileFeed';
 export default function ProfileScreen() {
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
+  const { status } = useAuth();
   const { interactionState, userProfile } = useMixology();
   const stats = getProfileStats(interactionState);
 
@@ -26,12 +28,14 @@ export default function ProfileScreen() {
           <MyDrinkCards drawnCards={interactionState.drawnCards} />
           <ProfileTabs interactionState={interactionState} />
 
-          <View style={styles.loginRow}>
-            <Pressable onPress={() => router.push('/login' as Href)} style={styles.loginLink}>
-              <LogIn color={colors.textMuted} size={15} style={styles.loginIcon} />
-              <Text style={styles.loginLinkText}>登录/注册</Text>
-            </Pressable>
-          </View>
+          {status !== 'signedIn' ? (
+            <View style={styles.loginRow}>
+              <Pressable onPress={() => router.push('/login' as Href)} style={styles.loginLink}>
+                <LogIn color={colors.textMuted} size={15} style={styles.loginIcon} />
+                <Text style={styles.loginLinkText}>登录/注册</Text>
+              </Pressable>
+            </View>
+          ) : null}
         </View>
       </ScrollView>
     </ScreenShell>

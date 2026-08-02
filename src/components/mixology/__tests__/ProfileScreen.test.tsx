@@ -1,14 +1,21 @@
 import { fireEvent, render } from '@testing-library/react-native';
-import { describe, expect, it, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import ProfileScreen from '@/app/profile';
 
 const mockRouter = {
   push: jest.fn(),
 };
+let mockAuthStatus = 'signedOut';
 
 jest.mock('expo-router', () => ({
   useRouter: () => mockRouter,
+}));
+
+jest.mock('@/state/AuthState', () => ({
+  useAuth: () => ({
+    status: mockAuthStatus,
+  }),
 }));
 
 jest.mock('@/state/MixologyState', () => ({
@@ -46,6 +53,11 @@ jest.mock('@/state/MixologyState', () => ({
 }));
 
 describe('ProfileScreen', () => {
+  beforeEach(() => {
+    mockAuthStatus = 'signedOut';
+    mockRouter.push.mockClear();
+  });
+
   it('renders the redesigned profile without the retired recommendation block', async () => {
     const screen = await render(<ProfileScreen />);
 
@@ -71,6 +83,14 @@ describe('ProfileScreen', () => {
     expect(screen.queryByText('账号与安全')).toBeNull();
     expect(screen.getByText('登录/注册')).toBeTruthy();
     expect(screen.queryByText(/Mock/)).toBeNull();
+  });
+
+  it('hides the login entry after the user is signed in', async () => {
+    mockAuthStatus = 'signedIn';
+
+    const screen = await render(<ProfileScreen />);
+
+    expect(screen.queryByText('登录/注册')).toBeNull();
   });
 
   it('navigates to edit profile page', async () => {
