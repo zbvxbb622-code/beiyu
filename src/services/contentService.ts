@@ -29,7 +29,11 @@ export function mergeCommunityPosts(localPosts: CommunityPost[] = []): Community
   return merged;
 }
 
-export function getCommunityPosts(category?: FeedCategory, localPosts: CommunityPost[] = []) {
+export function getCommunityPosts(
+  category?: FeedCategory,
+  localPosts: CommunityPost[] = [],
+  followedAuthorIds: string[] = []
+) {
   // 仅自己可见的帖子不进社区 Feed（仍可在「我的-笔记」和详情页查看）
   const all = mergeCommunityPosts(localPosts).filter((post) => post.visibility !== 'private');
   if (!category) {
@@ -37,7 +41,11 @@ export function getCommunityPosts(category?: FeedCategory, localPosts: Community
   }
 
   if (category === 'following') {
-    return all.filter((post) => post.category === 'following' || post.category === 'recommended');
+    const followed = new Set(followedAuthorIds);
+    if (followed.size === 0) {
+      return all.filter((post) => post.category === 'following');
+    }
+    return all.filter((post) => post.category === 'following' && followed.has(post.authorId));
   }
 
   return all.filter((post) => post.category === category);

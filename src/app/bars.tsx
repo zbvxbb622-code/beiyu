@@ -33,8 +33,11 @@ export default function BarsScreen() {
   const { snapshot, isRefreshing, lastRefreshError, refresh } = useContent();
   const [activeTab, setActiveTab] = useState<BarsTab['id']>('discover');
   const venues = snapshot.bars;
-  // 「关注」展示已收藏酒吧；推荐/附近沿用 Mock 全量列表
-  const visibleVenues = activeTab === 'following' ? venues.filter((venue) => interactionState.favoriteVenueIds.includes(venue.id)) : venues;
+  const visibleVenues = activeTab === 'following'
+    ? venues.filter((venue) => interactionState.favoriteVenueIds.includes(venue.id))
+    : activeTab === 'nearby'
+      ? []
+      : venues;
 
   return (
     <ScreenShell padded={false}>
@@ -74,7 +77,11 @@ export default function BarsScreen() {
             onToggleFavorite={() => toggleVenueFavorite(venue.id)}
           />
         ))}
-        {visibleVenues.length === 0 ? <Text style={styles.empty}>还没有关注的酒吧，去推荐页挑一家吧</Text> : null}
+        {visibleVenues.length === 0 ? (
+          <Text style={styles.empty}>
+            {activeTab === 'nearby' ? '附近酒吧暂未开放' : '还没有关注的酒吧，去推荐页挑一家吧'}
+          </Text>
+        ) : null}
       </ScrollView>
     </ScreenShell>
   );

@@ -8,15 +8,20 @@
 
 - `code-review-and-quality`：用于代码质量、权限、架构、上线风险核查。
 - `verification-before-completion`：用于所有“通过/完成”结论前的命令验证。
+- `semgrep`：从 GitHub 开源 skill 安装，用于静态安全和代码质量扫描。
 - `multi_agent_v1` MCP：并行启动两个只读核查 agent。
   - 后端/部署风险核查。
   - 前端/UI/测试覆盖核查。
+
+本轮追加扫描：
+
+- `uvx semgrep --config p/default --config p/secrets --config p/python --config p/typescript backend/app src`：通过，0 findings。
 
 未使用：
 
 - WeChat MCP：与代码测试无关。
 - `node_repl`：本轮没有需要浏览器或 JS 内核辅助的交互测试。
-- 外部插件安装：本轮不需要新增插件；使用本地仓库、测试命令和只读 agent 已能完成核查。
+- 额外 MCP 插件：本轮没有安装新的 MCP 插件；代码核查使用的是从 GitHub 安装的 Semgrep skill 和 CLI。
 
 ## 自动测试结果
 
@@ -27,8 +32,9 @@
 | `npm ci` | 通过；仍提示 11 个 moderate audit 项 |
 | `npm run lint` | 通过 |
 | `npm run typecheck` | 通过 |
-| `npm test -- --runInBand` | 通过，84 个 suites / 363 个 tests |
+| `npm test -- --runInBand` | 通过，84 个 suites / 367 个 tests |
 | `npx expo export --platform ios` | 通过，输出 `dist` |
+| `npm audit --audit-level=moderate` | 失败，仍有 11 个 moderate，修复涉及 Expo 版本链破坏性升级 |
 
 ### 后端
 
@@ -37,7 +43,7 @@
 | `cd backend && uv sync --frozen` | 通过 |
 | `cd backend && uv run ruff check .` | 通过 |
 | `cd backend && uv run ty check` | 通过 |
-| `cd backend && BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test uv run pytest -q` | 通过，475 个 tests |
+| `cd backend && BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test uv run pytest -q` | 通过，479 个 tests |
 | `cd backend && docker compose config` | 通过 |
 | `cd backend && docker compose build api` | 通过 |
 | OpenAPI 重新生成并与 `backend/openapi.json` 字节比较 | 通过 |
@@ -59,7 +65,14 @@
 - 本机未检测到 `maestro` 或 `detox` 命令。
 - 因此本轮没有执行可重复的真机/模拟器点击式 E2E，只完成 Jest UI 测试、Expo iOS export 和远端 API smoke。
 
-## 发现的问题
+## 本轮追加修复
+
+- 社区文本校验：标题、正文、评论 trim 后为空会返回 422。
+- 社区父评论保护：隐藏或拒绝的父评论不可继续被回复。
+- 社区举报保护：同一用户同一目标只允许一个 open 举报，新增数据库 partial unique index 和目标一致性 CHECK。
+- 账号注销：补充清理用户提交过的举报和相关审核日志。
+- AI 配额性能：`_attempts_in_window` 改为数据库侧 `count()`，Semgrep finding 已清零。
+- 前端真实性：每日酒单“查看全部”可跳转；个人页分享接系统 Share；社区关注流按关注作者过滤；附近酒吧未接定位前显示暂未开放。
 
 ### P0：上线/公网 Demo 高风险
 
@@ -77,13 +90,13 @@
    - 影响：后端使用 `request.client.host`，ECS 上可能只看到 `127.0.0.1`，短信风控失效或全站共用额度。
    - 下一步：增加可信代理 IP 解析，只信任本机 Nginx 的 `X-Forwarded-For`。
 
-3. **生产占位密钥可能通过配置校验**
+3. **生产占位密钥仍需人工替换和服务器轮换**
    - 位置：
      - [deploy/ecs/server.env.example](/Users/bailan/Documents/mx/ms/.worktrees/codex/stage3-ai-acceptance/deploy/ecs/server.env.example:15)
      - [deploy/ecs/server.env.example](/Users/bailan/Documents/mx/ms/.worktrees/codex/stage3-ai-acceptance/deploy/ecs/server.env.example:23)
      - [backend/app/core/config.py](/Users/bailan/Documents/mx/ms/.worktrees/codex/stage3-ai-acceptance/backend/app/core/config.py:165)
-   - 影响：`replace-with-*` 占位值长度足够，可能被误用为 JWT/AI memory HMAC 密钥。
-   - 下一步：配置校验显式拒绝 `replace-with-*`、`example`、默认占位串；服务器密钥轮换一次。
+   - 影响：本地和服务器环境变量一旦外泄，需要轮换；`docker compose config` 会打印实际环境变量。
+   - 下一步：不要外传 compose 原始输出；上线前轮换 JWT secret、AI key、memory HMAC key。
 
 4. **EAS 生产配置仍是骨架**
    - 位置：
@@ -126,33 +139,7 @@
    - 影响：`EDITOR` 可查看举报人 ID、举报详情并处理审核，缺少最小授权。
    - 下一步：新增 `MODERATOR` 或 `COMMUNITY_ADMIN` 权限，限制举报详情和审计日志可见范围。
 
-3. **隐藏/拒绝的父评论仍可被回复**
-   - 位置：
-     - [backend/app/modules/community/service.py](/Users/bailan/Documents/mx/ms/.worktrees/codex/stage3-ai-acceptance/backend/app/modules/community/service.py:263)
-   - 影响：知道隐藏评论 ID 的用户仍可能回复，产生子评论挂到不可见父节点。
-   - 下一步：回复父评论时校验父评论 `moderation_status == APPROVED`。
-
-4. **社区文本字段可被空白绕过**
-   - 位置：
-     - [backend/app/modules/community/schemas.py](/Users/bailan/Documents/mx/ms/.worktrees/codex/stage3-ai-acceptance/backend/app/modules/community/schemas.py:71)
-     - [backend/app/modules/community/schemas.py](/Users/bailan/Documents/mx/ms/.worktrees/codex/stage3-ai-acceptance/backend/app/modules/community/schemas.py:98)
-   - 影响：`"   "` 可通过 Pydantic `min_length=1`，后续 `strip()` 后可能落库为空标题、正文或评论。
-   - 下一步：schema 层统一 trim 并拒绝空白标题、正文、评论。
-
-5. **社区举报缺重复举报/频率限制**
-   - 位置：
-     - [backend/app/modules/community/service.py](/Users/bailan/Documents/mx/ms/.worktrees/codex/stage3-ai-acceptance/backend/app/modules/community/service.py:306)
-     - [backend/app/modules/community/service.py](/Users/bailan/Documents/mx/ms/.worktrees/codex/stage3-ai-acceptance/backend/app/modules/community/service.py:334)
-   - 影响：单用户可反复刷举报队列和审计表。
-   - 下一步：增加唯一约束、时间窗口限流和重复举报友好响应。
-
-6. **community report/audit 缺目标一致性约束**
-   - 位置：
-     - [backend/app/alembic/versions/20260802_0008_create_community_moderation.py](/Users/bailan/Documents/mx/ms/.worktrees/codex/stage3-ai-acceptance/backend/app/alembic/versions/20260802_0008_create_community_moderation.py:101)
-   - 影响：后续脚本或后台可能写出 `target_type=post` 但带 `comment_id` 的脏数据。
-   - 下一步：增加 DB CHECK 约束。
-
-7. **公网 API root 存在尾斜杠重定向循环**
+3. **公网 API root 存在尾斜杠重定向循环**
    - 位置：
      - [deploy/ecs/nginx/beiyu-api.conf](/Users/bailan/Documents/mx/ms/.worktrees/codex/stage3-ai-acceptance/deploy/ecs/nginx/beiyu-api.conf:13)
    - 证据：
@@ -170,31 +157,13 @@
    - 问题：原因固定为 `inappropriate`，没有分类、详情输入、二次确认；静态帖子暂不支持举报。
    - 下一步：做举报表单和重复举报处理。
 
-2. **社区“关注”Tab 不是真关注流**
-   - 位置：
-     - [src/services/contentService.ts](/Users/bailan/Documents/mx/ms/.worktrees/codex/stage3-ai-acceptance/src/services/contentService.ts:39)
-   - 问题：`following` 会 fallback 到 recommended，没有使用 `followedAuthorIds`。
-   - 下一步：按关注作者过滤，空状态明确展示。
-
-3. **个人页分享面板只是视觉实现**
-   - 位置：
-     - [src/components/profile/ProfileHeader.tsx](/Users/bailan/Documents/mx/ms/.worktrees/codex/stage3-ai-acceptance/src/components/profile/ProfileHeader.tsx:149)
-   - 问题：点击分享选项只关闭弹层，没有系统 Share、复制链接、二维码或 SDK。
-   - 下一步：接 `Share` API 和复制链接，微信/QQ SDK 后续排期。
-
-4. **每日酒单“查看全部”只是文本**
-   - 位置：
-     - [src/app/index.tsx](/Users/bailan/Documents/mx/ms/.worktrees/codex/stage3-ai-acceptance/src/app/index.tsx:260)
-   - 问题：用户会以为可点击。
-   - 下一步：要么改为可点击跳转，要么去掉箭头样式。
-
-5. **盲盒测试抽卡入口生产可见，且每日限制只在本地**
+2. **盲盒测试抽卡入口生产可见，且每日限制只在本地**
    - 位置：
      - [src/app/blind-box.tsx](/Users/bailan/Documents/mx/ms/.worktrees/codex/stage3-ai-acceptance/src/app/blind-box.tsx:160)
      - [src/state/MixologyState.tsx](/Users/bailan/Documents/mx/ms/.worktrees/codex/stage3-ai-acceptance/src/state/MixologyState.tsx:660)
    - 下一步：隐藏测试入口；如果盲盒有权益意义，改为后端配额。
 
-6. **AI 模型下拉是伪入口**
+3. **AI 模型下拉是伪入口**
    - 位置：
      - [src/app/ai.tsx](/Users/bailan/Documents/mx/ms/.worktrees/codex/stage3-ai-acceptance/src/app/ai.tsx:108)
    - 问题：标题带下拉图标，但点击是新建聊天，不是模型/模式菜单。
@@ -222,21 +191,17 @@
 
 ### 第 2 批：修社区审核闭环质量
 
-1. 社区文本 trim 校验。
-2. 隐藏父评论不可回复。
-3. 重复举报限制和频率限制。
-4. report/audit DB CHECK 约束。
-5. 拆分社区审核权限。
-6. 举报表单补原因、详情、确认。
+1. 拆分社区审核权限，避免 `EDITOR` 权限过宽。
+2. 增加举报时间窗口频率限制。
+3. 举报表单补原因、详情、确认。
+4. 补运营审核后台 UI。
 
 ### 第 3 批：修前端假功能和体验误导
 
 1. EAS production 禁止 placeholder 测试。
-2. 关注流改成真实关注作者过滤。
-3. 每日酒单“查看全部”做跳转或降级为普通文本。
-4. 个人页分享接系统 Share/复制链接。
-5. 盲盒隐藏测试入口。
-6. AI 标题下拉改成真实菜单或去掉。
+2. 个人页分享继续补复制链接、二维码、微信/QQ SDK。
+3. 盲盒隐藏测试入口。
+4. AI 标题下拉改成真实菜单或去掉。
 
 ### 第 4 批：上线前必须补齐
 

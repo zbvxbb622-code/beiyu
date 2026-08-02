@@ -157,6 +157,29 @@ class SnapshotSession:
         return nullcontext()
 
 
+class CountResult:
+    def one(self) -> int:
+        return 7
+
+    def all(self) -> list[object]:
+        raise AssertionError("attempt counting must use a database-side count")
+
+
+class CountSession:
+    def exec(self, _: object) -> CountResult:
+        return CountResult()
+
+
+def test_attempts_in_window_uses_database_side_count() -> None:
+    attempts = quota._attempts_in_window(
+        cast(Session, CountSession()),
+        user_id=uuid4(),
+        now=datetime(2026, 8, 2, 12, tzinfo=UTC),
+    )
+
+    assert attempts == 7
+
+
 def test_snapshot_clamps_negative_persisted_counts_before_calculating_allowance() -> None:
     snapshot = quota_snapshot(
         cast(Session, SnapshotSession(SimpleNamespace(used_count=-8, reserved_count=-3))),

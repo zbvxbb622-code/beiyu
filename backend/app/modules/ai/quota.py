@@ -6,7 +6,7 @@ from typing import cast
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import ColumnElement
+from sqlalchemy import ColumnElement, func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
@@ -290,14 +290,12 @@ def _require_owned_conversation(
 
 
 def _attempts_in_window(session: Session, *, user_id: UUID, now: datetime) -> int:
-    return len(
-        session.exec(
-            select(AiUsageLog.id).where(
-                AiUsageLog.user_id == user_id,
-                AiUsageLog.created_at >= now - timedelta(minutes=1),
-            )
-        ).all()
-    )
+    return session.exec(
+        select(func.count()).select_from(AiUsageLog).where(
+            AiUsageLog.user_id == user_id,
+            AiUsageLog.created_at >= now - timedelta(minutes=1),
+        )
+    ).one()
 
 
 def reserve_request(

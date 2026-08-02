@@ -259,7 +259,14 @@ export default function HomeScreen() {
           {/* ===== 每日酒单（按北京时间日期稳定轮换）===== */}
           <View style={[styles.sectionHeader, { marginTop: 22 * s, marginBottom: 20 * s }]}>
             <Text style={styles.sectionTitle}>每日酒单</Text>
-            <Text style={styles.sectionAction}>查看全部 &gt;</Text>
+            <Pressable
+              testID="daily-menu-see-all"
+              onPress={() => router.push('/recipes' as Href)}
+              hitSlop={10}
+              style={({ pressed }) => (pressed ? styles.pressed : null)}
+            >
+              <Text style={styles.sectionAction}>查看全部 &gt;</Text>
+            </Pressable>
           </View>
 
           {activeDailyRecipe ? (

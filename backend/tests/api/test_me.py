@@ -22,6 +22,8 @@ from app.db.models import (
     CommunityCommentLike,
     CommunityPost,
     CommunityPostLike,
+    CommunityReport,
+    CommunityReportTargetType,
     User,
     UserProfile,
     UserStatus,
@@ -426,6 +428,22 @@ def test_delete_account_removes_user_generated_ai_and_community_content(
     database_session.flush()
     database_session.add(CommunityPostLike(post_id=post.id, user_id=user.id))
     database_session.add(CommunityCommentLike(comment_id=comment.id, user_id=user.id))
+    other_user = User(phone_hash="other-report-target", phone_masked="+86139****0000")
+    database_session.add(other_user)
+    database_session.flush()
+    database_session.add(UserProfile(user_id=other_user.id, nickname="被举报用户"))
+    other_post = CommunityPost(author_id=other_user.id, title="别人发布的帖子", body="注销用户举报过这条内容")
+    database_session.add(other_post)
+    database_session.flush()
+    database_session.add(
+        CommunityReport(
+            reporter_id=user.id,
+            target_type=CommunityReportTargetType.POST,
+            post_id=other_post.id,
+            reason="spam",
+            detail="注销后不应保留举报详情",
+        )
+    )
     database_session.commit()
 
     response = database_client.request(
@@ -440,8 +458,10 @@ def test_delete_account_removes_user_generated_ai_and_community_content(
     assert database_session.exec(select(AiMessage)).all() == []
     assert database_session.exec(select(AiMemory)).all() == []
     assert database_session.exec(select(AiMemorySource)).all() == []
-    assert database_session.exec(select(CommunityPost)).all() == []
+    remaining_posts = database_session.exec(select(CommunityPost)).all()
+    assert [remaining_post.id for remaining_post in remaining_posts] == [other_post.id]
     assert database_session.exec(select(CommunityComment)).all() == []
     assert database_session.exec(select(CommunityPostLike)).all() == []
     assert database_session.exec(select(CommunityCommentLike)).all() == []
+    assert database_session.exec(select(CommunityReport)).all() == []
     assert database_session.exec(select(AiUsageLog)).one().conversation_id is None

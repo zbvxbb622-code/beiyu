@@ -9,9 +9,11 @@ import {
   createContentTestSnapshot,
 } from '@/test-utils/ContentTestProvider';
 
+const mockRouterPush = jest.fn();
+
 jest.mock('expo-router', () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: mockRouterPush,
     back: jest.fn(),
     replace: jest.fn(),
   }),
@@ -20,6 +22,7 @@ jest.mock('expo-router', () => ({
 describe('HomeScreen', () => {
   afterEach(() => {
     cleanup();
+    mockRouterPush.mockClear();
   });
 
   it('uses concrete dimensions for the first banner image so it renders in Expo native', async () => {
@@ -208,5 +211,23 @@ describe('HomeScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('daily-menu-featured-title').props.children).not.toBe(firstTitle);
     });
+  });
+
+  it('opens the recipes screen from the daily menu see-all action', async () => {
+    const screen = await render(
+      <SafeAreaProvider
+        initialMetrics={{
+          frame: { x: 0, y: 0, width: 390, height: 844 },
+          insets: { top: 0, bottom: 0, left: 0, right: 0 },
+        }}>
+        <ContentTestProvider>
+          <HomeScreen />
+        </ContentTestProvider>
+      </SafeAreaProvider>
+    );
+
+    fireEvent.press(screen.getByTestId('daily-menu-see-all'));
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/recipes');
   });
 });

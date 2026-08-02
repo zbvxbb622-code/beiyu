@@ -33,7 +33,14 @@ export default function CommunityScreen() {
   const { interactionState, togglePostLike } = useMixology();
   const { width } = useWindowDimensions();
   const activeCategory = tabs.find((tab) => tab.id === activeTab)?.category ?? 'recommended';
-  const posts = useMemo(() => getCommunityPosts(activeCategory, interactionState.localCommunityPosts), [activeCategory, interactionState.localCommunityPosts]);
+  const posts = useMemo(
+    () => getCommunityPosts(
+      activeCategory,
+      interactionState.localCommunityPosts,
+      interactionState.followedAuthorIds
+    ),
+    [activeCategory, interactionState.followedAuthorIds, interactionState.localCommunityPosts]
+  );
   const feedWidth = Math.min(width, maxFeedWidth);
   const cardWidth = Math.floor((feedWidth - feedHorizontalPadding * 2 - columnGap) / 2);
   const columns = useMemo(() => splitMasonryColumns(posts), [posts]);

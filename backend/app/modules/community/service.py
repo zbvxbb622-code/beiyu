@@ -60,6 +60,14 @@ def _comment_not_found() -> AppError:
     )
 
 
+def _duplicate_report() -> AppError:
+    return AppError(
+        code="COMMUNITY_REPORT_ALREADY_OPEN",
+        message="你已提交过举报，等待审核处理",
+        status_code=409,
+    )
+
+
 def _moderation_not_found() -> AppError:
     return AppError(
         code="COMMUNITY_MODERATION_TARGET_NOT_FOUND",
@@ -262,13 +270,17 @@ def add_comment(
     parent_comment_id = payload.parent_comment_id
     if parent_comment_id is not None:
         parent_comment = session.get(CommunityComment, parent_comment_id)
-        if parent_comment is None or parent_comment.post_id != post.id:
+        if (
+            parent_comment is None
+            or parent_comment.post_id != post.id
+            or parent_comment.moderation_status is not CommunityModerationStatus.APPROVED
+        ):
             raise _comment_not_found()
     comment = CommunityComment(
         post_id=post.id,
         author_id=user.id,
         parent_comment_id=parent_comment_id,
-        text=payload.text.strip(),
+        text=payload.text,
     )
     session.add(comment)
     session.commit()
@@ -311,6 +323,15 @@ def report_post(
     payload: CommunityReportCreate,
 ) -> CommunityReportResponse:
     post = _get_visible_post(session, post_id, user)
+    existing = session.exec(
+        select(CommunityReport)
+        .where(CommunityReport.reporter_id == user.id)
+        .where(CommunityReport.target_type == CommunityReportTargetType.POST)
+        .where(CommunityReport.post_id == post.id)
+        .where(CommunityReport.status == CommunityReportStatus.OPEN)
+    ).first()
+    if existing is not None:
+        raise _duplicate_report()
     report = CommunityReport(
         reporter_id=user.id,
         target_type=CommunityReportTargetType.POST,
@@ -341,6 +362,15 @@ def report_comment(
     comment = _get_visible_comment(session, comment_id, user)
     if comment.moderation_status is not CommunityModerationStatus.APPROVED:
         raise _comment_not_found()
+    existing = session.exec(
+        select(CommunityReport)
+        .where(CommunityReport.reporter_id == user.id)
+        .where(CommunityReport.target_type == CommunityReportTargetType.COMMENT)
+        .where(CommunityReport.comment_id == comment.id)
+        .where(CommunityReport.status == CommunityReportStatus.OPEN)
+    ).first()
+    if existing is not None:
+        raise _duplicate_report()
     report = CommunityReport(
         reporter_id=user.id,
         target_type=CommunityReportTargetType.COMMENT,

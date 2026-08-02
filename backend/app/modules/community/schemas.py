@@ -79,6 +79,14 @@ class CommunityPostCreate(ApiModel):
     visibility: PostVisibility = "public"
     allow_comments: bool = True
 
+    @field_validator("title", "body")
+    @classmethod
+    def strip_required_text(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("text cannot be blank")
+        return stripped
+
     @field_validator("topics")
     @classmethod
     def normalize_topics(cls, topics: list[str]) -> list[str]:
@@ -98,6 +106,14 @@ class CommunityPostCreate(ApiModel):
 class CommunityCommentCreate(ApiModel):
     text: str = Field(min_length=1, max_length=1000)
     parent_comment_id: UUID | None = None
+
+    @field_validator("text")
+    @classmethod
+    def strip_text(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("comment cannot be blank")
+        return stripped
 
 
 class CommunityReportCreate(ApiModel):

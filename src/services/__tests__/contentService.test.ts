@@ -46,6 +46,14 @@ describe('contentService', () => {
     expect(getCommunityPosts('following').length).toBeGreaterThanOrEqual(3);
   });
 
+  it('limits following feed posts to followed authors instead of mixing recommendations', () => {
+    const followed = getCommunityPosts('following', [], ['pool']);
+
+    expect(followed.length).toBeGreaterThan(0);
+    expect(followed.every((post) => post.authorId === 'pool')).toBe(true);
+    expect(followed.every((post) => post.category === 'following')).toBe(true);
+  });
+
   it('excludes private posts from feed but keeps them reachable by id', () => {
     const privatePost: CommunityPost = {
       id: 'local-post-private',

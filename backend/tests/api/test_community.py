@@ -118,6 +118,40 @@ def test_user_can_create_post_with_local_photo_uri(
     ]
 
 
+def test_blank_post_title_body_and_comment_are_rejected(
+    database_client: TestClient,
+) -> None:
+    login = create_login(database_client)
+    headers = bearer(login["accessToken"])
+
+    blank_title = database_client.post(
+        "/api/v1/community/posts",
+        headers=headers,
+        json={"title": "   ", "body": "正文"},
+    )
+    blank_body = database_client.post(
+        "/api/v1/community/posts",
+        headers=headers,
+        json={"title": "标题", "body": "   "},
+    )
+    created = database_client.post(
+        "/api/v1/community/posts",
+        headers=headers,
+        json={"title": "正常标题", "body": "正常正文"},
+    )
+    assert created.status_code == 201, created.text
+
+    blank_comment = database_client.post(
+        f"/api/v1/community/posts/{created.json()['id']}/comments",
+        headers=headers,
+        json={"text": "   "},
+    )
+
+    assert blank_title.status_code == 422
+    assert blank_body.status_code == 422
+    assert blank_comment.status_code == 422
+
+
 def test_private_post_is_visible_only_to_author(
     database_client: TestClient,
 ) -> None:
@@ -290,6 +324,49 @@ def test_user_can_reply_to_and_like_community_comment(
     assert unliked.json()["likedByMe"] is False
 
 
+def test_user_cannot_reply_to_hidden_parent_comment(
+    database_client: TestClient,
+    database_session: Session,
+) -> None:
+    login = create_login(database_client)
+    headers = bearer(login["accessToken"])
+    created = database_client.post(
+        "/api/v1/community/posts",
+        headers=headers,
+        json={"title": "父评论被隐藏", "body": "回复隐藏评论应该失败。"},
+    )
+    assert created.status_code == 201, created.text
+    post_id = created.json()["id"]
+    parent = database_client.post(
+        f"/api/v1/community/posts/{post_id}/comments",
+        headers=headers,
+        json={"text": "待隐藏父评论"},
+    )
+    assert parent.status_code == 201, parent.text
+    parent_id = parent.json()["id"]
+
+    admin_login = create_login_for(database_client, phone="13800000904", installation_id="admin-hide-parent-comment")
+    admin_user = database_session.exec(select(User).where(User.id == admin_login["user"]["id"])).one()
+    admin_user.role = UserRole.EDITOR
+    database_session.add(admin_user)
+    database_session.commit()
+    hidden = database_client.patch(
+        f"/api/v1/admin/community/comments/{parent_id}/moderation",
+        headers=bearer(admin_login["accessToken"]),
+        json={"status": "hidden", "note": "隐藏父评论"},
+    )
+    assert hidden.status_code == 200, hidden.text
+
+    reply = database_client.post(
+        f"/api/v1/community/posts/{post_id}/comments",
+        headers=headers,
+        json={"text": "不应成功", "parentCommentId": parent_id},
+    )
+
+    assert reply.status_code == 404
+    assert reply.json()["error"]["code"] == "COMMUNITY_COMMENT_NOT_FOUND"
+
+
 def test_author_can_delete_own_community_post(
     database_client: TestClient,
 ) -> None:
@@ -458,6 +535,55 @@ def test_report_reason_cannot_be_blank(database_client: TestClient) -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_duplicate_open_report_is_rejected_until_moderated(
+    database_client: TestClient,
+    database_session: Session,
+) -> None:
+    login = create_login_for(database_client, phone="13800000905", installation_id="community-report-duplicate-device")
+    headers = bearer(login["accessToken"])
+    created = database_client.post(
+        "/api/v1/community/posts",
+        headers=headers,
+        json={"title": "重复举报笔记", "body": "同一用户不能刷未处理举报。"},
+    )
+    assert created.status_code == 201, created.text
+    post_id = created.json()["id"]
+
+    first = database_client.post(
+        f"/api/v1/community/posts/{post_id}/reports",
+        headers=headers,
+        json={"reason": "spam"},
+    )
+    duplicate = database_client.post(
+        f"/api/v1/community/posts/{post_id}/reports",
+        headers=headers,
+        json={"reason": "spam"},
+    )
+
+    assert first.status_code == 201, first.text
+    assert duplicate.status_code == 409
+    assert duplicate.json()["error"]["code"] == "COMMUNITY_REPORT_ALREADY_OPEN"
+
+    admin_login = create_login_for(database_client, phone="13800000906", installation_id="admin-resolve-duplicate-report")
+    admin_user = database_session.exec(select(User).where(User.id == admin_login["user"]["id"])).one()
+    admin_user.role = UserRole.EDITOR
+    database_session.add(admin_user)
+    database_session.commit()
+    moderated = database_client.patch(
+        f"/api/v1/admin/community/posts/{post_id}/moderation",
+        headers=bearer(admin_login["accessToken"]),
+        json={"status": "approved", "note": "已处理"},
+    )
+    assert moderated.status_code == 200, moderated.text
+
+    second_after_resolution = database_client.post(
+        f"/api/v1/community/posts/{post_id}/reports",
+        headers=headers,
+        json={"reason": "spam"},
+    )
+    assert second_after_resolution.status_code == 201, second_after_resolution.text
 
 
 def test_admin_can_hide_and_restore_reported_post_with_audit_log(

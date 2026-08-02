@@ -203,6 +203,13 @@ class CommunityCommentLike(SQLModel, table=True):
 
 class CommunityReport(SQLModel, table=True):
     __tablename__ = "community_reports"
+    __table_args__ = (
+        CheckConstraint(
+            "((target_type = 'post' AND post_id IS NOT NULL AND comment_id IS NULL) "
+            "OR (target_type = 'comment' AND post_id IS NOT NULL AND comment_id IS NOT NULL))",
+            name="ck_community_reports_target_reference",
+        ),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     reporter_id: uuid.UUID = Field(foreign_key="users.id", ondelete="CASCADE", index=True)
@@ -240,6 +247,13 @@ class CommunityReport(SQLModel, table=True):
 
 class CommunityAuditLog(SQLModel, table=True):
     __tablename__ = "community_audit_logs"
+    __table_args__ = (
+        CheckConstraint(
+            "((target_type = 'post' AND post_id IS NOT NULL AND comment_id IS NULL) "
+            "OR (target_type = 'comment' AND post_id IS NOT NULL AND comment_id IS NOT NULL))",
+            name="ck_community_audit_logs_target_reference",
+        ),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     actor_id: uuid.UUID = Field(foreign_key="users.id", ondelete="CASCADE", index=True)

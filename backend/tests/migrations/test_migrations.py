@@ -887,8 +887,35 @@ def test_migrations_upgrade_ai_core_from_0003_and_downgrade() -> None:
                     ),
                     {"enum_names": list(AI_ENUM_VALUES)},
                 ).all()
-            assert revision == "20260802_0008"
+                community_constraints = set(
+                    connection.execute(
+                        text(
+                            "SELECT conname FROM pg_constraint "
+                            "WHERE conrelid IN ("
+                            "'community_reports'::regclass, "
+                            "'community_audit_logs'::regclass"
+                            ")"
+                        )
+                    ).scalars()
+                )
+                community_report_indexes = set(
+                    connection.execute(
+                        text(
+                            "SELECT indexname FROM pg_indexes "
+                            "WHERE tablename = 'community_reports'"
+                        )
+                    ).scalars()
+                )
+            assert revision == "20260802_0009"
             assert {enum_name: list(values) for enum_name, values in enum_values} == AI_ENUM_VALUES
+            assert {
+                "ck_community_reports_target_reference",
+                "ck_community_audit_logs_target_reference",
+            } <= community_constraints
+            assert {
+                "uq_community_reports_open_post_reporter",
+                "uq_community_reports_open_comment_reporter",
+            } <= community_report_indexes
         finally:
             command.downgrade(config, "20260729_0003")
 

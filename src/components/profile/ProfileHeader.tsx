@@ -9,7 +9,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { useState } from 'react';
-import { Image, Modal, Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
+import { Image, Modal, Pressable, Share, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 
 import { getImageAsset } from '@/data/imageAssets';
 import { colors, radii, spacing } from '@/styles/mixologyTheme';
@@ -115,12 +115,24 @@ export function ProfileHeader({ profile, stats }: { profile: UserProfile; stats:
         </View>
       </View>
 
-      <ShareSheet visible={shareVisible} onClose={() => setShareVisible(false)} />
+      <ShareSheet
+        profile={profile}
+        visible={shareVisible}
+        onClose={() => setShareVisible(false)}
+      />
     </View>
   );
 }
 
-function ShareSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+function ShareSheet({
+  profile,
+  visible,
+  onClose,
+}: {
+  profile: UserProfile;
+  visible: boolean;
+  onClose: () => void;
+}) {
   const shareRows = [
     {
       id: 'row-invite',
@@ -146,8 +158,12 @@ function ShareSheet({ visible, onClose }: { visible: boolean; onClose: () => voi
     },
   ];
 
-  const handlePress = () => {
+  const handlePress = async () => {
     onClose();
+    await Share.share({
+      title: '分享杯语资料',
+      message: `来杯语看看 ${profile.nickname || '游客调酒师'} 的调酒主页。`,
+    });
   };
 
   return (

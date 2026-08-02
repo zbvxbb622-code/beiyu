@@ -78,6 +78,24 @@ describe('content-driven screens', () => {
     expect(detail.getByText('后台新酒吧')).toBeTruthy();
   });
 
+  it('marks nearby bars as unavailable until location service is connected', async () => {
+    const snapshot = createContentTestSnapshot();
+    snapshot.bars = [
+      { ...snapshot.bars[0], id: 'remote-bar', name: '后台新酒吧' },
+    ];
+
+    const screen = await render(
+      <ContentTestProvider snapshot={snapshot}>
+        <BarsScreen />
+      </ContentTestProvider>
+    );
+
+    await fireEvent.press(screen.getByText('附近'));
+
+    expect(screen.getByText('附近酒吧暂未开放')).toBeTruthy();
+    expect(screen.queryByText('后台新酒吧')).toBeNull();
+  });
+
   it('renders remote drink knowledge', async () => {
     const snapshot = createContentTestSnapshot();
     snapshot.knowledge = [

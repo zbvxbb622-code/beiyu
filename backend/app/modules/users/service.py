@@ -18,10 +18,12 @@ from app.db.models import (
     AiUsageLog,
     AuthSession,
     CellarItem,
+    CommunityAuditLog,
     CommunityComment,
     CommunityCommentLike,
     CommunityPost,
     CommunityPostLike,
+    CommunityReport,
     User,
     UserDevice,
     UserProfile,
@@ -400,6 +402,20 @@ def _clear_account_community_content(*, session: Session, user: User) -> None:
     for like in session.exec(select(CommunityCommentLike)).all():
         if like.user_id == user.id or like.comment_id in comment_ids:
             session.delete(like)
+    for report in session.exec(select(CommunityReport)).all():
+        if (
+            report.reporter_id == user.id
+            or report.post_id in post_ids
+            or report.comment_id in comment_ids
+        ):
+            session.delete(report)
+    for audit_log in session.exec(select(CommunityAuditLog)).all():
+        if (
+            audit_log.actor_id == user.id
+            or audit_log.post_id in post_ids
+            or audit_log.comment_id in comment_ids
+        ):
+            session.delete(audit_log)
     for comment in session.exec(select(CommunityComment)).all():
         if comment.author_id == user.id or comment.post_id in post_ids:
             session.delete(comment)
