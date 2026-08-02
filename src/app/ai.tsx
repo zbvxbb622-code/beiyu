@@ -1,6 +1,6 @@
 import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Crypto from 'expo-crypto';
-import { ChevronDown, Menu, TimerReset, X } from 'lucide-react-native';
+import { Menu, TimerReset, X } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -105,15 +105,14 @@ export default function AiScreen() {
               <Menu color="#f7f7f7" size={31} strokeWidth={2.4} />
             </Pressable>
 
-            <Pressable onPress={startNewChat} style={styles.modelSelector}>
+            <View testID="ai-model-title" style={styles.modelSelector}>
               <View style={styles.modelCopy}>
                 <View style={styles.modelTitleRow}>
                   <Text style={styles.modelTitle}>beiyu</Text>
-                  <ChevronDown color={colors.text} size={15} strokeWidth={2.8} />
                 </View>
                 {ai.mode === 'temporary' ? <Text style={styles.tempLabel}>临时对话</Text> : null}
               </View>
-            </Pressable>
+            </View>
 
             <View style={styles.headerActions}>
               <Pressable

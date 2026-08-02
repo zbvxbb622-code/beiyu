@@ -656,12 +656,12 @@ describe('MixologyProvider', () => {
     await waitFor(() => expect(currentValue?.interactionState.localCommunityPosts).toEqual([remotePost]));
 
     await act(async () => {
-      await currentValue!.reportPost('remote-post-report');
-      await currentValue!.reportComment('remote-post-report', 'remote-comment-report');
+      await currentValue!.reportPost('remote-post-report', { reason: 'spam', detail: '重复刷屏' });
+      await currentValue!.reportComment('remote-post-report', 'remote-comment-report', { reason: 'harassment', detail: '攻击用户' });
     });
 
-    expect(mockRepository.reportCommunityPost).toHaveBeenCalledWith('remote-post-report', { reason: 'inappropriate' });
-    expect(mockRepository.reportCommunityComment).toHaveBeenCalledWith('remote-comment-report', { reason: 'inappropriate' });
+    expect(mockRepository.reportCommunityPost).toHaveBeenCalledWith('remote-post-report', { reason: 'spam', detail: '重复刷屏' });
+    expect(mockRepository.reportCommunityComment).toHaveBeenCalledWith('remote-comment-report', { reason: 'harassment', detail: '攻击用户' });
   });
 
   it('rejects reports before sign-in', async () => {
@@ -669,8 +669,8 @@ describe('MixologyProvider', () => {
     await screen.findByText('hydrated');
 
     await act(async () => {
-      await expect(currentValue!.reportPost('local-post')).rejects.toThrow('请先登录后举报');
-      await expect(currentValue!.reportComment('local-post', 'local-comment')).rejects.toThrow('请先登录后举报');
+      await expect(currentValue!.reportPost('local-post', { reason: 'spam' })).rejects.toThrow('请先登录后举报');
+      await expect(currentValue!.reportComment('local-post', 'local-comment', { reason: 'spam' })).rejects.toThrow('请先登录后举报');
     });
     expect(mockRepository.reportCommunityPost).not.toHaveBeenCalled();
     expect(mockRepository.reportCommunityComment).not.toHaveBeenCalled();

@@ -17,7 +17,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY alembic.ini ./
 COPY app ./app
 COPY scripts ./scripts
-RUN chmod 755 scripts/prestart.sh && uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev
 
 FROM python:3.12-slim AS runtime
 
@@ -36,5 +36,4 @@ USER beiyu
 
 EXPOSE 8000
 
-ENTRYPOINT ["./scripts/prestart.sh"]
 CMD ["fastapi", "run", "app/main.py", "--host", "0.0.0.0", "--port", "8000"]

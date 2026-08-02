@@ -6,7 +6,7 @@ from sqlmodel import Session
 
 from app.db.models import CommunityFeedCategory
 from app.db.session import get_session
-from app.modules.admin.dependencies import AdminAuth
+from app.modules.admin.dependencies import CommunityModeratorAuth
 from app.modules.auth.dependencies import CurrentAuth
 from app.modules.community.schemas import (
     CommunityAuditLogListResponse,
@@ -198,7 +198,7 @@ def unlike_community_comment(
     response_model_exclude_none=True,
 )
 def admin_community_reports(
-    auth: AdminAuth,
+    auth: CommunityModeratorAuth,
     session: SessionDep,
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
 ) -> CommunityReportListResponse:
@@ -214,7 +214,7 @@ def admin_community_reports(
 def moderate_community_post(
     post_id: UUID,
     payload: CommunityModerationRequest,
-    auth: AdminAuth,
+    auth: CommunityModeratorAuth,
     session: SessionDep,
 ) -> CommunityPostResponse:
     return moderate_post(session, admin=auth.user, post_id=post_id, payload=payload)
@@ -228,7 +228,7 @@ def moderate_community_post(
 def moderate_community_comment(
     comment_id: UUID,
     payload: CommunityModerationRequest,
-    auth: AdminAuth,
+    auth: CommunityModeratorAuth,
     session: SessionDep,
 ) -> CommunityCommentResponse:
     return moderate_comment(session, admin=auth.user, comment_id=comment_id, payload=payload)
@@ -241,7 +241,7 @@ def moderate_community_comment(
 )
 def post_audit_log(
     post_id: UUID,
-    auth: AdminAuth,
+    auth: CommunityModeratorAuth,
     session: SessionDep,
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
 ) -> CommunityAuditLogListResponse:
@@ -256,7 +256,7 @@ def post_audit_log(
 )
 def comment_audit_log(
     comment_id: UUID,
-    auth: AdminAuth,
+    auth: CommunityModeratorAuth,
     session: SessionDep,
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
 ) -> CommunityAuditLogListResponse:

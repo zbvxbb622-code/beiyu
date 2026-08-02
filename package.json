@@ -65,6 +65,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
+    "e2e:ios:demo": "maestro test e2e/maestro/beiyu-demo.yaml",
     "test": "jest"
   },
   "jest": {

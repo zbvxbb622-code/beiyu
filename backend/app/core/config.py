@@ -99,6 +99,7 @@ class Settings(BaseSettings):
     otp_max_per_phone_day: int = Field(default=10, ge=1, le=50)
     otp_max_per_device_day: int = Field(default=20, ge=1, le=100)
     otp_max_per_ip_day: int = Field(default=30, ge=1, le=200)
+    trusted_proxy_hosts: Annotated[tuple[str, ...], NoDecode] = ()
     max_active_devices: int = Field(default=5, ge=1, le=10)
     ai_enabled: bool = True
     ai_provider: AiProvider = AiProvider.DEVELOPMENT
@@ -121,6 +122,17 @@ class Settings(BaseSettings):
             return ()
         if isinstance(value, str):
             return tuple(origin.strip() for origin in value.split(",") if origin.strip())
+        if isinstance(value, (list, tuple, set)):
+            return tuple(value)
+        return value
+
+    @field_validator("trusted_proxy_hosts", mode="before")
+    @classmethod
+    def parse_trusted_proxy_hosts(cls, value: object) -> object:
+        if value is None:
+            return ()
+        if isinstance(value, str):
+            return tuple(host.strip() for host in value.split(",") if host.strip())
         if isinstance(value, (list, tuple, set)):
             return tuple(value)
         return value

@@ -347,7 +347,7 @@ def test_user_cannot_reply_to_hidden_parent_comment(
 
     admin_login = create_login_for(database_client, phone="13800000904", installation_id="admin-hide-parent-comment")
     admin_user = database_session.exec(select(User).where(User.id == admin_login["user"]["id"])).one()
-    admin_user.role = UserRole.EDITOR
+    admin_user.role = UserRole.MODERATOR
     database_session.add(admin_user)
     database_session.commit()
     hidden = database_client.patch(
@@ -506,7 +506,7 @@ def test_user_can_report_post_and_comment_for_admin_review(
     assert reported_comment.json()["targetType"] == "comment"
     admin_login = create_login_for(database_client, phone="13800000902", installation_id="admin-reports-device")
     admin_user = database_session.exec(select(User).where(User.id == admin_login["user"]["id"])).one()
-    admin_user.role = UserRole.EDITOR
+    admin_user.role = UserRole.MODERATOR
     database_session.add(admin_user)
     database_session.commit()
     reports = database_client.get(
@@ -568,7 +568,7 @@ def test_duplicate_open_report_is_rejected_until_moderated(
 
     admin_login = create_login_for(database_client, phone="13800000906", installation_id="admin-resolve-duplicate-report")
     admin_user = database_session.exec(select(User).where(User.id == admin_login["user"]["id"])).one()
-    admin_user.role = UserRole.EDITOR
+    admin_user.role = UserRole.MODERATOR
     database_session.add(admin_user)
     database_session.commit()
     moderated = database_client.patch(
@@ -584,6 +584,89 @@ def test_duplicate_open_report_is_rejected_until_moderated(
         json={"reason": "spam"},
     )
     assert second_after_resolution.status_code == 201, second_after_resolution.text
+
+
+def test_report_creation_is_rate_limited_per_user(
+    database_client: TestClient,
+) -> None:
+    login = create_login_for(
+        database_client,
+        phone="13800000907",
+        installation_id="community-report-rate-limit-device",
+    )
+    headers = bearer(login["accessToken"])
+    post_ids: list[str] = []
+    for index in range(11):
+        created = database_client.post(
+            "/api/v1/community/posts",
+            headers=headers,
+            json={
+                "title": f"举报频率限制笔记 {index}",
+                "body": "每个目标不同，用于验证总频率限制。",
+            },
+        )
+        assert created.status_code == 201, created.text
+        post_ids.append(created.json()["id"])
+
+    for post_id in post_ids[:10]:
+        reported = database_client.post(
+            f"/api/v1/community/posts/{post_id}/reports",
+            headers=headers,
+            json={"reason": "spam"},
+        )
+        assert reported.status_code == 201, reported.text
+
+    blocked = database_client.post(
+        f"/api/v1/community/posts/{post_ids[10]}/reports",
+        headers=headers,
+        json={"reason": "spam"},
+    )
+
+    assert blocked.status_code == 429
+    assert blocked.json()["error"]["code"] == "COMMUNITY_REPORT_RATE_LIMITED"
+
+
+def test_editor_cannot_access_community_moderation_routes(
+    database_client: TestClient,
+    database_session: Session,
+) -> None:
+    author_login = create_login_for(
+        database_client,
+        phone="13800000908",
+        installation_id="community-editor-forbidden-author",
+    )
+    author_headers = bearer(author_login["accessToken"])
+    created = database_client.post(
+        "/api/v1/community/posts",
+        headers=author_headers,
+        json={"title": "编辑不能审核", "body": "社区审核权限需要拆分。"},
+    )
+    assert created.status_code == 201, created.text
+    post_id = created.json()["id"]
+
+    editor_login = create_login_for(
+        database_client,
+        phone="13800000909",
+        installation_id="community-editor-forbidden-device",
+    )
+    editor_user = database_session.exec(select(User).where(User.id == editor_login["user"]["id"])).one()
+    editor_user.role = UserRole.EDITOR
+    database_session.add(editor_user)
+    database_session.commit()
+    editor_headers = bearer(editor_login["accessToken"])
+
+    reports = database_client.get(
+        "/api/v1/admin/community/reports",
+        headers=editor_headers,
+    )
+    moderation = database_client.patch(
+        f"/api/v1/admin/community/posts/{post_id}/moderation",
+        headers=editor_headers,
+        json={"status": "hidden", "note": "不应允许"},
+    )
+
+    assert reports.status_code == 403
+    assert moderation.status_code == 403
 
 
 def test_admin_can_hide_and_restore_reported_post_with_audit_log(
@@ -602,7 +685,7 @@ def test_admin_can_hide_and_restore_reported_post_with_audit_log(
 
     admin_login = create_login_for(database_client, phone="13800000901", installation_id="admin-review-device")
     admin_user = database_session.exec(select(User).where(User.id == admin_login["user"]["id"])).one()
-    admin_user.role = UserRole.EDITOR
+    admin_user.role = UserRole.MODERATOR
     database_session.add(admin_user)
     database_session.commit()
     admin_headers = bearer(admin_login["accessToken"])

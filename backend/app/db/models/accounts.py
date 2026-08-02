@@ -40,6 +40,7 @@ class MembershipLevel(StrEnum):
 class UserRole(StrEnum):
     USER = "USER"
     EDITOR = "EDITOR"
+    MODERATOR = "MODERATOR"
     SUPER_ADMIN = "SUPER_ADMIN"
 
 

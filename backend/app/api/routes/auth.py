@@ -1,10 +1,10 @@
-import ipaddress
 import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response, status
 from sqlmodel import Session
 
+from app.core.client_ip import client_ip_from_headers
 from app.core.config import Settings, get_settings
 from app.core.errors import ErrorEnvelope
 from app.db.session import get_session
@@ -50,11 +50,11 @@ def request_sms_code(
     settings: SettingsDep,
     provider: SmsProviderDep,
 ) -> SmsCodeAccepted:
-    client_host = request.client.host if request.client else "127.0.0.1"
-    try:
-        ipaddress.ip_address(client_host)
-    except ValueError:
-        client_host = "127.0.0.1"
+    client_host = client_ip_from_headers(
+        peer_host=request.client.host if request.client else "127.0.0.1",
+        forwarded_for=request.headers.get("x-forwarded-for"),
+        trusted_proxy_hosts=settings.trusted_proxy_hosts,
+    )
     issue_sms_code(
         session=session,
         provider=provider,

@@ -17,6 +17,7 @@ import {
   saveGuestState,
 } from '@/services/storageService';
 import type { BootstrapResponse } from '@/services/auth/authSchemas';
+import type { CommunityReportInput } from '@/services/auth/authRepository';
 import { useAuth } from '@/state/AuthState';
 import { canDrawToday, drawCard, todayKey } from '@/services/blindBoxService';
 import { clearPostDraft } from '@/services/postDraftService';
@@ -40,8 +41,8 @@ type MixologyContextValue = {
   toggleAuthorFollow: (authorId: string) => Promise<void>;
   toggleCellarCardLike: (cardId: string) => Promise<void>;
   toggleVenueFavorite: (venueId: string) => Promise<void>;
-  reportPost: (postId: string) => Promise<void>;
-  reportComment: (postId: string, commentId: string) => Promise<void>;
+  reportPost: (postId: string, input: CommunityReportInput) => Promise<void>;
+  reportComment: (postId: string, commentId: string, input: CommunityReportInput) => Promise<void>;
   refreshCommunityPosts: () => Promise<void>;
   addPostComment: (postId: string, text: string, parentCommentId?: string) => Promise<CommunityComment>;
   publishPost: (input: PublishPostInput) => Promise<CommunityPost>;
@@ -443,7 +444,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
   );
 
   const reportPost = useCallback(
-    async (postId: string) => {
+    async (postId: string, input: CommunityReportInput) => {
       const expected = captureSession();
       if (!expected) {
         throw new Error('请先登录后举报');
@@ -452,13 +453,13 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       if (remotePost?.likedByMe === undefined) {
         throw new Error('这条内容暂不支持举报');
       }
-      await repository.reportCommunityPost(postId, { reason: 'inappropriate' });
+      await repository.reportCommunityPost(postId, input);
     },
     [captureSession, repository]
   );
 
   const reportComment = useCallback(
-    async (postId: string, commentId: string) => {
+    async (postId: string, commentId: string, input: CommunityReportInput) => {
       const expected = captureSession();
       if (!expected) {
         throw new Error('请先登录后举报');
@@ -468,7 +469,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       if (remotePost?.likedByMe === undefined || !remoteComment) {
         throw new Error('这条评论暂不支持举报');
       }
-      await repository.reportCommunityComment(commentId, { reason: 'inappropriate' });
+      await repository.reportCommunityComment(commentId, input);
     },
     [captureSession, repository]
   );

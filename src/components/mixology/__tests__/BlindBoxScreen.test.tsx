@@ -2,7 +2,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { StyleSheet } from 'react-native';
 
-import BlindBoxScreen from '@/app/blind-box';
+import BlindBoxScreen, { shouldShowTestDrawButton } from '@/app/blind-box';
 import { blindBoxCards } from '@/data/blindBoxCards';
 
 const mockRouterPush = jest.fn();
@@ -91,6 +91,11 @@ describe('BlindBoxScreen', () => {
     });
     // 未调用受限的每日抽卡接口
     expect(mockDrawBlindBoxCard).not.toHaveBeenCalled();
+  });
+
+  it('hides the test draw entry outside development builds', () => {
+    expect(shouldShowTestDrawButton(false)).toBe(false);
+    expect(shouldShowTestDrawButton(true)).toBe(true);
   });
 
   it('shows the draw video in a landscape frame instead of a square card box', async () => {

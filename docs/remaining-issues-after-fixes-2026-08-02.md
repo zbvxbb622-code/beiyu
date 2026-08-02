@@ -21,6 +21,15 @@
 - 个人页分享选项接入 React Native `Share` 系统分享能力。
 - 安装并使用开源 Semgrep skill；静态扫描 `backend/app` 和 `src` 后 0 findings。
 - 新增 `eas.json`，提供 EAS development / preview / production 打包配置骨架。
+- 修复 ECS Nginx `/api/v1` 与 `/api/v1/` exact location，避免 API root 301/307 循环。
+- 短信限流新增可信代理 IP 解析：只有请求来自 `BEIYU_TRUSTED_PROXY_HOSTS` 时才读取 `X-Forwarded-For`。
+- API 容器启动不再自动执行 Alembic；新增 `migrate` compose profile 作为一次性 release migration job。
+- 社区审核权限从通用 `EDITOR` 拆出 `MODERATOR`，`SUPER_ADMIN` 仍保留最高权限。
+- 社区举报新增 10 次/小时/用户频率限制。
+- 前端举报入口改为分类、详情输入、确认提交的表单。
+- 盲盒“测试抽卡 / 再抽一次（测试）”仅在开发构建显示。
+- AI 聊天标题去掉假下拉入口，不再点击触发新建对话。
+- 新增 Maestro iOS demo smoke flow 配置和 `npm run e2e:ios:demo` 脚本。
 
 ## 仍需上线前完成
 
@@ -47,9 +56,9 @@
    - `backend/.env` 被 `.gitignore` 忽略，未进入 git；但 `docker compose config` 会读取本地 `.env` 并打印密钥。
    - 本轮验证再次确认该风险存在：不要把 `docker compose config` 原始输出发给外部；建议轮换本地 AI key。
 
-7. **缺少真正的 iOS 端到端自动化脚本**
-   - 当前已覆盖 Jest、Pytest、Expo export 和 Docker build。
-   - 还没有 Detox/Maestro/Appium 这类可重复点击完整 App 的自动化脚本；人工 Simulator 验收仍需要按 runbook 执行。
+7. **iOS E2E 尚未接入 CI 和真实设备验证**
+   - 已新增 Maestro smoke flow 配置。
+   - 当前环境未安装/未运行 Maestro；仍需在真实 iOS simulator 构建上执行并把结果接入 CI。
 
 ## 本轮验证结果
 
@@ -57,12 +66,12 @@
 - `npm audit --audit-level=moderate`：失败；仍为 Expo 依赖链 11 个 moderate，自动安全修复会涉及破坏性升级。
 - `npm run lint`：通过。
 - `npm run typecheck`：通过。
-- `npm test -- --runInBand`：通过，84 个 test suites / 367 个 tests。
+- `npm test -- --runInBand`：通过，85 个 test suites / 369 个 tests。
 - `npx expo export --platform ios`：通过，输出到 `dist`。
 - `uv sync --frozen`：通过。
 - `uv run ruff check .`：通过。
 - `uv run ty check`：通过。
-- `BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test uv run pytest`：通过，479 个 tests。
+- `BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test uv run pytest`：通过，487 个 tests。
 - `docker compose config`（在 `backend` 目录）：通过。
 - `docker compose build api`（在 `backend` 目录）：通过。
 - `uvx semgrep --config p/default --config p/secrets --config p/python --config p/typescript backend/app src`：通过，0 findings。

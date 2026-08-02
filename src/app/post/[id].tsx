@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
 import { Heart, Send, X } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 
 import { TopBar } from '@/components/mixology/TopBar';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
@@ -12,6 +12,15 @@ import { useMixology } from '@/state/MixologyState';
 import { colors, gradients, radii } from '@/styles/mixologyTheme';
 import type { CommunityComment } from '@/types/mixology';
 import { getPostImages, resolvePostImageSource } from '@/utils/postImages';
+
+const reportReasons = [
+  { key: 'spam', label: '垃圾广告' },
+  { key: 'harassment', label: '骚扰攻击' },
+  { key: 'illegal', label: '违法违规' },
+] as const;
+
+type ReportTarget = { type: 'post' } | { type: 'comment'; commentId: string };
+type ReportReason = (typeof reportReasons)[number]['key'];
 
 export default function CommunityPostDetailScreen() {
   const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
@@ -30,6 +39,10 @@ export default function CommunityPostDetailScreen() {
   const [replyingTo, setReplyingTo] = useState<CommunityComment | null>(null);
   const [sending, setSending] = useState(false);
   const [failedImageIds, setFailedImageIds] = useState<Record<string, true>>({});
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
+  const [reportReason, setReportReason] = useState<ReportReason>('spam');
+  const [reportDetail, setReportDetail] = useState('');
+  const [submittingReport, setSubmittingReport] = useState(false);
   const contentWidth = width - 32;
   const detailImageHeight = Math.min(Math.max(contentWidth * 0.68, 190), 260);
   const galleryImageWidth = Math.min(contentWidth, 300);
@@ -91,21 +104,36 @@ export default function CommunityPostDetailScreen() {
     }
   };
 
-  const handleReportPost = async () => {
-    try {
-      await reportPost(post.id);
-      Alert.alert('已提交举报', '我们会尽快审核这条内容。');
-    } catch (error) {
-      Alert.alert('举报失败', error instanceof Error ? error.message : '请稍后重试');
-    }
+  const openReportSheet = (target: ReportTarget) => {
+    setReportTarget(target);
+    setReportReason('spam');
+    setReportDetail('');
   };
 
-  const handleReportComment = async (commentId: string) => {
+  const closeReportSheet = () => {
+    if (submittingReport) return;
+    setReportTarget(null);
+    setReportDetail('');
+  };
+
+  const submitReport = async () => {
+    if (!reportTarget || submittingReport) return;
+    setSubmittingReport(true);
     try {
-      await reportComment(post.id, commentId);
-      Alert.alert('已提交举报', '我们会尽快审核这条评论。');
+      const payload = { reason: reportReason, detail: reportDetail.trim() };
+      if (reportTarget.type === 'post') {
+        await reportPost(post.id, payload);
+        Alert.alert('已提交举报', '我们会尽快审核这条内容。');
+      } else {
+        await reportComment(post.id, reportTarget.commentId, payload);
+        Alert.alert('已提交举报', '我们会尽快审核这条评论。');
+      }
+      setReportTarget(null);
+      setReportDetail('');
     } catch (error) {
       Alert.alert('举报失败', error instanceof Error ? error.message : '请稍后重试');
+    } finally {
+      setSubmittingReport(false);
     }
   };
 
@@ -130,7 +158,7 @@ export default function CommunityPostDetailScreen() {
               </Pressable>
               <Pressable
                 testID={`community-comment-report-${comment.id}`}
-                onPress={() => handleReportComment(comment.id)}
+                onPress={() => openReportSheet({ type: 'comment', commentId: comment.id })}
                 hitSlop={8}
                 style={({ pressed }) => pressed ? styles.pressed : null}>
                 <Text style={styles.commentActionText}>举报</Text>
@@ -213,7 +241,7 @@ export default function CommunityPostDetailScreen() {
           <Text style={styles.date}>{post.date}</Text>
           <Pressable
             testID="community-post-report-button"
-            onPress={handleReportPost}
+            onPress={() => openReportSheet({ type: 'post' })}
             hitSlop={8}
             style={({ pressed }) => pressed ? styles.pressed : null}>
             <Text style={styles.reportText}>举报</Text>
@@ -267,6 +295,54 @@ export default function CommunityPostDetailScreen() {
           <Text style={styles.actionText}>{likeCount}</Text>
         </Pressable>
       </View>
+      <Modal visible={reportTarget !== null} transparent animationType="fade" onRequestClose={closeReportSheet}>
+        <View style={styles.reportBackdrop}>
+          <View style={styles.reportSheet}>
+            <View style={styles.reportHeader}>
+              <Text style={styles.reportTitle}>举报内容</Text>
+              <Pressable onPress={closeReportSheet} hitSlop={8} testID="community-report-cancel">
+                <X color={colors.textMuted} size={18} strokeWidth={2.5} />
+              </Pressable>
+            </View>
+            <View style={styles.reportReasonRow}>
+              {reportReasons.map((reason) => {
+                const selected = reportReason === reason.key;
+                return (
+                  <Pressable
+                    key={reason.key}
+                    testID={`community-report-reason-${reason.key}`}
+                    onPress={() => setReportReason(reason.key)}
+                    style={[styles.reportReasonButton, selected ? styles.reportReasonSelected : null]}>
+                    <Text style={[styles.reportReasonText, selected ? styles.reportReasonTextSelected : null]}>{reason.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <TextInput
+              testID="community-report-detail-input"
+              value={reportDetail}
+              onChangeText={setReportDetail}
+              placeholder="补充说明（选填）"
+              placeholderTextColor="#8a7a83"
+              style={styles.reportDetailInput}
+              multiline
+              maxLength={200}
+            />
+            <View style={styles.reportActions}>
+              <Pressable onPress={closeReportSheet} style={[styles.reportActionButton, styles.reportCancelButton]}>
+                <Text style={styles.reportCancelText}>取消</Text>
+              </Pressable>
+              <Pressable
+                testID="community-report-submit"
+                onPress={submitReport}
+                disabled={submittingReport}
+                style={[styles.reportActionButton, styles.reportSubmitButton, submittingReport ? styles.disabled : null]}>
+                <Text style={styles.reportSubmitText}>{submittingReport ? '提交中' : '确认举报'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenShell>
   );
 }
@@ -519,6 +595,98 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 12,
     marginTop: 2,
+  },
+  reportBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.58)',
+  },
+  reportSheet: {
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    backgroundColor: colors.bgDeep,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 28,
+  },
+  reportHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  reportTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  reportReasonRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 16,
+  },
+  reportReasonButton: {
+    minHeight: 38,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    backgroundColor: colors.panel,
+  },
+  reportReasonSelected: {
+    borderColor: colors.pink,
+    backgroundColor: 'rgba(255,47,159,0.16)',
+  },
+  reportReasonText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  reportReasonTextSelected: {
+    color: colors.pink,
+  },
+  reportDetailInput: {
+    minHeight: 88,
+    marginTop: 14,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    color: colors.text,
+    backgroundColor: colors.inputDark,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    textAlignVertical: 'top',
+  },
+  reportActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  reportActionButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reportCancelButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  reportSubmitButton: {
+    backgroundColor: colors.pink,
+  },
+  reportCancelText: {
+    color: colors.textSoft,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  reportSubmitText: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '900',
   },
   pressed: {
     opacity: 0.78,

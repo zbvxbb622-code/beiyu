@@ -71,6 +71,7 @@ AI_ENUM_VALUES = {
         "SAFETY_REMINDER",
     ],
 }
+USER_ROLE_VALUES = ["USER", "EDITOR", "SUPER_ADMIN", "MODERATOR"]
 
 AI_COLUMN_MANIFEST: dict[str, dict[str, tuple[str, bool, str | None]]] = {
     "ai_conversations": {
@@ -885,7 +886,7 @@ def test_migrations_upgrade_ai_core_from_0003_and_downgrade() -> None:
                         "WHERE pg_type.typname = ANY(:enum_names) "
                         "GROUP BY pg_type.typname"
                     ),
-                    {"enum_names": list(AI_ENUM_VALUES)},
+                    {"enum_names": [*AI_ENUM_VALUES, "user_role"]},
                 ).all()
                 community_constraints = set(
                     connection.execute(
@@ -906,8 +907,10 @@ def test_migrations_upgrade_ai_core_from_0003_and_downgrade() -> None:
                         )
                     ).scalars()
                 )
-            assert revision == "20260802_0009"
-            assert {enum_name: list(values) for enum_name, values in enum_values} == AI_ENUM_VALUES
+            assert revision == "20260802_0010"
+            enum_value_map = {enum_name: list(values) for enum_name, values in enum_values}
+            assert {key: enum_value_map[key] for key in AI_ENUM_VALUES} == AI_ENUM_VALUES
+            assert enum_value_map["user_role"] == USER_ROLE_VALUES
             assert {
                 "ck_community_reports_target_reference",
                 "ck_community_audit_logs_target_reference",

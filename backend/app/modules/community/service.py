@@ -1,5 +1,7 @@
+from datetime import timedelta
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlmodel import Session, col, select
 
 from app.core.errors import AppError
@@ -35,6 +37,8 @@ from app.modules.community.schemas import (
     CommunityReportResponse,
 )
 
+COMMUNITY_REPORTS_PER_USER_HOUR = 10
+
 
 def _not_found() -> AppError:
     return AppError(
@@ -65,6 +69,14 @@ def _duplicate_report() -> AppError:
         code="COMMUNITY_REPORT_ALREADY_OPEN",
         message="你已提交过举报，等待审核处理",
         status_code=409,
+    )
+
+
+def _report_rate_limited() -> AppError:
+    return AppError(
+        code="COMMUNITY_REPORT_RATE_LIMITED",
+        message="举报提交过于频繁，请稍后再试",
+        status_code=429,
     )
 
 
@@ -315,6 +327,18 @@ def _audit_response(audit: CommunityAuditLog) -> CommunityAuditLogResponse:
     )
 
 
+def _ensure_report_rate_limit(session: Session, *, user: User) -> None:
+    cutoff = utc_now() - timedelta(hours=1)
+    count = session.exec(
+        select(func.count())
+        .select_from(CommunityReport)
+        .where(CommunityReport.reporter_id == user.id)
+        .where(CommunityReport.created_at > cutoff)
+    ).one()
+    if count >= COMMUNITY_REPORTS_PER_USER_HOUR:
+        raise _report_rate_limited()
+
+
 def report_post(
     session: Session,
     *,
@@ -323,6 +347,7 @@ def report_post(
     payload: CommunityReportCreate,
 ) -> CommunityReportResponse:
     post = _get_visible_post(session, post_id, user)
+    _ensure_report_rate_limit(session, user=user)
     existing = session.exec(
         select(CommunityReport)
         .where(CommunityReport.reporter_id == user.id)
@@ -362,6 +387,7 @@ def report_comment(
     comment = _get_visible_comment(session, comment_id, user)
     if comment.moderation_status is not CommunityModerationStatus.APPROVED:
         raise _comment_not_found()
+    _ensure_report_rate_limit(session, user=user)
     existing = session.exec(
         select(CommunityReport)
         .where(CommunityReport.reporter_id == user.id)

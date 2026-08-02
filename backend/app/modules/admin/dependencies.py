@@ -17,4 +17,15 @@ def require_editor(auth: CurrentAuth) -> AuthContext:
     return auth
 
 
+def require_community_moderator(auth: CurrentAuth) -> AuthContext:
+    if auth.user.role not in {UserRole.MODERATOR, UserRole.SUPER_ADMIN}:
+        raise AppError(
+            code="COMMUNITY_MODERATION_PERMISSION_REQUIRED",
+            message="需要社区审核权限",
+            status_code=403,
+        )
+    return auth
+
+
 AdminAuth = Annotated[AuthContext, Depends(require_editor)]
+CommunityModeratorAuth = Annotated[AuthContext, Depends(require_community_moderator)]

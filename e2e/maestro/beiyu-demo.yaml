@@ -1,0 +1,33 @@
+appId: com.zbvxbb622.beiyu
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "欢迎来到杯语"
+    timeout: 10000
+- tapOn: "我已满 18 岁，继续"
+- extendedWaitUntil:
+    visible: "每日酒单"
+    timeout: 10000
+- tapOn:
+    id: "tab-ai"
+    optional: true
+- extendedWaitUntil:
+    visible: "beiyu"
+    timeout: 10000
+- tapOn: "询问饮品配方或寻求推荐…"
+- inputText: "推荐一杯低酒精鸡尾酒"
+- tapOn:
+    id: "ai-send-button"
+- extendedWaitUntil:
+    visible: "推荐一杯低酒精鸡尾酒"
+    timeout: 10000
+- tapOn:
+    id: "ai-close-button"
+- tapOn: "社区"
+- extendedWaitUntil:
+    visible: "社区"
+    timeout: 10000
+- tapOn: "我的"
+- extendedWaitUntil:
+    visible: "测试账号"
+    timeout: 10000

@@ -172,9 +172,12 @@ describe('CommunityPostDetailScreen', () => {
     const screen = await render(<CommunityPostDetailScreen />);
 
     await fireEvent.press(screen.getByTestId('community-post-report-button'));
+    await fireEvent.press(screen.getByTestId('community-report-reason-spam'));
+    await fireEvent.changeText(screen.getByTestId('community-report-detail-input'), '重复刷屏');
+    await fireEvent.press(screen.getByTestId('community-report-submit'));
 
     await waitFor(() => {
-      expect(mockReportPost).toHaveBeenCalledWith('test-post');
+      expect(mockReportPost).toHaveBeenCalledWith('test-post', { reason: 'spam', detail: '重复刷屏' });
     });
     expect(Alert.alert).toHaveBeenCalledWith('已提交举报', '我们会尽快审核这条内容。');
   });
@@ -194,9 +197,12 @@ describe('CommunityPostDetailScreen', () => {
     const screen = await render(<CommunityPostDetailScreen />);
 
     await fireEvent.press(screen.getByTestId('community-comment-report-comment-1'));
+    await fireEvent.press(screen.getByTestId('community-report-reason-harassment'));
+    await fireEvent.changeText(screen.getByTestId('community-report-detail-input'), '攻击用户');
+    await fireEvent.press(screen.getByTestId('community-report-submit'));
 
     await waitFor(() => {
-      expect(mockReportComment).toHaveBeenCalledWith('test-post', 'comment-1');
+      expect(mockReportComment).toHaveBeenCalledWith('test-post', 'comment-1', { reason: 'harassment', detail: '攻击用户' });
     });
     expect(Alert.alert).toHaveBeenCalledWith('已提交举报', '我们会尽快审核这条评论。');
   });

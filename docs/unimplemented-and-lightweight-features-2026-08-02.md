@@ -12,7 +12,11 @@
 - 普通社区列表和详情默认过滤隐藏/拒绝内容。
 - 前端帖子详情页增加帖子举报和评论举报入口。
 - 前端 AuthRepository 增加举报帖子、举报评论方法。
+- 社区举报入口支持分类、详情输入和确认提交。
+- 社区举报增加同目标未处理去重和 10 次/小时/用户频率限制。
+- 社区审核权限拆分为 `MODERATOR` / `SUPER_ADMIN`，不再让 `EDITOR` 处理举报。
 - 新增 `eas.json`，包含 development、preview、production 三套 EAS Build 配置骨架。
+- 新增 Maestro iOS demo smoke flow 配置和 `npm run e2e:ios:demo` 脚本。
 
 ## 仍未实现
 
@@ -34,7 +38,7 @@
 
 5. **审核策略和风控规则**
    - 当前有举报、隐藏、恢复、拒绝的基础状态。
-   - 缺敏感词、图片审核、用户封禁、重复举报限制、批量处理和内容申诉。
+   - 缺敏感词、图片审核、用户封禁、批量处理和内容申诉。
 
 6. **App Store 正式提交材料**
    - 当前有 `eas.json` 骨架。
@@ -67,6 +71,7 @@
 
 5. **经典盲盒**
    - 当前更适合 Demo 展示。
+   - 开发环境保留测试抽卡，生产构建会隐藏。
    - 抽卡规则、库存、抽取记录、分享归因还没有完整后端化。
 
 6. **每日酒单**
@@ -95,6 +100,7 @@
 - `development`：开发客户端，iOS simulator。
 - `preview`：内部测试包，API 指向当前 ECS `http://120.26.28.208/api/v1`。
 - `production`：生产通道，占位 HTTPS 域名。
+- 已新增 `npm run e2e:ios:demo`，用于在已安装 Maestro 的 iOS 构建上跑老板 Demo smoke flow。
 - 正式打包前必须替换：
   - `build.production.env.EXPO_PUBLIC_API_BASE_URL`
   - `submit.production.ios.ascAppId`

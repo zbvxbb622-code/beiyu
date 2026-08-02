@@ -124,6 +124,8 @@ describe('AiScreen', () => {
     expect(screen.getByText('今天想喝什么？')).toBeTruthy();
     expect(screen.getByPlaceholderText('询问饮品配方或寻求推荐…')).toBeTruthy();
     expect(screen.getByTestId('ai-menu-button')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('ai-model-title'));
+    expect(mockStartNewChat).not.toHaveBeenCalled();
     expect(screen.getByTestId('ai-temp-chat-button')).toBeTruthy();
     expect(screen.getByTestId('ai-temp-chat-timer-icon')).toBeTruthy();
     expect(screen.queryByTestId('ai-temp-chat-plus-icon')).toBeNull();

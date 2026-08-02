@@ -20,6 +20,10 @@ const fallbackAnimationCards = blindBoxCards.slice(0, 5);
 
 type DrawPhase = 'idle' | 'drawing' | 'revealed';
 
+export function shouldShowTestDrawButton(isDevelopment = __DEV__) {
+  return isDevelopment;
+}
+
 export default function BlindBoxScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
@@ -206,6 +210,7 @@ export default function BlindBoxScreen() {
     inputRange: [0, 1],
     outputRange: [0.96, 1.04],
   });
+  const showTestDrawButton = shouldShowTestDrawButton();
 
   return (
     <ScreenShell>
@@ -297,10 +302,12 @@ export default function BlindBoxScreen() {
                   <Text style={styles.drawButtonText}>开启今日盲盒</Text>
                 </LinearGradient>
               </Pressable>
-              <Pressable onPress={handleTestDraw} style={styles.testButton} testID="test-draw-button">
-                <FlaskConical color={colors.textMuted} size={15} />
-                <Text style={styles.testButtonText}>测试抽卡 · 不限次数</Text>
-              </Pressable>
+              {showTestDrawButton ? (
+                <Pressable onPress={handleTestDraw} style={styles.testButton} testID="test-draw-button">
+                  <FlaskConical color={colors.textMuted} size={15} />
+                  <Text style={styles.testButtonText}>测试抽卡 · 不限次数</Text>
+                </Pressable>
+              ) : null}
             </>
           ) : null}
 
@@ -321,10 +328,12 @@ export default function BlindBoxScreen() {
                   <Text style={styles.actionButtonText}>查看酒谱</Text>
                 </Pressable>
               </View>
-              <Pressable onPress={handleTestDraw} style={styles.testButton} testID="test-draw-button">
-                <FlaskConical color={colors.textMuted} size={15} />
-                <Text style={styles.testButtonText}>再抽一次（测试）</Text>
-              </Pressable>
+              {showTestDrawButton ? (
+                <Pressable onPress={handleTestDraw} style={styles.testButton} testID="test-draw-button">
+                  <FlaskConical color={colors.textMuted} size={15} />
+                  <Text style={styles.testButtonText}>再抽一次（测试）</Text>
+                </Pressable>
+              ) : null}
             </>
           ) : null}
         </View>
