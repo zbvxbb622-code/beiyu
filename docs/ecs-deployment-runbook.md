@@ -147,4 +147,4 @@ docker compose --env-file .env -f deploy/ecs/compose.yml exec db \
 - 真实短信 provider 未实现，公网 Demo 仍使用固定验证码。
 - 未接域名与 HTTPS 时不建议给外部长期使用。
 - 图片上传仍需对象存储和审核链路。
-- 社区举报、审核后台仍需补齐。
+- 社区举报、审核 API 已补齐；仍缺运营人员可直接使用的审核后台 UI。
