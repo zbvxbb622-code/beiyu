@@ -1,4 +1,4 @@
-import { cleanup, render } from '@testing-library/react-native';
+import { cleanup, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -169,5 +169,44 @@ describe('HomeScreen', () => {
     );
 
     expect(screen.getAllByTestId('daily-menu-tile')).toHaveLength(6);
+  });
+
+  it('uses option five with a featured daily menu card and thumbnail strip', async () => {
+    const screen = await render(
+      <SafeAreaProvider
+        initialMetrics={{
+          frame: { x: 0, y: 0, width: 390, height: 844 },
+          insets: { top: 0, bottom: 0, left: 0, right: 0 },
+        }}>
+        <ContentTestProvider>
+          <HomeScreen />
+        </ContentTestProvider>
+      </SafeAreaProvider>
+    );
+
+    expect(screen.getByTestId('daily-menu-featured-card')).toBeTruthy();
+    expect(screen.getByTestId('daily-menu-thumbnail-strip')).toBeTruthy();
+    expect(screen.getAllByTestId('daily-menu-thumbnail-tile')).toHaveLength(5);
+  });
+
+  it('switches the featured daily menu card from the thumbnail strip', async () => {
+    const screen = await render(
+      <SafeAreaProvider
+        initialMetrics={{
+          frame: { x: 0, y: 0, width: 390, height: 844 },
+          insets: { top: 0, bottom: 0, left: 0, right: 0 },
+        }}>
+        <ContentTestProvider>
+          <HomeScreen />
+        </ContentTestProvider>
+      </SafeAreaProvider>
+    );
+    const firstTitle = screen.getByTestId('daily-menu-featured-title').props.children;
+
+    fireEvent.press(screen.getAllByTestId('daily-menu-thumbnail-tile')[0]);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('daily-menu-featured-title').props.children).not.toBe(firstTitle);
+    });
   });
 });
