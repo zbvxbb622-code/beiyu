@@ -123,23 +123,25 @@ function PostMasonry({
                 source={getPostCoverSource(post)}
                 style={[styles.postImage, { width: cardWidth, height: getCompactFeedImageHeight(cardWidth, index) }]}
               />
-              {onDeletePost ? (
-                <Pressable
-                  testID={`profile-delete-post-${post.id}`}
-                  onPress={(event) => {
-                    event.stopPropagation();
-                    confirmDelete(post);
-                  }}
-                  hitSlop={8}
-                  style={({ pressed }) => [styles.deleteButton, pressed ? styles.pressed : null]}
-                  accessibilityLabel="删除笔记">
-                  <Trash2 color={colors.text} size={15} strokeWidth={2.4} />
-                </Pressable>
-              ) : null}
               <View style={styles.postBody}>
-                <Text style={styles.postTitle} numberOfLines={2}>
-                  {post.title}
-                </Text>
+                <View testID={`profile-post-title-row-${post.id}`} style={styles.postTitleRow}>
+                  <Text style={styles.postTitle} numberOfLines={2}>
+                    {post.title}
+                  </Text>
+                  {onDeletePost ? (
+                    <Pressable
+                      testID={`profile-delete-post-${post.id}`}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        confirmDelete(post);
+                      }}
+                      hitSlop={8}
+                      style={({ pressed }) => [styles.deleteButton, pressed ? styles.pressed : null]}
+                      accessibilityLabel="删除笔记">
+                      <Trash2 color={colors.textMuted} size={15} strokeWidth={2.4} />
+                    </Pressable>
+                  ) : null}
+                </View>
                 <Text style={styles.postMeta}>❤ {post.likes} · {post.date}</Text>
               </View>
             </Pressable>
@@ -246,7 +248,6 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   postCard: {
-    position: 'relative',
     borderRadius: radii.md,
     overflow: 'hidden',
     backgroundColor: colors.panel,
@@ -260,15 +261,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgDeep,
   },
   deleteButton: {
-    position: 'absolute',
-    right: 8,
-    top: 8,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 22,
+    height: 22,
+    flexShrink: 0,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.56)',
   },
   pressed: {
     opacity: 0.72,
@@ -276,7 +274,14 @@ const styles = StyleSheet.create({
   postBody: {
     padding: 10,
   },
+  postTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+  },
   postTitle: {
+    flex: 1,
+    minWidth: 0,
     color: colors.text,
     fontSize: 13,
     fontWeight: '800',

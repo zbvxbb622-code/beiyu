@@ -92,22 +92,26 @@ export default function CommunityPostDetailScreen() {
         <View style={styles.commentCopy}>
           <Text style={styles.commentAuthor}>{comment.authorName}</Text>
           <Text style={styles.commentText}>{comment.text}</Text>
-          <View style={styles.commentMeta}>
-            <Text style={styles.commentDate}>{comment.date}</Text>
-            <Pressable
-              testID={`community-comment-reply-${comment.id}`}
-              onPress={() => setReplyingTo(comment)}
-              hitSlop={8}
-              style={({ pressed }) => pressed ? styles.pressed : null}>
-              <Text style={styles.commentActionText}>{replies.length ? `回复 ${replies.length}` : '回复'}</Text>
-            </Pressable>
+          <View testID={`community-comment-meta-${comment.id}`} style={styles.commentMeta}>
+            <View style={styles.commentMetaLeft}>
+              <Text style={styles.commentDate}>{comment.date}</Text>
+              <Pressable
+                testID={`community-comment-reply-${comment.id}`}
+                onPress={() => setReplyingTo(comment)}
+                hitSlop={8}
+                style={({ pressed }) => pressed ? styles.pressed : null}>
+                <Text style={styles.commentActionText}>{replies.length ? `回复 ${replies.length}` : '回复'}</Text>
+              </Pressable>
+            </View>
             <Pressable
               testID={`community-comment-like-${comment.id}`}
               onPress={() => handleCommentLike(comment.id)}
               hitSlop={8}
               style={({ pressed }) => [styles.commentLike, pressed ? styles.pressed : null]}>
-              <Heart color={colors.pink} fill={likedComment ? colors.pink : 'transparent'} size={15} strokeWidth={2.4} />
-              <Text style={styles.commentActionText} numberOfLines={1}>{likeCountLabel}</Text>
+              <View testID={`community-comment-like-content-${comment.id}`} style={styles.commentLikeContent}>
+                <Heart color={colors.pink} fill={likedComment ? colors.pink : 'transparent'} size={15} strokeWidth={2.4} />
+                <Text style={styles.commentActionText} numberOfLines={1}>{likeCountLabel}</Text>
+              </View>
             </Pressable>
           </View>
           {replies.length ? (
@@ -357,8 +361,15 @@ const styles = StyleSheet.create({
   commentMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    justifyContent: 'space-between',
     marginTop: 8,
+  },
+  commentMetaLeft: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
   },
   commentDate: {
     color: colors.textMuted,
@@ -370,10 +381,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   commentLike: {
+    flexShrink: 0,
+    paddingLeft: 10,
+  },
+  commentLikeContent: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    flexShrink: 0,
     minWidth: 28,
   },
   replies: {

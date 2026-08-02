@@ -143,6 +143,25 @@ describe('CommunityPostDetailScreen', () => {
     expect(mockToggleCommentLike).toHaveBeenCalledWith('test-post', 'reply-1');
   });
 
+  it('keeps comment like counts horizontally beside the heart icon', async () => {
+    post.comments = [
+      {
+        id: 'comment-1',
+        authorName: '测试账号',
+        authorAvatarKey: 'avatarOne',
+        text: '这杯我喜欢',
+        date: '2026-08-02',
+        likes: 2,
+        likedByMe: false,
+      },
+    ];
+    const screen = await render(<CommunityPostDetailScreen />);
+    const likeContentStyle = StyleSheet.flatten(screen.getByTestId('community-comment-like-content-comment-1').props.style);
+
+    expect(likeContentStyle.flexDirection).toBe('row');
+    expect(likeContentStyle.alignItems).toBe('center');
+  });
+
   it('shows a recoverable alert when sending a comment fails', async () => {
     mockAddPostComment.mockRejectedValueOnce(new Error('network failed'));
     const screen = await render(<CommunityPostDetailScreen />);

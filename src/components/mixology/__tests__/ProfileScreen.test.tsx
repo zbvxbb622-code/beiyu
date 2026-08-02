@@ -1,6 +1,6 @@
 import { fireEvent, render } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { Alert } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 
 import ProfileScreen from '@/app/profile';
 
@@ -141,6 +141,30 @@ describe('ProfileScreen', () => {
 
     expect(Alert.alert).toHaveBeenCalledWith('删除笔记', '删除后这条笔记会从我的主页和社区中移除。', expect.any(Array));
     expect(mockDeletePost).toHaveBeenCalledWith('my-post-1');
+  });
+
+  it('places the delete action beside the post title instead of over the image', async () => {
+    mockLocalCommunityPosts = [
+      {
+        id: 'my-post-1',
+        category: 'recommended',
+        title: '我的第一篇笔记',
+        authorId: 'user-1',
+        authorName: '霓虹酒保',
+        authorAvatarKey: 'avatarTwo',
+        imageKey: 'mojito',
+        body: '测试删除位置',
+        date: '2026-08-02',
+        likes: 0,
+        comments: [],
+      },
+    ];
+    const screen = await render(<ProfileScreen />);
+
+    expect(screen.getByTestId('profile-post-title-row-my-post-1')).toBeTruthy();
+    const deleteStyle = StyleSheet.flatten(screen.getByTestId('profile-delete-post-my-post-1').props.style);
+
+    expect(deleteStyle.position).toBeUndefined();
   });
 
   it('opens my posts with a profile return source', async () => {
