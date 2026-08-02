@@ -8,12 +8,15 @@
 - 官方认证直达页改为“暂未开放”，不再展示认证类型选择和提交按钮。
 - 设置页“帮助与客服”、通用设置“字体大小 / 深色模式”、系统权限状态改为暂未开放或空状态，不再展示静态假授权结果。
 - 注销账号时显式清理用户 AI 会话、消息、记忆、配额、社区帖子、评论和点赞；AI usage log 保留但解除 conversation 关联。
+- 社区新增举报表、审核状态、审核审计表、用户举报 API、管理员审核 API。
+- 前端帖子详情页新增帖子举报和评论举报入口。
+- 新增 `eas.json`，提供 EAS development / preview / production 打包配置骨架。
 
 ## 仍需上线前完成
 
-1. **社区审核与举报后台缺失**
-   - 当前已有帖子、评论、点赞、回复基础链路，但缺少举报表、审核状态、后台处理页和审核审计日志。
-   - 建议优先补：`community_reports`、帖子/评论 `moderation_status`、管理员审核 API、前端举报入口。
+1. **社区审核后台 UI 缺失**
+   - 当前已有举报表、审核状态、审核审计日志、管理员审核 API 和前端举报入口。
+   - 仍缺运营人员可直接使用的 Web 审核后台页面。
 
 2. **图片上传仍需生产级对象存储**
    - Demo 内置图片和本地相册图片展示可用于演示，但上线需要接入 OSS/S3/R2 等对象存储、图片压缩、鉴黄/审核、访问 URL 签名或 CDN。
@@ -43,12 +46,11 @@
 - `npm ci`：通过；提示 11 个 moderate 依赖审计项。
 - `npm run lint`：通过。
 - `npm run typecheck`：通过。
-- `npm test -- --runInBand`：通过，83 个 test suites / 356 个 tests。
+- `npm test -- --runInBand`：通过，84 个 test suites / 363 个 tests。
 - `npx expo export --platform ios`：通过，输出到 `dist`。
 - `uv sync --frozen`：通过。
 - `uv run ruff check .`：通过。
 - `uv run ty check`：通过。
-- `BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test uv run pytest`：通过，472 个 tests。
-- `docker compose --env-file /dev/null config`（在 `backend` 目录）：通过。
+- `BEIYU_DATABASE_URL=postgresql+psycopg://beiyu:beiyu@localhost:5433/beiyu_test uv run pytest`：通过，475 个 tests。
+- `docker compose config`（在 `backend` 目录）：通过。
 - `docker compose build api`（在 `backend` 目录）：通过。
-
