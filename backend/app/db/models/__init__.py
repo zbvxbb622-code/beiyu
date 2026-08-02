@@ -28,6 +28,7 @@ from app.db.models.ai import (
 from app.db.models.cellar import CellarItem, CellarItemSource
 from app.db.models.community import (
     CommunityComment,
+    CommunityCommentLike,
     CommunityFeedCategory,
     CommunityPost,
     CommunityPostLike,
@@ -72,6 +73,7 @@ __all__ = [
     "ContentType",
     "ContentVersion",
     "CommunityComment",
+    "CommunityCommentLike",
     "CommunityFeedCategory",
     "CommunityPost",
     "CommunityPostLike",

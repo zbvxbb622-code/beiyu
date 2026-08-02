@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
 from pydantic import Field, field_validator, model_validator
 
@@ -29,8 +30,11 @@ class CommunityCommentResponse(ApiModel):
     author_id: str
     author_name: str
     author_avatar_key: str
+    parent_comment_id: str | None = None
     text: str
     date: str
+    likes: int = Field(ge=0)
+    liked_by_me: bool = False
     created_at: datetime
 
 
@@ -88,3 +92,4 @@ class CommunityPostCreate(ApiModel):
 
 class CommunityCommentCreate(ApiModel):
     text: str = Field(min_length=1, max_length=1000)
+    parent_comment_id: UUID | None = None

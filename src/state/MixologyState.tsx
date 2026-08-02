@@ -36,11 +36,12 @@ type MixologyContextValue = {
   setCellarIngredientIds: (ingredientIds: string[]) => Promise<void>;
   updatePrivacySettings: (settings: PrivacySettings) => Promise<void>;
   togglePostLike: (postId: string) => Promise<void>;
+  toggleCommentLike: (postId: string, commentId: string) => Promise<void>;
   toggleAuthorFollow: (authorId: string) => Promise<void>;
   toggleCellarCardLike: (cardId: string) => Promise<void>;
   toggleVenueFavorite: (venueId: string) => Promise<void>;
   refreshCommunityPosts: () => Promise<void>;
-  addPostComment: (postId: string, text: string) => Promise<CommunityComment>;
+  addPostComment: (postId: string, text: string, parentCommentId?: string) => Promise<CommunityComment>;
   publishPost: (input: PublishPostInput) => Promise<CommunityPost>;
   addSearchHistory: (query: string) => Promise<void>;
   clearSearchHistory: () => Promise<void>;
@@ -382,6 +383,52 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
     [captureSession, commitRemoteCommunityState, isSessionActive, repository, updateInteractions]
   );
 
+  const replaceCommentInPost = useCallback((postId: string, comment: CommunityComment) => {
+    commitRemoteCommunityState((state) => ({
+      ...state,
+      localCommunityPosts: state.localCommunityPosts.map((post) => post.id === postId
+        ? {
+            ...post,
+            comments: post.comments.map((item) => item.id === comment.id ? comment : item),
+          }
+        : post),
+    }));
+  }, [commitRemoteCommunityState]);
+
+  const toggleCommentLike = useCallback(
+    async (postId: string, commentId: string) => {
+      const expected = captureSession();
+      const remotePost = expected
+        ? interactionStateRef.current.localCommunityPosts.find((post) => post.id === postId)
+        : undefined;
+      const remoteComment = remotePost?.comments.find((comment) => comment.id === commentId);
+      if (expected && remotePost?.likedByMe !== undefined && remoteComment) {
+        const nextComment = remoteComment.likedByMe
+          ? await repository.unlikeCommunityComment(commentId)
+          : await repository.likeCommunityComment(commentId);
+        if (!isSessionActive(expected)) return;
+        replaceCommentInPost(postId, nextComment);
+        return;
+      }
+      await updateInteractions((state) => ({
+        ...state,
+        localPostComments: {
+          ...state.localPostComments,
+          [postId]: (state.localPostComments[postId] ?? []).map((comment) => {
+            if (comment.id !== commentId) return comment;
+            const likedByMe = !comment.likedByMe;
+            return {
+              ...comment,
+              likedByMe,
+              likes: Math.max((comment.likes ?? 0) + (likedByMe ? 1 : -1), 0),
+            };
+          }),
+        },
+      }));
+    },
+    [captureSession, isSessionActive, replaceCommentInPost, repository, updateInteractions]
+  );
+
   const toggleAuthorFollow = useCallback(
     async (authorId: string) => {
       await updateInteractions((state) => ({
@@ -429,7 +476,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
   }, [isHydrated, refreshCommunityPosts, status]);
 
   const addPostComment = useCallback(
-    async (postId: string, text: string) => {
+    async (postId: string, text: string, parentCommentId?: string) => {
       const trimmed = text.trim();
       if (!trimmed) {
         throw new Error('评论内容不能为空');
@@ -439,7 +486,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
         ? interactionStateRef.current.localCommunityPosts.find((post) => post.id === postId)
         : undefined;
       if (expected && remotePost?.likedByMe !== undefined) {
-        const comment = await repository.addCommunityComment(postId, trimmed);
+        const comment = await repository.addCommunityComment(postId, trimmed, parentCommentId);
         if (!isSessionActive(expected)) return comment;
         commitRemoteCommunityState((state) => ({
           ...state,
@@ -451,10 +498,13 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       }
       const comment: CommunityComment = {
         id: `local-comment-${Date.now()}`,
+        parentId: parentCommentId,
         authorName: userProfile.nickname,
         authorAvatarKey: userProfile.avatarKey,
         text: trimmed,
         date: new Date().toISOString().slice(0, 10),
+        likes: 0,
+        likedByMe: false,
       };
       await updateInteractions((state) => ({
         ...state,
@@ -673,6 +723,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       setCellarIngredientIds,
       updatePrivacySettings,
       togglePostLike,
+      toggleCommentLike,
       toggleAuthorFollow,
       toggleCellarCardLike,
       toggleVenueFavorite,
@@ -708,6 +759,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       setCellarIngredientIds,
       updatePrivacySettings,
       togglePostLike,
+      toggleCommentLike,
       toggleAuthorFollow,
       toggleCellarCardLike,
       toggleVenueFavorite,

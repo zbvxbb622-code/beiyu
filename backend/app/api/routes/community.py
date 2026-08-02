@@ -18,8 +18,10 @@ from app.modules.community.service import (
     add_comment,
     create_post,
     get_post,
+    like_comment,
     like_post,
     list_posts,
+    unlike_comment,
     unlike_post,
 )
 
@@ -106,3 +108,29 @@ def create_community_comment(
     session: SessionDep,
 ) -> CommunityCommentResponse:
     return add_comment(session, user=auth.user, post_id=post_id, payload=payload)
+
+
+@router.post(
+    "/comments/{comment_id}/like",
+    response_model=CommunityCommentResponse,
+    response_model_exclude_none=True,
+)
+def like_community_comment(
+    comment_id: UUID,
+    auth: CurrentAuth,
+    session: SessionDep,
+) -> CommunityCommentResponse:
+    return like_comment(session, user=auth.user, comment_id=comment_id)
+
+
+@router.delete(
+    "/comments/{comment_id}/like",
+    response_model=CommunityCommentResponse,
+    response_model_exclude_none=True,
+)
+def unlike_community_comment(
+    comment_id: UUID,
+    auth: CurrentAuth,
+    session: SessionDep,
+) -> CommunityCommentResponse:
+    return unlike_comment(session, user=auth.user, comment_id=comment_id)

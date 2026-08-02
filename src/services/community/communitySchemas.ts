@@ -20,10 +20,13 @@ export const communityPostImageSchema = z.discriminatedUnion('kind', [
 
 export const communityCommentSchema = z.object({
   id: z.string(),
+  parentId: optionalStringFromNull,
   authorName: z.string(),
   authorAvatarKey: z.string(),
   text: z.string(),
   date: z.string(),
+  likes: z.number().int().default(0),
+  likedByMe: z.boolean().optional(),
 });
 
 export const communityPostSchema = z.object({

@@ -5,6 +5,7 @@ from sqlmodel import Session, col, select
 from app.core.errors import AppError
 from app.db.models import (
     CommunityComment,
+    CommunityCommentLike,
     CommunityFeedCategory,
     CommunityPost,
     CommunityPostLike,
@@ -39,6 +40,14 @@ def _comments_closed() -> AppError:
     )
 
 
+def _comment_not_found() -> AppError:
+    return AppError(
+        code="COMMUNITY_COMMENT_NOT_FOUND",
+        message="社区评论不存在或不可见",
+        status_code=404,
+    )
+
+
 def _profile_for(session: Session, user_id: UUID) -> UserProfile | None:
     return session.get(UserProfile, user_id)
 
@@ -54,15 +63,23 @@ def _date(value) -> str:
     return value.date().isoformat()
 
 
-def _comment_response(session: Session, comment: CommunityComment) -> CommunityCommentResponse:
+def _comment_response(session: Session, comment: CommunityComment, *, user: User) -> CommunityCommentResponse:
     author_name, avatar_key = _author_snapshot(session, comment.author_id)
+    liked_by_me = session.exec(
+        select(CommunityCommentLike)
+        .where(CommunityCommentLike.comment_id == comment.id)
+        .where(CommunityCommentLike.user_id == user.id)
+    ).first() is not None
     return CommunityCommentResponse(
         id=str(comment.id),
         author_id=str(comment.author_id),
         author_name=author_name,
         author_avatar_key=avatar_key,
+        parent_comment_id=str(comment.parent_comment_id) if comment.parent_comment_id else None,
         text=comment.text,
         date=_date(comment.created_at),
+        likes=comment.like_count,
+        liked_by_me=liked_by_me,
         created_at=comment.created_at,
     )
 
@@ -101,7 +118,7 @@ def _post_response(
         date=_date(post.created_at),
         likes=post.like_count,
         liked_by_me=liked_by_me,
-        comments=[_comment_response(session, comment) for comment in comments],
+        comments=[_comment_response(session, comment, user=user) for comment in comments],
         venue_id=post.venue_id,
         images=[CommunityPostImage.model_validate(image) for image in post.images],
         topics=post.topics,
@@ -118,6 +135,14 @@ def _get_visible_post(session: Session, post_id: UUID, user: User) -> CommunityP
     if post.visibility is CommunityPostVisibility.PRIVATE and post.author_id != user.id:
         raise _not_found()
     return post
+
+
+def _get_visible_comment(session: Session, comment_id: UUID, user: User) -> CommunityComment:
+    comment = session.get(CommunityComment, comment_id)
+    if comment is None:
+        raise _comment_not_found()
+    _get_visible_post(session, comment.post_id, user)
+    return comment
 
 
 def list_posts(
@@ -198,15 +223,53 @@ def add_comment(
     post = _get_visible_post(session, post_id, user)
     if not post.allow_comments:
         raise _comments_closed()
+    parent_comment_id = payload.parent_comment_id
+    if parent_comment_id is not None:
+        parent_comment = session.get(CommunityComment, parent_comment_id)
+        if parent_comment is None or parent_comment.post_id != post.id:
+            raise _comment_not_found()
     comment = CommunityComment(
         post_id=post.id,
         author_id=user.id,
+        parent_comment_id=parent_comment_id,
         text=payload.text.strip(),
     )
     session.add(comment)
     session.commit()
     session.refresh(comment)
-    return _comment_response(session, comment)
+    return _comment_response(session, comment, user=user)
+
+
+def like_comment(session: Session, *, user: User, comment_id: UUID) -> CommunityCommentResponse:
+    comment = _get_visible_comment(session, comment_id, user)
+    existing = session.exec(
+        select(CommunityCommentLike)
+        .where(CommunityCommentLike.comment_id == comment.id)
+        .where(CommunityCommentLike.user_id == user.id)
+    ).first()
+    if existing is None:
+        session.add(CommunityCommentLike(comment_id=comment.id, user_id=user.id))
+        comment.like_count += 1
+        session.add(comment)
+        session.commit()
+        session.refresh(comment)
+    return _comment_response(session, comment, user=user)
+
+
+def unlike_comment(session: Session, *, user: User, comment_id: UUID) -> CommunityCommentResponse:
+    comment = _get_visible_comment(session, comment_id, user)
+    existing = session.exec(
+        select(CommunityCommentLike)
+        .where(CommunityCommentLike.comment_id == comment.id)
+        .where(CommunityCommentLike.user_id == user.id)
+    ).first()
+    if existing is not None:
+        session.delete(existing)
+        comment.like_count = max(comment.like_count - 1, 0)
+        session.add(comment)
+        session.commit()
+        session.refresh(comment)
+    return _comment_response(session, comment, user=user)
 
 
 def like_post(session: Session, *, user: User, post_id: UUID) -> CommunityPostResponse:

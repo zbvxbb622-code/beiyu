@@ -196,6 +196,68 @@ def test_user_can_like_and_unlike_post_idempotently(
     assert unliked_again.json()["likedByMe"] is False
 
 
+def test_user_can_reply_to_and_like_community_comment(
+    database_client: TestClient,
+) -> None:
+    login = create_login(database_client)
+    headers = bearer(login["accessToken"])
+    created = database_client.post(
+        "/api/v1/community/posts",
+        headers=headers,
+        json={"title": "评论可以互动", "body": "回复和点赞都应该由后端保存。"},
+    )
+    assert created.status_code == 201, created.text
+    post_id = created.json()["id"]
+
+    parent = database_client.post(
+        f"/api/v1/community/posts/{post_id}/comments",
+        headers=headers,
+        json={"text": "第一条评论"},
+    )
+    assert parent.status_code == 201, parent.text
+    parent_id = parent.json()["id"]
+
+    reply = database_client.post(
+        f"/api/v1/community/posts/{post_id}/comments",
+        headers=headers,
+        json={"text": "这是回复", "parentCommentId": parent_id},
+    )
+    assert reply.status_code == 201, reply.text
+    reply_body = reply.json()
+    assert reply_body["parentCommentId"] == parent_id
+    assert reply_body["likes"] == 0
+    assert reply_body["likedByMe"] is False
+
+    liked = database_client.post(
+        f"/api/v1/community/comments/{reply_body['id']}/like",
+        headers=headers,
+    )
+    assert liked.status_code == 200, liked.text
+    assert liked.json()["likes"] == 1
+    assert liked.json()["likedByMe"] is True
+
+    detail = database_client.get(
+        f"/api/v1/community/posts/{post_id}",
+        headers=headers,
+    )
+    assert detail.status_code == 200, detail.text
+    comments = detail.json()["comments"]
+    assert comments[0]["id"] == parent_id
+    assert comments[0].get("parentCommentId") is None
+    assert comments[1]["text"] == "这是回复"
+    assert comments[1]["parentCommentId"] == parent_id
+    assert comments[1]["likes"] == 1
+    assert comments[1]["likedByMe"] is True
+
+    unliked = database_client.delete(
+        f"/api/v1/community/comments/{reply_body['id']}/like",
+        headers=headers,
+    )
+    assert unliked.status_code == 200, unliked.text
+    assert unliked.json()["likes"] == 0
+    assert unliked.json()["likedByMe"] is False
+
+
 def test_deleted_user_posts_are_not_listed(
     database_client: TestClient,
     database_session: Session,

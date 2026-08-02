@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
-import { Heart, Send } from 'lucide-react-native';
+import { Heart, Send, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 
@@ -10,14 +10,16 @@ import { getImageAsset } from '@/data/imageAssets';
 import { getCommunityPostById, mergePostComments } from '@/services/contentService';
 import { useMixology } from '@/state/MixologyState';
 import { colors, gradients, radii } from '@/styles/mixologyTheme';
+import type { CommunityComment } from '@/types/mixology';
 import { getPostImages, resolvePostImageSource } from '@/utils/postImages';
 
 export default function CommunityPostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { interactionState, togglePostLike, toggleAuthorFollow, addPostComment } = useMixology();
+  const { interactionState, togglePostLike, toggleCommentLike, toggleAuthorFollow, addPostComment } = useMixology();
   const { width } = useWindowDimensions();
   const post = getCommunityPostById(String(id), interactionState.localCommunityPosts);
   const [draft, setDraft] = useState('');
+  const [replyingTo, setReplyingTo] = useState<CommunityComment | null>(null);
   const [sending, setSending] = useState(false);
   const [failedImageIds, setFailedImageIds] = useState<Record<string, true>>({});
   const contentWidth = width - 32;
@@ -38,6 +40,14 @@ export default function CommunityPostDetailScreen() {
   const likeCount = post.likedByMe === undefined ? post.likes + (liked ? 1 : 0) : post.likes;
   const followed = interactionState.followedAuthorIds.includes(post.authorId);
   const comments = mergePostComments(post, interactionState.localPostComments);
+  const rootCommentIds = new Set(comments.filter((comment) => !comment.parentId).map((comment) => comment.id));
+  const rootComments = comments.filter((comment) => !comment.parentId || !rootCommentIds.has(comment.parentId));
+  const repliesByParent = comments.reduce<Record<string, CommunityComment[]>>((next, comment) => {
+    if (comment.parentId && rootCommentIds.has(comment.parentId)) {
+      next[comment.parentId] = [...(next[comment.parentId] ?? []), comment];
+    }
+    return next;
+  }, {});
   const postImages = getPostImages(post);
   const imageSourceFor = (image: (typeof postImages)[number]) =>
     failedImageIds[image.id] ? getImageAsset(post.imageKey) : resolvePostImageSource(image);
@@ -51,13 +61,63 @@ export default function CommunityPostDetailScreen() {
     if (!draft.trim() || sending) return;
     setSending(true);
     try {
-      await addPostComment(post.id, draft);
+      if (replyingTo) {
+        await addPostComment(post.id, draft, replyingTo.parentId ?? replyingTo.id);
+      } else {
+        await addPostComment(post.id, draft);
+      }
       setDraft('');
+      setReplyingTo(null);
     } catch (error) {
       Alert.alert('评论失败', error instanceof Error ? error.message : '请稍后重试');
     } finally {
       setSending(false);
     }
+  };
+
+  const handleCommentLike = async (commentId: string) => {
+    try {
+      await toggleCommentLike(post.id, commentId);
+    } catch (error) {
+      Alert.alert('操作失败', error instanceof Error ? error.message : '请稍后重试');
+    }
+  };
+
+  const renderComment = (comment: CommunityComment, replies: CommunityComment[] = [], isReply = false) => {
+    const likedComment = comment.likedByMe === true;
+    const likeCountLabel = comment.likes ?? 0;
+    return (
+      <View key={comment.id} style={[styles.comment, isReply ? styles.replyComment : null]}>
+        <Image source={getImageAsset(comment.authorAvatarKey)} style={isReply ? styles.replyAvatar : styles.commentAvatar} />
+        <View style={styles.commentCopy}>
+          <Text style={styles.commentAuthor}>{comment.authorName}</Text>
+          <Text style={styles.commentText}>{comment.text}</Text>
+          <View style={styles.commentMeta}>
+            <Text style={styles.commentDate}>{comment.date}</Text>
+            <Pressable
+              testID={`community-comment-reply-${comment.id}`}
+              onPress={() => setReplyingTo(comment)}
+              hitSlop={8}
+              style={({ pressed }) => pressed ? styles.pressed : null}>
+              <Text style={styles.commentActionText}>{replies.length ? `回复 ${replies.length}` : '回复'}</Text>
+            </Pressable>
+            <Pressable
+              testID={`community-comment-like-${comment.id}`}
+              onPress={() => handleCommentLike(comment.id)}
+              hitSlop={8}
+              style={({ pressed }) => [styles.commentLike, pressed ? styles.pressed : null]}>
+              <Heart color={colors.pink} fill={likedComment ? colors.pink : 'transparent'} size={15} strokeWidth={2.4} />
+              <Text style={styles.commentActionText}>{likeCountLabel}</Text>
+            </Pressable>
+          </View>
+          {replies.length ? (
+            <View style={styles.replies}>
+              {replies.map((reply) => renderComment(reply, [], true))}
+            </View>
+          ) : null}
+        </View>
+      </View>
+    );
   };
 
   return (
@@ -115,24 +175,24 @@ export default function CommunityPostDetailScreen() {
         <Text style={styles.date}>{post.date}</Text>
         <Text style={styles.commentsTitle}>{commentsEnabled ? `共${comments.length}条评论` : '作者已关闭评论'}</Text>
         {commentsEnabled
-          ? comments.map((comment) => (
-              <View key={comment.id} style={styles.comment}>
-                <Image source={getImageAsset(comment.authorAvatarKey)} style={styles.commentAvatar} />
-                <View style={styles.commentCopy}>
-                  <Text style={styles.commentAuthor}>{comment.authorName}</Text>
-                  <Text style={styles.commentText}>{comment.text}</Text>
-                  <Text style={styles.date}>{comment.date}</Text>
-                </View>
-              </View>
-            ))
+          ? rootComments.map((comment) => renderComment(comment, repliesByParent[comment.id] ?? []))
           : null}
       </ScrollView>
       <View style={styles.bottomBar}>
         {commentsEnabled ? (
           <View style={styles.commentArea}>
             <View style={styles.commentInputWrap}>
+              {replyingTo ? (
+                <Pressable
+                  testID="community-comment-cancel-reply"
+                  onPress={() => setReplyingTo(null)}
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.cancelReplyButton, pressed ? styles.pressed : null]}>
+                  <X color={colors.textMuted} size={16} strokeWidth={2.5} />
+                </Pressable>
+              ) : null}
               <TextInput
-                placeholder="说点什么…"
+                placeholder={replyingTo ? `回复 ${replyingTo.authorName}…` : '说点什么…'}
                 placeholderTextColor="#8a7a83"
                 style={styles.commentInput}
                 value={draft}
@@ -266,10 +326,19 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 18,
   },
+  replyComment: {
+    gap: 9,
+    marginTop: 12,
+  },
   commentAvatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
+  },
+  replyAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
   commentCopy: {
     flex: 1,
@@ -284,6 +353,30 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     marginTop: 4,
+  },
+  commentMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginTop: 8,
+  },
+  commentDate: {
+    color: colors.textMuted,
+    fontSize: 12,
+  },
+  commentActionText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  commentLike: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  replies: {
+    marginTop: 4,
+    paddingLeft: 2,
   },
   bottomBar: {
     position: 'absolute',
@@ -310,6 +403,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.inputDark,
     paddingLeft: 18,
     paddingRight: 5,
+  },
+  cancelReplyButton: {
+    width: 28,
+    height: 28,
+    flexShrink: 0,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    backgroundColor: colors.panel,
   },
   commentInput: {
     flex: 1,

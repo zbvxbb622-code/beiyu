@@ -25,7 +25,7 @@ import {
   communityPostSchema,
 } from '@/services/community/communitySchemas';
 import { tokenStore } from '@/services/auth/tokenStore';
-import type { CommunityPost, FeedCategory, PostImage, PostVisibility } from '@/types/mixology';
+import type { CommunityComment, CommunityPost, FeedCategory, PostImage, PostVisibility } from '@/types/mixology';
 
 const emptyResponseSchema = z.undefined();
 
@@ -243,10 +243,10 @@ export class AuthRepository {
     );
   }
 
-  addCommunityComment(postId: string, text: string) {
+  addCommunityComment(postId: string, text: string, parentCommentId?: string) {
     return this.options.authenticatedClient.request(
       `/community/posts/${encodeURIComponent(postId)}/comments`,
-      jsonRequest('POST', { text }),
+      jsonRequest('POST', parentCommentId ? { text, parentCommentId } : { text }),
       communityCommentSchema
     );
   }
@@ -264,6 +264,22 @@ export class AuthRepository {
       `/community/posts/${encodeURIComponent(postId)}/like`,
       { method: 'DELETE' },
       communityPostSchema
+    );
+  }
+
+  likeCommunityComment(commentId: string): Promise<CommunityComment> {
+    return this.options.authenticatedClient.request(
+      `/community/comments/${encodeURIComponent(commentId)}/like`,
+      { method: 'POST' },
+      communityCommentSchema
+    );
+  }
+
+  unlikeCommunityComment(commentId: string): Promise<CommunityComment> {
+    return this.options.authenticatedClient.request(
+      `/community/comments/${encodeURIComponent(commentId)}/like`,
+      { method: 'DELETE' },
+      communityCommentSchema
     );
   }
 }

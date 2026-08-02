@@ -74,10 +74,13 @@ export type FeedCategory = 'recommended' | 'following' | 'nearby';
 
 export type CommunityComment = {
   id: string;
+  parentId?: string;
   authorName: string;
   authorAvatarKey: string;
   text: string;
   date: string;
+  likes?: number;
+  likedByMe?: boolean;
 };
 
 // 笔记图片：asset = 内置图库 key；uri = 相册上传的本地 uri

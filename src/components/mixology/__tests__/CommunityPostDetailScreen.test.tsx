@@ -23,6 +23,7 @@ const post: CommunityPost = {
 
 const mockRouterPush = jest.fn();
 const mockAddPostComment = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+const mockToggleCommentLike = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ id: 'test-post' }),
@@ -52,6 +53,7 @@ jest.mock('@/state/MixologyState', () => ({
     togglePostLike: jest.fn(),
     toggleAuthorFollow: jest.fn(),
     addPostComment: mockAddPostComment,
+    toggleCommentLike: mockToggleCommentLike,
   }),
 }));
 
@@ -59,7 +61,9 @@ describe('CommunityPostDetailScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     post.images = undefined;
+    post.comments = [];
     mockAddPostComment.mockResolvedValue(undefined);
+    mockToggleCommentLike.mockResolvedValue(undefined);
     jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
   });
 
@@ -88,6 +92,43 @@ describe('CommunityPostDetailScreen', () => {
     await waitFor(() => {
       expect(mockAddPostComment).toHaveBeenCalledWith('test-post', '这家看起来不错');
     });
+  });
+
+  it('lets users reply to and like comments', async () => {
+    post.comments = [
+      {
+        id: 'comment-1',
+        authorName: '测试账号',
+        authorAvatarKey: 'avatarOne',
+        text: '这杯我喜欢',
+        date: '2026-08-02',
+        likes: 2,
+        likedByMe: false,
+      },
+      {
+        id: 'reply-1',
+        parentId: 'comment-1',
+        authorName: '杯语用户',
+        authorAvatarKey: 'avatarTwo',
+        text: '我也想试试',
+        date: '2026-08-02',
+        likes: 1,
+        likedByMe: true,
+      },
+    ];
+    const screen = await render(<CommunityPostDetailScreen />);
+
+    expect(screen.getByText('回复 1')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('community-comment-reply-comment-1'));
+    await fireEvent.changeText(screen.getByPlaceholderText('回复 测试账号…'), '下次一起喝');
+    await fireEvent.press(screen.getByTestId('community-comment-send-button'));
+
+    await waitFor(() => {
+      expect(mockAddPostComment).toHaveBeenCalledWith('test-post', '下次一起喝', 'comment-1');
+    });
+
+    await fireEvent.press(screen.getByTestId('community-comment-like-reply-1'));
+    expect(mockToggleCommentLike).toHaveBeenCalledWith('test-post', 'reply-1');
   });
 
   it('shows a recoverable alert when sending a comment fails', async () => {

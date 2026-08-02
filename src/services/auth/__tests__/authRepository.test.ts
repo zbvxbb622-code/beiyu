@@ -198,7 +198,7 @@ describe('AuthRepository', () => {
       visibility: 'public',
       allowComments: true,
     })).resolves.toEqual(validCommunityPost);
-    await expect(repository.addCommunityComment('post-1', '看起来不错')).resolves.toEqual(validComment);
+    await expect(repository.addCommunityComment('post-1', '看起来不错', 'comment-1')).resolves.toEqual(validComment);
 
     expect(requestMock).toHaveBeenNthCalledWith(
       1,
@@ -226,8 +226,42 @@ describe('AuthRepository', () => {
       '/community/posts/post-1/comments',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ text: '看起来不错' }),
+        body: JSON.stringify({ text: '看起来不错', parentCommentId: 'comment-1' }),
       }),
+      expect.anything()
+    );
+  });
+
+  it('likes and unlikes community comments through the authenticated client', async () => {
+    const likedComment = {
+      id: 'comment-1',
+      authorName: '杯语用户',
+      authorAvatarKey: 'avatarOne',
+      text: '看起来不错',
+      date: '2026-08-02',
+      likes: 1,
+      likedByMe: true,
+    };
+    const unlikedComment = { ...likedComment, likes: 0, likedByMe: false };
+    const requestMock = jest.fn<() => Promise<unknown>>()
+      .mockResolvedValueOnce(likedComment)
+      .mockResolvedValueOnce(unlikedComment);
+    const request = requestMock as unknown as AuthenticatedClient['request'];
+    const repository = createRepository(jest.fn<FetchLike>(), { request });
+
+    await expect(repository.likeCommunityComment('comment-1')).resolves.toEqual(likedComment);
+    await expect(repository.unlikeCommunityComment('comment-1')).resolves.toEqual(unlikedComment);
+
+    expect(requestMock).toHaveBeenNthCalledWith(
+      1,
+      '/community/comments/comment-1/like',
+      { method: 'POST' },
+      expect.anything()
+    );
+    expect(requestMock).toHaveBeenNthCalledWith(
+      2,
+      '/community/comments/comment-1/like',
+      { method: 'DELETE' },
       expect.anything()
     );
   });

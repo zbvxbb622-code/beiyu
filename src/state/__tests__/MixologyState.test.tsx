@@ -22,6 +22,8 @@ const mockRepository = {
   addCommunityComment: jest.fn<AuthRepository['addCommunityComment']>(),
   likeCommunityPost: jest.fn<AuthRepository['likeCommunityPost']>(),
   unlikeCommunityPost: jest.fn<AuthRepository['unlikeCommunityPost']>(),
+  likeCommunityComment: jest.fn<AuthRepository['likeCommunityComment']>(),
+  unlikeCommunityComment: jest.fn<AuthRepository['unlikeCommunityComment']>(),
 };
 let mockAuthSnapshot: {
   status: 'signedOut' | 'signedIn';
@@ -428,6 +430,7 @@ describe('MixologyProvider', () => {
       authorAvatarKey: bootstrap.profile.avatarKey,
       text: '后端评论',
       date: '2026-08-02',
+      likes: 0,
     };
     mockAuthSnapshot = { status: 'signedIn', repository: mockRepository };
     mockRepository.listCommunityPosts.mockResolvedValueOnce({ items: [remotePost] });
@@ -437,10 +440,10 @@ describe('MixologyProvider', () => {
     await waitFor(() => expect(currentValue?.interactionState.localCommunityPosts).toEqual([remotePost]));
 
     await act(async () => {
-      await currentValue!.addPostComment('remote-post-2', ' 后端评论 ');
+      await currentValue!.addPostComment('remote-post-2', ' 后端评论 ', 'parent-comment-1');
     });
 
-    expect(mockRepository.addCommunityComment).toHaveBeenCalledWith('remote-post-2', '后端评论');
+    expect(mockRepository.addCommunityComment).toHaveBeenCalledWith('remote-post-2', '后端评论', 'parent-comment-1');
     expect(currentValue?.interactionState.localCommunityPosts[0].comments).toEqual([remoteComment]);
     await expect(AsyncStorage.getItem('beiyu.interactions')).resolves.toBeNull();
   });
@@ -507,5 +510,57 @@ describe('MixologyProvider', () => {
     expect(currentValue?.interactionState.localCommunityPosts[0]).toMatchObject({ likes: 0, likedByMe: false });
     expect(currentValue?.interactionState.likedPostIds).toEqual([]);
     await expect(AsyncStorage.getItem('beiyu.interactions')).resolves.toBeNull();
+  });
+
+  it('uses backend likes for signed-in community comments', async () => {
+    const remoteComment = {
+      id: 'remote-comment-like',
+      authorName: bootstrap.profile.nickname,
+      authorAvatarKey: bootstrap.profile.avatarKey,
+      text: '评论也可以点赞',
+      date: '2026-08-02',
+      likes: 0,
+      likedByMe: false,
+    };
+    const likedComment = { ...remoteComment, likes: 1, likedByMe: true };
+    const remotePost = {
+      id: 'remote-post-comment-like',
+      category: 'recommended' as const,
+      title: '评论点赞笔记',
+      authorId: bootstrap.user.id,
+      authorName: bootstrap.profile.nickname,
+      authorAvatarKey: bootstrap.profile.avatarKey,
+      imageKey: 'communityGrid',
+      body: '评论点赞应写入后端。',
+      date: '2026-08-02',
+      likes: 0,
+      likedByMe: false,
+      comments: [remoteComment],
+      images: [{ id: 'cover', kind: 'asset' as const, assetKey: 'communityGrid' }],
+      topics: ['调酒'],
+      visibility: 'public' as const,
+      allowComments: true,
+    };
+    mockAuthSnapshot = { status: 'signedIn', repository: mockRepository };
+    mockRepository.listCommunityPosts.mockResolvedValueOnce({ items: [remotePost] });
+    mockRepository.likeCommunityComment.mockResolvedValueOnce(likedComment);
+    mockRepository.unlikeCommunityComment.mockResolvedValueOnce(remoteComment);
+    const screen = await render(<MixologyProvider><Probe /></MixologyProvider>);
+    await screen.findByText('hydrated');
+    await waitFor(() => expect(currentValue?.interactionState.localCommunityPosts).toEqual([remotePost]));
+
+    await act(async () => {
+      await currentValue!.toggleCommentLike('remote-post-comment-like', 'remote-comment-like');
+    });
+
+    expect(mockRepository.likeCommunityComment).toHaveBeenCalledWith('remote-comment-like');
+    expect(currentValue?.interactionState.localCommunityPosts[0].comments[0]).toMatchObject({ likes: 1, likedByMe: true });
+
+    await act(async () => {
+      await currentValue!.toggleCommentLike('remote-post-comment-like', 'remote-comment-like');
+    });
+
+    expect(mockRepository.unlikeCommunityComment).toHaveBeenCalledWith('remote-comment-like');
+    expect(currentValue?.interactionState.localCommunityPosts[0].comments[0]).toMatchObject({ likes: 0, likedByMe: false });
   });
 });

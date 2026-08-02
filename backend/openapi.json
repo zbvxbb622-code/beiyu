@@ -2333,6 +2333,18 @@
       },
       "CommunityCommentCreate": {
         "properties": {
+          "parentCommentId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentcommentid"
+          },
           "text": {
             "maxLength": 1000,
             "minLength": 1,
@@ -2373,6 +2385,27 @@
             "title": "Id",
             "type": "string"
           },
+          "likedByMe": {
+            "default": false,
+            "title": "Likedbyme",
+            "type": "boolean"
+          },
+          "likes": {
+            "minimum": 0.0,
+            "title": "Likes",
+            "type": "integer"
+          },
+          "parentCommentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentcommentid"
+          },
           "text": {
             "title": "Text",
             "type": "string"
@@ -2385,6 +2418,7 @@
           "authorAvatarKey",
           "text",
           "date",
+          "likes",
           "createdAt"
         ],
         "title": "CommunityCommentResponse",
@@ -9287,6 +9321,102 @@
         "tags": [
           "api",
           "cellar"
+        ]
+      }
+    },
+    "/api/v1/community/comments/{comment_id}/like": {
+      "delete": {
+        "operationId": "unlike_community_comment_api_v1_community_comments__comment_id__like_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "comment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Comment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityCommentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Unlike Community Comment",
+        "tags": [
+          "api",
+          "community"
+        ]
+      },
+      "post": {
+        "operationId": "like_community_comment_api_v1_community_comments__comment_id__like_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "comment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Comment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityCommentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Like Community Comment",
+        "tags": [
+          "api",
+          "community"
         ]
       }
     },
