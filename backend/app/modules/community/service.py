@@ -4,23 +4,35 @@ from sqlmodel import Session, col, select
 
 from app.core.errors import AppError
 from app.db.models import (
+    CommunityAuditAction,
+    CommunityAuditLog,
     CommunityComment,
     CommunityCommentLike,
     CommunityFeedCategory,
+    CommunityModerationStatus,
     CommunityPost,
     CommunityPostLike,
     CommunityPostVisibility,
+    CommunityReport,
+    CommunityReportStatus,
+    CommunityReportTargetType,
     User,
     UserProfile,
 )
 from app.db.models.accounts import utc_now
 from app.modules.community.schemas import (
+    CommunityAuditLogListResponse,
+    CommunityAuditLogResponse,
     CommunityCommentCreate,
     CommunityCommentResponse,
+    CommunityModerationRequest,
     CommunityPostCreate,
     CommunityPostImage,
     CommunityPostListResponse,
     CommunityPostResponse,
+    CommunityReportCreate,
+    CommunityReportListResponse,
+    CommunityReportResponse,
 )
 
 
@@ -44,6 +56,14 @@ def _comment_not_found() -> AppError:
     return AppError(
         code="COMMUNITY_COMMENT_NOT_FOUND",
         message="社区评论不存在或不可见",
+        status_code=404,
+    )
+
+
+def _moderation_not_found() -> AppError:
+    return AppError(
+        code="COMMUNITY_MODERATION_TARGET_NOT_FOUND",
+        message="审核对象不存在",
         status_code=404,
     )
 
@@ -80,6 +100,7 @@ def _comment_response(session: Session, comment: CommunityComment, *, user: User
         date=_date(comment.created_at),
         likes=comment.like_count,
         liked_by_me=liked_by_me,
+        moderation_status=comment.moderation_status.value,
         created_at=comment.created_at,
     )
 
@@ -101,6 +122,7 @@ def _post_response(
         session.exec(
             select(CommunityComment)
             .where(CommunityComment.post_id == post.id)
+            .where(CommunityComment.moderation_status == CommunityModerationStatus.APPROVED)
             .order_by(col(CommunityComment.created_at), col(CommunityComment.id))
         ).all()
         if include_comments
@@ -124,6 +146,7 @@ def _post_response(
         topics=post.topics,
         visibility=post.visibility.value,
         allow_comments=post.allow_comments,
+        moderation_status=post.moderation_status.value,
         created_at=post.created_at,
     )
 
@@ -131,6 +154,8 @@ def _post_response(
 def _get_visible_post(session: Session, post_id: UUID, user: User) -> CommunityPost:
     post = session.get(CommunityPost, post_id)
     if post is None:
+        raise _not_found()
+    if post.moderation_status is not CommunityModerationStatus.APPROVED:
         raise _not_found()
     if post.visibility is CommunityPostVisibility.PRIVATE and post.author_id != user.id:
         raise _not_found()
@@ -140,6 +165,8 @@ def _get_visible_post(session: Session, post_id: UUID, user: User) -> CommunityP
 def _get_visible_comment(session: Session, comment_id: UUID, user: User) -> CommunityComment:
     comment = session.get(CommunityComment, comment_id)
     if comment is None:
+        raise _comment_not_found()
+    if comment.moderation_status is not CommunityModerationStatus.APPROVED:
         raise _comment_not_found()
     _get_visible_post(session, comment.post_id, user)
     return comment
@@ -156,6 +183,7 @@ def list_posts(
     statement = (
         select(CommunityPost)
         .where(CommunityPost.visibility == CommunityPostVisibility.PUBLIC)
+        .where(CommunityPost.moderation_status == CommunityModerationStatus.APPROVED)
         .order_by(col(CommunityPost.created_at).desc(), col(CommunityPost.id).desc())
         .limit(limit)
     )
@@ -246,6 +274,214 @@ def add_comment(
     session.commit()
     session.refresh(comment)
     return _comment_response(session, comment, user=user)
+
+
+def _report_response(report: CommunityReport) -> CommunityReportResponse:
+    return CommunityReportResponse(
+        id=str(report.id),
+        reporter_id=str(report.reporter_id),
+        target_type=report.target_type.value,
+        post_id=str(report.post_id) if report.post_id else None,
+        comment_id=str(report.comment_id) if report.comment_id else None,
+        reason=report.reason,
+        detail=report.detail,
+        status=report.status.value,
+        created_at=report.created_at,
+    )
+
+
+def _audit_response(audit: CommunityAuditLog) -> CommunityAuditLogResponse:
+    return CommunityAuditLogResponse(
+        id=str(audit.id),
+        actor_id=str(audit.actor_id),
+        target_type=audit.target_type.value,
+        post_id=str(audit.post_id) if audit.post_id else None,
+        comment_id=str(audit.comment_id) if audit.comment_id else None,
+        action=audit.action.value,
+        note=audit.note,
+        created_at=audit.created_at,
+    )
+
+
+def report_post(
+    session: Session,
+    *,
+    user: User,
+    post_id: UUID,
+    payload: CommunityReportCreate,
+) -> CommunityReportResponse:
+    post = _get_visible_post(session, post_id, user)
+    report = CommunityReport(
+        reporter_id=user.id,
+        target_type=CommunityReportTargetType.POST,
+        post_id=post.id,
+        reason=payload.reason,
+        detail=payload.detail,
+    )
+    session.add(report)
+    session.add(CommunityAuditLog(
+        actor_id=user.id,
+        target_type=CommunityReportTargetType.POST,
+        post_id=post.id,
+        action=CommunityAuditAction.REPORT_POST,
+        note=payload.reason,
+    ))
+    session.commit()
+    session.refresh(report)
+    return _report_response(report)
+
+
+def report_comment(
+    session: Session,
+    *,
+    user: User,
+    comment_id: UUID,
+    payload: CommunityReportCreate,
+) -> CommunityReportResponse:
+    comment = _get_visible_comment(session, comment_id, user)
+    if comment.moderation_status is not CommunityModerationStatus.APPROVED:
+        raise _comment_not_found()
+    report = CommunityReport(
+        reporter_id=user.id,
+        target_type=CommunityReportTargetType.COMMENT,
+        post_id=comment.post_id,
+        comment_id=comment.id,
+        reason=payload.reason,
+        detail=payload.detail,
+    )
+    session.add(report)
+    session.add(CommunityAuditLog(
+        actor_id=user.id,
+        target_type=CommunityReportTargetType.COMMENT,
+        post_id=comment.post_id,
+        comment_id=comment.id,
+        action=CommunityAuditAction.REPORT_COMMENT,
+        note=payload.reason,
+    ))
+    session.commit()
+    session.refresh(report)
+    return _report_response(report)
+
+
+def list_reports(session: Session, *, limit: int = 100) -> CommunityReportListResponse:
+    reports = session.exec(
+        select(CommunityReport)
+        .order_by(col(CommunityReport.created_at).desc(), col(CommunityReport.id).desc())
+        .limit(limit)
+    ).all()
+    return CommunityReportListResponse(items=[_report_response(report) for report in reports])
+
+
+def _moderation_action(
+    *,
+    target_type: CommunityReportTargetType,
+    status: CommunityModerationStatus,
+) -> CommunityAuditAction:
+    if target_type is CommunityReportTargetType.POST:
+        if status is CommunityModerationStatus.APPROVED:
+            return CommunityAuditAction.APPROVE_POST
+        if status is CommunityModerationStatus.HIDDEN:
+            return CommunityAuditAction.HIDE_POST
+        return CommunityAuditAction.REJECT_POST
+    if status is CommunityModerationStatus.APPROVED:
+        return CommunityAuditAction.APPROVE_COMMENT
+    if status is CommunityModerationStatus.HIDDEN:
+        return CommunityAuditAction.HIDE_COMMENT
+    return CommunityAuditAction.REJECT_COMMENT
+
+
+def moderate_post(
+    session: Session,
+    *,
+    admin: User,
+    post_id: UUID,
+    payload: CommunityModerationRequest,
+) -> CommunityPostResponse:
+    post = session.get(CommunityPost, post_id)
+    if post is None:
+        raise _moderation_not_found()
+    status = CommunityModerationStatus(payload.status)
+    post.moderation_status = status
+    post.moderation_note = payload.note
+    post.updated_at = utc_now()
+    session.add(post)
+    now = utc_now()
+    for report in session.exec(
+        select(CommunityReport)
+        .where(CommunityReport.target_type == CommunityReportTargetType.POST)
+        .where(CommunityReport.post_id == post.id)
+        .where(CommunityReport.status == CommunityReportStatus.OPEN)
+    ).all():
+        report.status = CommunityReportStatus.RESOLVED
+        report.resolved_at = now
+        report.resolved_by = admin.id
+        session.add(report)
+    session.add(CommunityAuditLog(
+        actor_id=admin.id,
+        target_type=CommunityReportTargetType.POST,
+        post_id=post.id,
+        action=_moderation_action(target_type=CommunityReportTargetType.POST, status=status),
+        note=payload.note,
+    ))
+    session.commit()
+    session.refresh(post)
+    return _post_response(session, post, user=admin, include_comments=True)
+
+
+def moderate_comment(
+    session: Session,
+    *,
+    admin: User,
+    comment_id: UUID,
+    payload: CommunityModerationRequest,
+) -> CommunityCommentResponse:
+    comment = session.get(CommunityComment, comment_id)
+    if comment is None:
+        raise _moderation_not_found()
+    status = CommunityModerationStatus(payload.status)
+    comment.moderation_status = status
+    comment.moderation_note = payload.note
+    session.add(comment)
+    now = utc_now()
+    for report in session.exec(
+        select(CommunityReport)
+        .where(CommunityReport.target_type == CommunityReportTargetType.COMMENT)
+        .where(CommunityReport.comment_id == comment.id)
+        .where(CommunityReport.status == CommunityReportStatus.OPEN)
+    ).all():
+        report.status = CommunityReportStatus.RESOLVED
+        report.resolved_at = now
+        report.resolved_by = admin.id
+        session.add(report)
+    session.add(CommunityAuditLog(
+        actor_id=admin.id,
+        target_type=CommunityReportTargetType.COMMENT,
+        post_id=comment.post_id,
+        comment_id=comment.id,
+        action=_moderation_action(target_type=CommunityReportTargetType.COMMENT, status=status),
+        note=payload.note,
+    ))
+    session.commit()
+    session.refresh(comment)
+    return _comment_response(session, comment, user=admin)
+
+
+def list_audit_logs(
+    session: Session,
+    *,
+    post_id: UUID | None = None,
+    comment_id: UUID | None = None,
+    limit: int = 100,
+) -> CommunityAuditLogListResponse:
+    statement = select(CommunityAuditLog)
+    if post_id is not None:
+        statement = statement.where(CommunityAuditLog.post_id == post_id)
+    if comment_id is not None:
+        statement = statement.where(CommunityAuditLog.comment_id == comment_id)
+    logs = session.exec(
+        statement.order_by(col(CommunityAuditLog.created_at), col(CommunityAuditLog.id)).limit(limit)
+    ).all()
+    return CommunityAuditLogListResponse(items=[_audit_response(log) for log in logs])
 
 
 def like_comment(session: Session, *, user: User, comment_id: UUID) -> CommunityCommentResponse:

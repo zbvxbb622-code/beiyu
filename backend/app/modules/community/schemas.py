@@ -8,6 +8,9 @@ from app.schemas.base import ApiModel
 
 FeedCategory = Literal["recommended", "following", "nearby"]
 PostVisibility = Literal["public", "private"]
+ModerationStatus = Literal["approved", "hidden", "rejected"]
+ReportTargetType = Literal["post", "comment"]
+ReportStatus = Literal["open", "resolved"]
 
 
 class CommunityPostImage(ApiModel):
@@ -35,6 +38,7 @@ class CommunityCommentResponse(ApiModel):
     date: str
     likes: int = Field(ge=0)
     liked_by_me: bool = False
+    moderation_status: ModerationStatus = "approved"
     created_at: datetime
 
 
@@ -56,6 +60,7 @@ class CommunityPostResponse(ApiModel):
     topics: list[str] = Field(default_factory=list)
     visibility: PostVisibility = "public"
     allow_comments: bool = True
+    moderation_status: ModerationStatus = "approved"
     created_at: datetime
 
 
@@ -93,3 +98,62 @@ class CommunityPostCreate(ApiModel):
 class CommunityCommentCreate(ApiModel):
     text: str = Field(min_length=1, max_length=1000)
     parent_comment_id: UUID | None = None
+
+
+class CommunityReportCreate(ApiModel):
+    reason: str = Field(min_length=1, max_length=40)
+    detail: str = Field(default="", max_length=1000)
+
+    @field_validator("reason")
+    @classmethod
+    def strip_reason(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("reason cannot be blank")
+        return stripped
+
+    @field_validator("detail")
+    @classmethod
+    def strip_detail(cls, value: str) -> str:
+        return value.strip()
+
+
+class CommunityReportResponse(ApiModel):
+    id: str
+    reporter_id: str
+    target_type: ReportTargetType
+    post_id: str | None = None
+    comment_id: str | None = None
+    reason: str
+    detail: str
+    status: ReportStatus
+    created_at: datetime
+
+
+class CommunityReportListResponse(ApiModel):
+    items: list[CommunityReportResponse]
+
+
+class CommunityModerationRequest(ApiModel):
+    status: ModerationStatus
+    note: str = Field(default="", max_length=500)
+
+    @field_validator("note")
+    @classmethod
+    def strip_note(cls, value: str) -> str:
+        return value.strip()
+
+
+class CommunityAuditLogResponse(ApiModel):
+    id: str
+    actor_id: str
+    target_type: ReportTargetType
+    post_id: str | None = None
+    comment_id: str | None = None
+    action: str
+    note: str
+    created_at: datetime
+
+
+class CommunityAuditLogListResponse(ApiModel):
+    items: list[CommunityAuditLogResponse]

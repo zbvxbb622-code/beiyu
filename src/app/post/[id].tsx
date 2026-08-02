@@ -15,7 +15,15 @@ import { getPostImages, resolvePostImageSource } from '@/utils/postImages';
 
 export default function CommunityPostDetailScreen() {
   const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
-  const { interactionState, togglePostLike, toggleCommentLike, toggleAuthorFollow, addPostComment } = useMixology();
+  const {
+    interactionState,
+    togglePostLike,
+    toggleCommentLike,
+    toggleAuthorFollow,
+    addPostComment,
+    reportPost,
+    reportComment,
+  } = useMixology();
   const { width } = useWindowDimensions();
   const post = getCommunityPostById(String(id), interactionState.localCommunityPosts);
   const [draft, setDraft] = useState('');
@@ -83,6 +91,24 @@ export default function CommunityPostDetailScreen() {
     }
   };
 
+  const handleReportPost = async () => {
+    try {
+      await reportPost(post.id);
+      Alert.alert('已提交举报', '我们会尽快审核这条内容。');
+    } catch (error) {
+      Alert.alert('举报失败', error instanceof Error ? error.message : '请稍后重试');
+    }
+  };
+
+  const handleReportComment = async (commentId: string) => {
+    try {
+      await reportComment(post.id, commentId);
+      Alert.alert('已提交举报', '我们会尽快审核这条评论。');
+    } catch (error) {
+      Alert.alert('举报失败', error instanceof Error ? error.message : '请稍后重试');
+    }
+  };
+
   const renderComment = (comment: CommunityComment, replies: CommunityComment[] = [], isReply = false) => {
     const likedComment = comment.likedByMe === true;
     const likeCountLabel = comment.likes ?? 0;
@@ -101,6 +127,13 @@ export default function CommunityPostDetailScreen() {
                 hitSlop={8}
                 style={({ pressed }) => pressed ? styles.pressed : null}>
                 <Text style={styles.commentActionText}>{replies.length ? `回复 ${replies.length}` : '回复'}</Text>
+              </Pressable>
+              <Pressable
+                testID={`community-comment-report-${comment.id}`}
+                onPress={() => handleReportComment(comment.id)}
+                hitSlop={8}
+                style={({ pressed }) => pressed ? styles.pressed : null}>
+                <Text style={styles.commentActionText}>举报</Text>
               </Pressable>
             </View>
             <Pressable
@@ -176,7 +209,16 @@ export default function CommunityPostDetailScreen() {
             ))}
           </View>
         ) : null}
-        <Text style={styles.date}>{post.date}</Text>
+        <View style={styles.postMetaRow}>
+          <Text style={styles.date}>{post.date}</Text>
+          <Pressable
+            testID="community-post-report-button"
+            onPress={handleReportPost}
+            hitSlop={8}
+            style={({ pressed }) => pressed ? styles.pressed : null}>
+            <Text style={styles.reportText}>举报</Text>
+          </Pressable>
+        </View>
         <Text style={styles.commentsTitle}>{commentsEnabled ? `共${comments.length}条评论` : '作者已关闭评论'}</Text>
         {commentsEnabled
           ? rootComments.map((comment) => renderComment(comment, repliesByParent[comment.id] ?? []))
@@ -317,7 +359,18 @@ const styles = StyleSheet.create({
   date: {
     color: colors.textMuted,
     fontSize: 13,
+  },
+  postMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
     marginTop: 12,
+  },
+  reportText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '700',
   },
   commentsTitle: {
     color: colors.text,

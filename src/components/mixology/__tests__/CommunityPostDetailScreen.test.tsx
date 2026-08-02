@@ -25,6 +25,8 @@ const mockRouterPush = jest.fn();
 const mockRouterReplace = jest.fn();
 const mockAddPostComment = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
 const mockToggleCommentLike = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+const mockReportPost = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+const mockReportComment = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
 let mockSearchParams = { id: 'test-post' } as { id: string; from?: string };
 
 jest.mock('expo-router', () => ({
@@ -56,6 +58,8 @@ jest.mock('@/state/MixologyState', () => ({
     toggleAuthorFollow: jest.fn(),
     addPostComment: mockAddPostComment,
     toggleCommentLike: mockToggleCommentLike,
+    reportPost: mockReportPost,
+    reportComment: mockReportComment,
   }),
 }));
 
@@ -67,6 +71,8 @@ describe('CommunityPostDetailScreen', () => {
     mockSearchParams = { id: 'test-post' };
     mockAddPostComment.mockResolvedValue(undefined);
     mockToggleCommentLike.mockResolvedValue(undefined);
+    mockReportPost.mockResolvedValue(undefined);
+    mockReportComment.mockResolvedValue(undefined);
     jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
   });
 
@@ -160,6 +166,39 @@ describe('CommunityPostDetailScreen', () => {
 
     expect(likeContentStyle.flexDirection).toBe('row');
     expect(likeContentStyle.alignItems).toBe('center');
+  });
+
+  it('lets users report a post from the detail screen', async () => {
+    const screen = await render(<CommunityPostDetailScreen />);
+
+    await fireEvent.press(screen.getByTestId('community-post-report-button'));
+
+    await waitFor(() => {
+      expect(mockReportPost).toHaveBeenCalledWith('test-post');
+    });
+    expect(Alert.alert).toHaveBeenCalledWith('已提交举报', '我们会尽快审核这条内容。');
+  });
+
+  it('lets users report comments', async () => {
+    post.comments = [
+      {
+        id: 'comment-1',
+        authorName: '测试账号',
+        authorAvatarKey: 'avatarOne',
+        text: '这杯我喜欢',
+        date: '2026-08-02',
+        likes: 2,
+        likedByMe: false,
+      },
+    ];
+    const screen = await render(<CommunityPostDetailScreen />);
+
+    await fireEvent.press(screen.getByTestId('community-comment-report-comment-1'));
+
+    await waitFor(() => {
+      expect(mockReportComment).toHaveBeenCalledWith('test-post', 'comment-1');
+    });
+    expect(Alert.alert).toHaveBeenCalledWith('已提交举报', '我们会尽快审核这条评论。');
   });
 
   it('shows a recoverable alert when sending a comment fails', async () => {

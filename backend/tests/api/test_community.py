@@ -1,8 +1,40 @@
 from sqlmodel import Session, select
 from starlette.testclient import TestClient
 
-from app.db.models import User, UserStatus
+from app.db.models import User, UserRole, UserStatus
 from tests.api.test_auth_sessions import bearer, create_login
+
+
+def create_login_for(
+    client: TestClient,
+    *,
+    phone: str,
+    installation_id: str,
+) -> dict:
+    code_response = client.post(
+        "/api/v1/auth/sms-codes",
+        json={
+            "phone": phone,
+            "scene": "LOGIN",
+            "installationId": installation_id,
+        },
+    )
+    assert code_response.status_code == 202
+    response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "phone": phone,
+            "code": "123456",
+            "device": {
+                "installationId": installation_id,
+                "platform": "IOS",
+                "deviceName": "Admin iPhone",
+                "appVersion": "1.0.0",
+            },
+        },
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
 
 
 def test_user_can_create_public_post_and_comment(
@@ -356,3 +388,132 @@ def test_deleted_user_posts_are_not_listed(
     listed = database_client.get("/api/v1/community/posts", headers=headers)
 
     assert listed.status_code == 401
+
+
+def test_user_can_report_post_and_comment_for_admin_review(
+    database_client: TestClient,
+    database_session: Session,
+) -> None:
+    login = create_login(database_client)
+    headers = bearer(login["accessToken"])
+    created = database_client.post(
+        "/api/v1/community/posts",
+        headers=headers,
+        json={"title": "需要举报的笔记", "body": "这条内容用于验证举报链路。"},
+    )
+    assert created.status_code == 201, created.text
+    post_id = created.json()["id"]
+    comment = database_client.post(
+        f"/api/v1/community/posts/{post_id}/comments",
+        headers=headers,
+        json={"text": "需要举报的评论"},
+    )
+    assert comment.status_code == 201, comment.text
+    comment_id = comment.json()["id"]
+
+    reported_post = database_client.post(
+        f"/api/v1/community/posts/{post_id}/reports",
+        headers=headers,
+        json={"reason": "spam", "detail": "重复刷屏"},
+    )
+    reported_comment = database_client.post(
+        f"/api/v1/community/comments/{comment_id}/reports",
+        headers=headers,
+        json={"reason": "harassment"},
+    )
+
+    assert reported_post.status_code == 201, reported_post.text
+    assert reported_post.json()["targetType"] == "post"
+    assert reported_post.json()["status"] == "open"
+    assert reported_comment.status_code == 201, reported_comment.text
+    assert reported_comment.json()["targetType"] == "comment"
+    admin_login = create_login_for(database_client, phone="13800000902", installation_id="admin-reports-device")
+    admin_user = database_session.exec(select(User).where(User.id == admin_login["user"]["id"])).one()
+    admin_user.role = UserRole.EDITOR
+    database_session.add(admin_user)
+    database_session.commit()
+    reports = database_client.get(
+        "/api/v1/admin/community/reports",
+        headers=bearer(admin_login["accessToken"]),
+    )
+    assert reports.status_code == 200, reports.text
+    assert [item["targetType"] for item in reports.json()["items"]] == ["comment", "post"]
+
+
+def test_report_reason_cannot_be_blank(database_client: TestClient) -> None:
+    login = create_login_for(database_client, phone="13800000903", installation_id="community-report-blank-device")
+    headers = bearer(login["accessToken"])
+    created = database_client.post(
+        "/api/v1/community/posts",
+        headers=headers,
+        json={"title": "空举报原因笔记", "body": "这条内容用于验证举报原因校验。"},
+    )
+    assert created.status_code == 201, created.text
+    post_id = created.json()["id"]
+
+    response = database_client.post(
+        f"/api/v1/community/posts/{post_id}/reports",
+        headers=headers,
+        json={"reason": "   "},
+    )
+
+    assert response.status_code == 422
+
+
+def test_admin_can_hide_and_restore_reported_post_with_audit_log(
+    database_client: TestClient,
+    database_session: Session,
+) -> None:
+    author_login = create_login(database_client)
+    author_headers = bearer(author_login["accessToken"])
+    created = database_client.post(
+        "/api/v1/community/posts",
+        headers=author_headers,
+        json={"title": "待审核笔记", "body": "管理员可以隐藏和恢复。"},
+    )
+    assert created.status_code == 201, created.text
+    post_id = created.json()["id"]
+
+    admin_login = create_login_for(database_client, phone="13800000901", installation_id="admin-review-device")
+    admin_user = database_session.exec(select(User).where(User.id == admin_login["user"]["id"])).one()
+    admin_user.role = UserRole.EDITOR
+    database_session.add(admin_user)
+    database_session.commit()
+    admin_headers = bearer(admin_login["accessToken"])
+
+    forbidden = database_client.patch(
+        f"/api/v1/admin/community/posts/{post_id}/moderation",
+        headers=author_headers,
+        json={"status": "hidden", "note": "普通用户不应能审核"},
+    )
+    assert forbidden.status_code == 403
+
+    hidden = database_client.patch(
+        f"/api/v1/admin/community/posts/{post_id}/moderation",
+        headers=admin_headers,
+        json={"status": "hidden", "note": "违规内容下架"},
+    )
+    assert hidden.status_code == 200, hidden.text
+    assert hidden.json()["moderationStatus"] == "hidden"
+
+    listed = database_client.get("/api/v1/community/posts", headers=author_headers)
+    assert listed.status_code == 200
+    assert all(item["id"] != post_id for item in listed.json()["items"])
+    detail = database_client.get(f"/api/v1/community/posts/{post_id}", headers=author_headers)
+    assert detail.status_code == 404
+
+    restored = database_client.patch(
+        f"/api/v1/admin/community/posts/{post_id}/moderation",
+        headers=admin_headers,
+        json={"status": "approved", "note": "复核恢复"},
+    )
+    assert restored.status_code == 200, restored.text
+    assert restored.json()["moderationStatus"] == "approved"
+    assert database_client.get(f"/api/v1/community/posts/{post_id}", headers=author_headers).status_code == 200
+
+    audit = database_client.get(
+        f"/api/v1/admin/community/posts/{post_id}/audit-log",
+        headers=admin_headers,
+    )
+    assert audit.status_code == 200, audit.text
+    assert [item["action"] for item in audit.json()["items"]] == ["hide_post", "approve_post"]

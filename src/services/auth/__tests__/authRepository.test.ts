@@ -305,4 +305,49 @@ describe('AuthRepository', () => {
       expect.anything()
     );
   });
+
+  it('reports community posts and comments through the authenticated client', async () => {
+    const report = {
+      id: 'report-1',
+      reporterId: 'user-1',
+      targetType: 'post',
+      postId: 'post-1',
+      reason: 'spam',
+      detail: '重复内容',
+      status: 'open',
+      createdAt: '2026-08-02T00:00:00.000Z',
+    };
+    const requestMock = jest.fn<() => Promise<unknown>>()
+      .mockResolvedValueOnce(report)
+      .mockResolvedValueOnce({ ...report, id: 'report-2', targetType: 'comment', commentId: 'comment-1' });
+    const request = requestMock as unknown as AuthenticatedClient['request'];
+    const repository = createRepository(jest.fn<FetchLike>(), { request });
+
+    await expect(repository.reportCommunityPost('post-1', { reason: 'spam', detail: '重复内容' })).resolves.toEqual(report);
+    await expect(repository.reportCommunityComment('comment-1', { reason: 'harassment' })).resolves.toEqual({
+      ...report,
+      id: 'report-2',
+      targetType: 'comment',
+      commentId: 'comment-1',
+    });
+
+    expect(requestMock).toHaveBeenNthCalledWith(
+      1,
+      '/community/posts/post-1/reports',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ reason: 'spam', detail: '重复内容' }),
+      }),
+      expect.anything()
+    );
+    expect(requestMock).toHaveBeenNthCalledWith(
+      2,
+      '/community/comments/comment-1/reports',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ reason: 'harassment' }),
+      }),
+      expect.anything()
+    );
+  });
 });

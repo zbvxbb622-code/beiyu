@@ -40,6 +40,8 @@ type MixologyContextValue = {
   toggleAuthorFollow: (authorId: string) => Promise<void>;
   toggleCellarCardLike: (cardId: string) => Promise<void>;
   toggleVenueFavorite: (venueId: string) => Promise<void>;
+  reportPost: (postId: string) => Promise<void>;
+  reportComment: (postId: string, commentId: string) => Promise<void>;
   refreshCommunityPosts: () => Promise<void>;
   addPostComment: (postId: string, text: string, parentCommentId?: string) => Promise<CommunityComment>;
   publishPost: (input: PublishPostInput) => Promise<CommunityPost>;
@@ -440,6 +442,37 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
     [updateInteractions]
   );
 
+  const reportPost = useCallback(
+    async (postId: string) => {
+      const expected = captureSession();
+      if (!expected) {
+        throw new Error('请先登录后举报');
+      }
+      const remotePost = interactionStateRef.current.localCommunityPosts.find((post) => post.id === postId);
+      if (remotePost?.likedByMe === undefined) {
+        throw new Error('这条内容暂不支持举报');
+      }
+      await repository.reportCommunityPost(postId, { reason: 'inappropriate' });
+    },
+    [captureSession, repository]
+  );
+
+  const reportComment = useCallback(
+    async (postId: string, commentId: string) => {
+      const expected = captureSession();
+      if (!expected) {
+        throw new Error('请先登录后举报');
+      }
+      const remotePost = interactionStateRef.current.localCommunityPosts.find((post) => post.id === postId);
+      const remoteComment = remotePost?.comments.find((comment) => comment.id === commentId);
+      if (remotePost?.likedByMe === undefined || !remoteComment) {
+        throw new Error('这条评论暂不支持举报');
+      }
+      await repository.reportCommunityComment(commentId, { reason: 'inappropriate' });
+    },
+    [captureSession, repository]
+  );
+
   const toggleCellarCardLike = useCallback(
     async (cardId: string) => {
       await updateInteractions((state) => ({
@@ -755,6 +788,8 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       toggleAuthorFollow,
       toggleCellarCardLike,
       toggleVenueFavorite,
+      reportPost,
+      reportComment,
       refreshCommunityPosts,
       addPostComment,
       publishPost,
@@ -792,6 +827,8 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       toggleAuthorFollow,
       toggleCellarCardLike,
       toggleVenueFavorite,
+      reportPost,
+      reportComment,
       refreshCommunityPosts,
       addPostComment,
       publishPost,

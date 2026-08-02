@@ -71,6 +71,7 @@ export type AppContentRoute =
   | '/cellar';
 
 export type FeedCategory = 'recommended' | 'following' | 'nearby';
+export type ModerationStatus = 'approved' | 'hidden' | 'rejected';
 
 export type CommunityComment = {
   id: string;
@@ -81,6 +82,7 @@ export type CommunityComment = {
   date: string;
   likes?: number;
   likedByMe?: boolean;
+  moderationStatus?: ModerationStatus;
 };
 
 // 笔记图片：asset = 内置图库 key；uri = 相册上传的本地 uri
@@ -113,6 +115,19 @@ export type CommunityPost = {
   visibility?: PostVisibility;
   // 缺省视为 true
   allowComments?: boolean;
+  moderationStatus?: ModerationStatus;
+};
+
+export type CommunityReport = {
+  id: string;
+  reporterId: string;
+  targetType: 'post' | 'comment';
+  postId?: string;
+  commentId?: string;
+  reason: string;
+  detail: string;
+  status: 'open' | 'resolved';
+  createdAt: string;
 };
 
 // 发布页草稿（本地持久化）

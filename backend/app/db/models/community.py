@@ -20,6 +20,33 @@ class CommunityPostVisibility(StrEnum):
     PRIVATE = "private"
 
 
+class CommunityModerationStatus(StrEnum):
+    APPROVED = "approved"
+    HIDDEN = "hidden"
+    REJECTED = "rejected"
+
+
+class CommunityReportTargetType(StrEnum):
+    POST = "post"
+    COMMENT = "comment"
+
+
+class CommunityReportStatus(StrEnum):
+    OPEN = "open"
+    RESOLVED = "resolved"
+
+
+class CommunityAuditAction(StrEnum):
+    REPORT_POST = "report_post"
+    REPORT_COMMENT = "report_comment"
+    APPROVE_POST = "approve_post"
+    HIDE_POST = "hide_post"
+    REJECT_POST = "reject_post"
+    APPROVE_COMMENT = "approve_comment"
+    HIDE_COMMENT = "hide_comment"
+    REJECT_COMMENT = "reject_comment"
+
+
 class CommunityPost(SQLModel, table=True):
     __tablename__ = "community_posts"
 
@@ -61,6 +88,19 @@ class CommunityPost(SQLModel, table=True):
     )
     allow_comments: bool = True
     like_count: int = Field(default=0, ge=0)
+    moderation_status: CommunityModerationStatus = Field(
+        default=CommunityModerationStatus.APPROVED,
+        sa_column=Column(
+            Enum(
+                CommunityModerationStatus,
+                name="community_moderation_status",
+                values_callable=lambda enum: [item.value for item in enum],
+            ),
+            nullable=False,
+            index=True,
+        ),
+    )
+    moderation_note: str = Field(default="", max_length=500)
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
@@ -96,6 +136,19 @@ class CommunityComment(SQLModel, table=True):
     )
     text: str = Field(sa_column=Column(Text(), nullable=False))
     like_count: int = Field(default=0, ge=0)
+    moderation_status: CommunityModerationStatus = Field(
+        default=CommunityModerationStatus.APPROVED,
+        sa_column=Column(
+            Enum(
+                CommunityModerationStatus,
+                name="community_moderation_status",
+                values_callable=lambda enum: [item.value for item in enum],
+            ),
+            nullable=False,
+            index=True,
+        ),
+    )
+    moderation_note: str = Field(default="", max_length=500)
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
@@ -146,3 +199,73 @@ class CommunityCommentLike(SQLModel, table=True):
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
     )
+
+
+class CommunityReport(SQLModel, table=True):
+    __tablename__ = "community_reports"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    reporter_id: uuid.UUID = Field(foreign_key="users.id", ondelete="CASCADE", index=True)
+    target_type: CommunityReportTargetType = Field(
+        sa_column=Column(
+            Enum(
+                CommunityReportTargetType,
+                name="community_report_target_type",
+                values_callable=lambda enum: [item.value for item in enum],
+            ),
+            nullable=False,
+            index=True,
+        ),
+    )
+    post_id: uuid.UUID | None = Field(default=None, foreign_key="community_posts.id", ondelete="CASCADE", index=True)
+    comment_id: uuid.UUID | None = Field(default=None, foreign_key="community_comments.id", ondelete="CASCADE", index=True)
+    reason: str = Field(max_length=40)
+    detail: str = Field(default="", sa_column=Column(Text(), nullable=False))
+    status: CommunityReportStatus = Field(
+        default=CommunityReportStatus.OPEN,
+        sa_column=Column(
+            Enum(
+                CommunityReportStatus,
+                name="community_report_status",
+                values_callable=lambda enum: [item.value for item in enum],
+            ),
+            nullable=False,
+            index=True,
+        ),
+    )
+    created_at: datetime = Field(default_factory=utc_now, sa_column=Column(DateTime(timezone=True), nullable=False, index=True))
+    resolved_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
+    resolved_by: uuid.UUID | None = Field(default=None, foreign_key="users.id", ondelete="SET NULL")
+
+
+class CommunityAuditLog(SQLModel, table=True):
+    __tablename__ = "community_audit_logs"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    actor_id: uuid.UUID = Field(foreign_key="users.id", ondelete="CASCADE", index=True)
+    target_type: CommunityReportTargetType = Field(
+        sa_column=Column(
+            Enum(
+                CommunityReportTargetType,
+                name="community_report_target_type",
+                values_callable=lambda enum: [item.value for item in enum],
+            ),
+            nullable=False,
+            index=True,
+        ),
+    )
+    post_id: uuid.UUID | None = Field(default=None, foreign_key="community_posts.id", ondelete="CASCADE", index=True)
+    comment_id: uuid.UUID | None = Field(default=None, foreign_key="community_comments.id", ondelete="CASCADE", index=True)
+    action: CommunityAuditAction = Field(
+        sa_column=Column(
+            Enum(
+                CommunityAuditAction,
+                name="community_audit_action",
+                values_callable=lambda enum: [item.value for item in enum],
+            ),
+            nullable=False,
+            index=True,
+        ),
+    )
+    note: str = Field(default="", sa_column=Column(Text(), nullable=False))
+    created_at: datetime = Field(default_factory=utc_now, sa_column=Column(DateTime(timezone=True), nullable=False, index=True))

@@ -25,6 +25,8 @@ const mockRepository = {
   deleteCommunityPost: jest.fn<AuthRepository['deleteCommunityPost']>(),
   likeCommunityComment: jest.fn<AuthRepository['likeCommunityComment']>(),
   unlikeCommunityComment: jest.fn<AuthRepository['unlikeCommunityComment']>(),
+  reportCommunityPost: jest.fn<AuthRepository['reportCommunityPost']>(),
+  reportCommunityComment: jest.fn<AuthRepository['reportCommunityComment']>(),
 };
 let mockAuthSnapshot: {
   status: 'signedOut' | 'signedIn';
@@ -597,5 +599,80 @@ describe('MixologyProvider', () => {
 
     expect(mockRepository.deleteCommunityPost).toHaveBeenCalledWith('remote-post-delete');
     expect(currentValue?.interactionState.localCommunityPosts).toEqual([]);
+  });
+
+  it('reports signed-in community posts and comments through the backend', async () => {
+    const remoteComment = {
+      id: 'remote-comment-report',
+      authorName: '杯语用户',
+      authorAvatarKey: 'avatarOne',
+      text: '待举报评论',
+      date: '2026-08-02',
+      likes: 0,
+      likedByMe: false,
+    };
+    const remotePost = {
+      id: 'remote-post-report',
+      category: 'recommended' as const,
+      title: '待举报笔记',
+      authorId: bootstrap.user.id,
+      authorName: bootstrap.profile.nickname,
+      authorAvatarKey: bootstrap.profile.avatarKey,
+      imageKey: 'communityGrid',
+      body: '举报应写入后端。',
+      date: '2026-08-02',
+      likes: 0,
+      likedByMe: false,
+      comments: [remoteComment],
+      images: [{ id: 'cover', kind: 'asset' as const, assetKey: 'communityGrid' }],
+      topics: ['调酒'],
+      visibility: 'public' as const,
+      allowComments: true,
+    };
+    mockAuthSnapshot = { status: 'signedIn', repository: mockRepository };
+    mockRepository.listCommunityPosts.mockResolvedValueOnce({ items: [remotePost] });
+    mockRepository.reportCommunityPost.mockResolvedValueOnce({
+      id: 'report-post-1',
+      reporterId: bootstrap.user.id,
+      targetType: 'post',
+      postId: 'remote-post-report',
+      reason: 'inappropriate',
+      detail: '',
+      status: 'open',
+      createdAt: '2026-08-02T00:00:00.000Z',
+    });
+    mockRepository.reportCommunityComment.mockResolvedValueOnce({
+      id: 'report-comment-1',
+      reporterId: bootstrap.user.id,
+      targetType: 'comment',
+      commentId: 'remote-comment-report',
+      reason: 'inappropriate',
+      detail: '',
+      status: 'open',
+      createdAt: '2026-08-02T00:00:00.000Z',
+    });
+    const screen = await render(<MixologyProvider><Probe /></MixologyProvider>);
+    await screen.findByText('hydrated');
+    await waitFor(() => expect(currentValue?.interactionState.localCommunityPosts).toEqual([remotePost]));
+
+    await act(async () => {
+      await currentValue!.reportPost('remote-post-report');
+      await currentValue!.reportComment('remote-post-report', 'remote-comment-report');
+    });
+
+    expect(mockRepository.reportCommunityPost).toHaveBeenCalledWith('remote-post-report', { reason: 'inappropriate' });
+    expect(mockRepository.reportCommunityComment).toHaveBeenCalledWith('remote-comment-report', { reason: 'inappropriate' });
+  });
+
+  it('rejects reports before sign-in', async () => {
+    const screen = await render(<MixologyProvider><Probe /></MixologyProvider>);
+    await screen.findByText('hydrated');
+
+    await act(async () => {
+      await expect(currentValue!.reportPost('local-post')).rejects.toThrow('请先登录后举报');
+      await expect(currentValue!.reportComment('local-post', 'local-comment')).rejects.toThrow('请先登录后举报');
+    });
+    expect(mockRepository.reportCommunityPost).not.toHaveBeenCalled();
+    expect(mockRepository.reportCommunityComment).not.toHaveBeenCalled();
   });
 });

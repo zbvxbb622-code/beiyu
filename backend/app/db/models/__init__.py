@@ -27,12 +27,18 @@ from app.db.models.ai import (
 )
 from app.db.models.cellar import CellarItem, CellarItemSource
 from app.db.models.community import (
+    CommunityAuditAction,
+    CommunityAuditLog,
     CommunityComment,
     CommunityCommentLike,
     CommunityFeedCategory,
+    CommunityModerationStatus,
     CommunityPost,
     CommunityPostLike,
     CommunityPostVisibility,
+    CommunityReport,
+    CommunityReportStatus,
+    CommunityReportTargetType,
 )
 from app.db.models.content import (
     Bar,
@@ -72,12 +78,18 @@ __all__ = [
     "ContentStatus",
     "ContentType",
     "ContentVersion",
+    "CommunityAuditAction",
+    "CommunityAuditLog",
     "CommunityComment",
     "CommunityCommentLike",
     "CommunityFeedCategory",
+    "CommunityModerationStatus",
     "CommunityPost",
     "CommunityPostLike",
     "CommunityPostVisibility",
+    "CommunityReport",
+    "CommunityReportStatus",
+    "CommunityReportTargetType",
     "DevicePlatform",
     "DrinkKnowledgeEntry",
     "HomeBanner",

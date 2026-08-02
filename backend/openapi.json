@@ -2331,6 +2331,87 @@
         "title": "CocktailIngredientResponse",
         "type": "object"
       },
+      "CommunityAuditLogListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CommunityAuditLogResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "CommunityAuditLogListResponse",
+        "type": "object"
+      },
+      "CommunityAuditLogResponse": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "actorId": {
+            "title": "Actorid",
+            "type": "string"
+          },
+          "commentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commentid"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "postId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postid"
+          },
+          "targetType": {
+            "enum": [
+              "post",
+              "comment"
+            ],
+            "title": "Targettype",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "actorId",
+          "targetType",
+          "action",
+          "note",
+          "createdAt"
+        ],
+        "title": "CommunityAuditLogResponse",
+        "type": "object"
+      },
       "CommunityCommentCreate": {
         "properties": {
           "parentCommentId": {
@@ -2395,6 +2476,16 @@
             "title": "Likes",
             "type": "integer"
           },
+          "moderationStatus": {
+            "default": "approved",
+            "enum": [
+              "approved",
+              "hidden",
+              "rejected"
+            ],
+            "title": "Moderationstatus",
+            "type": "string"
+          },
           "parentCommentId": {
             "anyOf": [
               {
@@ -2432,6 +2523,30 @@
         ],
         "title": "CommunityFeedCategory",
         "type": "string"
+      },
+      "CommunityModerationRequest": {
+        "properties": {
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "approved",
+              "hidden",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "CommunityModerationRequest",
+        "type": "object"
       },
       "CommunityPostCreate": {
         "properties": {
@@ -2658,6 +2773,16 @@
             "title": "Likes",
             "type": "integer"
           },
+          "moderationStatus": {
+            "default": "approved",
+            "enum": [
+              "approved",
+              "hidden",
+              "rejected"
+            ],
+            "title": "Moderationstatus",
+            "type": "string"
+          },
           "title": {
             "title": "Title",
             "type": "string"
@@ -2705,6 +2830,117 @@
           "createdAt"
         ],
         "title": "CommunityPostResponse",
+        "type": "object"
+      },
+      "CommunityReportCreate": {
+        "properties": {
+          "detail": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Detail",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "CommunityReportCreate",
+        "type": "object"
+      },
+      "CommunityReportListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CommunityReportResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "CommunityReportListResponse",
+        "type": "object"
+      },
+      "CommunityReportResponse": {
+        "properties": {
+          "commentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commentid"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "postId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postid"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "reporterId": {
+            "title": "Reporterid",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "resolved"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "targetType": {
+            "enum": [
+              "post",
+              "comment"
+            ],
+            "title": "Targettype",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "reporterId",
+          "targetType",
+          "reason",
+          "detail",
+          "status",
+          "createdAt"
+        ],
+        "title": "CommunityReportResponse",
         "type": "object"
       },
       "ContentVersionListResponse": {
@@ -5887,6 +6123,297 @@
         "tags": [
           "api",
           "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/community/comments/{comment_id}/audit-log": {
+      "get": {
+        "operationId": "comment_audit_log_api_v1_admin_community_comments__comment_id__audit_log_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "comment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Comment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityAuditLogListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Comment Audit Log",
+        "tags": [
+          "api",
+          "admin-community"
+        ]
+      }
+    },
+    "/api/v1/admin/community/comments/{comment_id}/moderation": {
+      "patch": {
+        "operationId": "moderate_community_comment_api_v1_admin_community_comments__comment_id__moderation_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "comment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Comment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommunityModerationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityCommentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Moderate Community Comment",
+        "tags": [
+          "api",
+          "admin-community"
+        ]
+      }
+    },
+    "/api/v1/admin/community/posts/{post_id}/audit-log": {
+      "get": {
+        "operationId": "post_audit_log_api_v1_admin_community_posts__post_id__audit_log_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "post_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Post Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityAuditLogListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Post Audit Log",
+        "tags": [
+          "api",
+          "admin-community"
+        ]
+      }
+    },
+    "/api/v1/admin/community/posts/{post_id}/moderation": {
+      "patch": {
+        "operationId": "moderate_community_post_api_v1_admin_community_posts__post_id__moderation_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "post_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Post Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommunityModerationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityPostResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Moderate Community Post",
+        "tags": [
+          "api",
+          "admin-community"
+        ]
+      }
+    },
+    "/api/v1/admin/community/reports": {
+      "get": {
+        "operationId": "admin_community_reports_api_v1_admin_community_reports_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityReportListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Community Reports",
+        "tags": [
+          "api",
+          "admin-community"
         ]
       }
     },
@@ -9420,6 +9947,65 @@
         ]
       }
     },
+    "/api/v1/community/comments/{comment_id}/reports": {
+      "post": {
+        "operationId": "report_community_comment_api_v1_community_comments__comment_id__reports_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "comment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Comment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommunityReportCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityReportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Report Community Comment",
+        "tags": [
+          "api",
+          "community"
+        ]
+      }
+    },
     "/api/v1/community/posts": {
       "get": {
         "operationId": "community_posts_api_v1_community_posts_get",
@@ -9770,6 +10356,65 @@
           }
         ],
         "summary": "Like Community Post",
+        "tags": [
+          "api",
+          "community"
+        ]
+      }
+    },
+    "/api/v1/community/posts/{post_id}/reports": {
+      "post": {
+        "operationId": "report_community_post_api_v1_community_posts__post_id__reports_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "post_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Post Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommunityReportCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityReportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Report Community Post",
         "tags": [
           "api",
           "community"

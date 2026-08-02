@@ -23,9 +23,10 @@ import {
   communityCommentSchema,
   communityPostListSchema,
   communityPostSchema,
+  communityReportSchema,
 } from '@/services/community/communitySchemas';
 import { tokenStore } from '@/services/auth/tokenStore';
-import type { CommunityComment, CommunityPost, FeedCategory, PostImage, PostVisibility } from '@/types/mixology';
+import type { CommunityComment, CommunityPost, CommunityReport, FeedCategory, PostImage, PostVisibility } from '@/types/mixology';
 
 const emptyResponseSchema = z.undefined();
 
@@ -66,6 +67,11 @@ export type CommunityPostCreateInput = {
   venueId?: string;
   visibility?: PostVisibility;
   allowComments?: boolean;
+};
+
+export type CommunityReportInput = {
+  reason: string;
+  detail?: string;
 };
 
 function jsonRequest(method: string, body: unknown): RequestInit {
@@ -288,6 +294,22 @@ export class AuthRepository {
       `/community/comments/${encodeURIComponent(commentId)}/like`,
       { method: 'DELETE' },
       communityCommentSchema
+    );
+  }
+
+  reportCommunityPost(postId: string, input: CommunityReportInput): Promise<CommunityReport> {
+    return this.options.authenticatedClient.request(
+      `/community/posts/${encodeURIComponent(postId)}/reports`,
+      jsonRequest('POST', input),
+      communityReportSchema
+    );
+  }
+
+  reportCommunityComment(commentId: string, input: CommunityReportInput): Promise<CommunityReport> {
+    return this.options.authenticatedClient.request(
+      `/community/comments/${encodeURIComponent(commentId)}/reports`,
+      jsonRequest('POST', input),
+      communityReportSchema
     );
   }
 }

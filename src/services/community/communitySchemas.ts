@@ -27,6 +27,7 @@ export const communityCommentSchema = z.object({
   date: z.string(),
   likes: z.number().int().default(0),
   likedByMe: z.boolean().optional(),
+  moderationStatus: z.enum(['approved', 'hidden', 'rejected']).optional(),
 });
 
 export const communityPostSchema = z.object({
@@ -47,8 +48,21 @@ export const communityPostSchema = z.object({
   topics: z.array(z.string()).optional(),
   visibility: z.enum(['public', 'private']).optional(),
   allowComments: z.boolean().optional(),
+  moderationStatus: z.enum(['approved', 'hidden', 'rejected']).optional(),
 });
 
 export const communityPostListSchema = z.object({
   items: z.array(communityPostSchema),
+});
+
+export const communityReportSchema = z.object({
+  id: z.string(),
+  reporterId: z.string(),
+  targetType: z.enum(['post', 'comment']),
+  postId: optionalStringFromNull,
+  commentId: optionalStringFromNull,
+  reason: z.string(),
+  detail: z.string(),
+  status: z.enum(['open', 'resolved']),
+  createdAt: z.string(),
 });

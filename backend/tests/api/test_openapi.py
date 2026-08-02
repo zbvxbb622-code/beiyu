@@ -50,7 +50,9 @@ def test_openapi_has_exact_stage_three_paths_and_explicit_success_schemas() -> N
         "/api/v1/community/posts/{post_id}",
         "/api/v1/community/posts/{post_id}/comments",
         "/api/v1/community/posts/{post_id}/like",
+        "/api/v1/community/posts/{post_id}/reports",
         "/api/v1/community/comments/{comment_id}/like",
+        "/api/v1/community/comments/{comment_id}/reports",
         "/api/v1/home",
         "/api/v1/ingredients",
         "/api/v1/knowledge",
@@ -68,6 +70,15 @@ def test_openapi_has_exact_stage_three_paths_and_explicit_success_schemas() -> N
         "/health/ready",
     }
     admin_paths = set()
+    admin_paths.update(
+        {
+            "/api/v1/admin/community/reports",
+            "/api/v1/admin/community/posts/{post_id}/moderation",
+            "/api/v1/admin/community/posts/{post_id}/audit-log",
+            "/api/v1/admin/community/comments/{comment_id}/moderation",
+            "/api/v1/admin/community/comments/{comment_id}/audit-log",
+        }
+    )
     for resource in {
         "ingredients",
         "recipes",
@@ -130,8 +141,10 @@ def test_stage_three_contract_uses_bearer_auth_and_camel_case() -> None:
         ("/api/v1/community/posts/{post_id}/comments", "post"),
         ("/api/v1/community/posts/{post_id}/like", "delete"),
         ("/api/v1/community/posts/{post_id}/like", "post"),
+        ("/api/v1/community/posts/{post_id}/reports", "post"),
         ("/api/v1/community/comments/{comment_id}/like", "delete"),
         ("/api/v1/community/comments/{comment_id}/like", "post"),
+        ("/api/v1/community/comments/{comment_id}/reports", "post"),
         ("/api/v1/me/bootstrap", "get"),
         ("/api/v1/me/profile", "patch"),
         ("/api/v1/me/local-sync", "post"),
@@ -151,6 +164,11 @@ def test_stage_three_contract_uses_bearer_auth_and_camel_case() -> None:
         ("/api/v1/admin/recipes", "post"),
         ("/api/v1/admin/bars", "post"),
         ("/api/v1/admin/banners/{public_id}/publish", "post"),
+        ("/api/v1/admin/community/reports", "get"),
+        ("/api/v1/admin/community/posts/{post_id}/moderation", "patch"),
+        ("/api/v1/admin/community/posts/{post_id}/audit-log", "get"),
+        ("/api/v1/admin/community/comments/{comment_id}/moderation", "patch"),
+        ("/api/v1/admin/community/comments/{comment_id}/audit-log", "get"),
     }
     for path, method in protected_operations:
         assert schema["paths"][path][method]["security"] == [{"HTTPBearer": []}]
