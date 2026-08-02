@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { Alert, StyleSheet } from 'react-native';
 
 import CommunityPostDetailScreen from '@/app/post/[id]';
+import { getImageAsset } from '@/data/imageAssets';
 import type { CommunityPost } from '@/types/mixology';
 
 const post: CommunityPost = {
@@ -57,6 +58,7 @@ jest.mock('@/state/MixologyState', () => ({
 describe('CommunityPostDetailScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    post.images = undefined;
     mockAddPostComment.mockResolvedValue(undefined);
     jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
   });
@@ -99,5 +101,19 @@ describe('CommunityPostDetailScreen', () => {
       expect(Alert.alert).toHaveBeenCalledWith('评论失败', 'network failed');
     });
     expect(screen.getByPlaceholderText('说点什么…').props.value).toBe('这家看起来不错');
+  });
+
+  it('falls back to the cover asset when a detail local photo cannot render', async () => {
+    post.images = [{ id: 'local', kind: 'uri', uri: 'file:///tmp/missing-detail.jpg' }];
+    const screen = await render(<CommunityPostDetailScreen />);
+    const image = screen.getByTestId('community-detail-image');
+
+    expect(image.props.source).toEqual({ uri: 'file:///tmp/missing-detail.jpg' });
+
+    fireEvent(image, 'error');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('community-detail-image').props.source).toBe(getImageAsset('barInterior'));
+    });
   });
 });

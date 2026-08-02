@@ -21,7 +21,7 @@ def test_profile_defaults_and_partial_update(
     initial = database_client.get("/api/v1/me/profile", headers=headers)
     assert initial.status_code == 200
     assert initial.json() == {
-        "nickname": "游客调酒师",
+        "nickname": "测试账号",
         "avatarKey": "avatarOne",
         "avatarUri": None,
         "signature": "",
@@ -125,7 +125,7 @@ def test_bootstrap_exposes_mobile_contract_without_internal_secrets(
     assert response.status_code == 200
     body = response.json()
     assert body["user"]["phoneMasked"] == "+86138****8000"
-    assert body["profile"]["nickname"] == "游客调酒师"
+    assert body["profile"]["nickname"] == "测试账号"
     assert body["privacy"]["localOnlyMode"] is True
     assert body["accountSecurity"]["phoneVerified"] is True
     assert body["accountSecurity"]["realnameVerified"] is False

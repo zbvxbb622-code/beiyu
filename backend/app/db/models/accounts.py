@@ -115,7 +115,7 @@ class UserProfile(SQLModel, table=True):
         foreign_key="users.id",
         ondelete="CASCADE",
     )
-    nickname: str = Field(default="游客调酒师", max_length=40)
+    nickname: str = Field(default="测试账号", max_length=40)
     avatar_media_id: uuid.UUID | None = None
     avatar_key: str = Field(default="avatarOne", max_length=80)
     signature: str = Field(default="", max_length=160)

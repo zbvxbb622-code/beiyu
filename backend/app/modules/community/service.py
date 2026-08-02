@@ -164,8 +164,9 @@ def create_post(
     user: User,
     payload: CommunityPostCreate,
 ) -> CommunityPostResponse:
-    images = [image.model_dump(mode="json", by_alias=True) for image in payload.images]
-    image_key = payload.image_key or (payload.images[0].asset_key if payload.images else "barInterior")
+    images = [image.model_dump(mode="json", by_alias=True, exclude_none=True) for image in payload.images]
+    first_asset = next((image.asset_key for image in payload.images if image.kind == "asset" and image.asset_key), None)
+    image_key = payload.image_key or first_asset or "barInterior"
     now = utc_now()
     post = CommunityPost(
         author_id=user.id,

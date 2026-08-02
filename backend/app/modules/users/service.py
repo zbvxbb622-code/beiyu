@@ -254,7 +254,7 @@ def sync_local_state(
             cloud_value = getattr(profile, field_name)
             cloud_is_empty = cloud_value in (None, "")
             if field_name == "nickname":
-                cloud_is_empty = cloud_value == "游客调酒师"
+                cloud_is_empty = cloud_value in {"游客调酒师", "测试账号"}
             if cloud_is_empty and local_value not in (None, ""):
                 setattr(profile, field_name, local_value)
 

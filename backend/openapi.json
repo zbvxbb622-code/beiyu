@@ -2488,10 +2488,17 @@
       "CommunityPostImage": {
         "properties": {
           "assetKey": {
-            "maxLength": 80,
-            "minLength": 1,
-            "title": "Assetkey",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assetkey"
           },
           "id": {
             "maxLength": 120,
@@ -2500,15 +2507,30 @@
             "type": "string"
           },
           "kind": {
-            "const": "asset",
+            "enum": [
+              "asset",
+              "uri"
+            ],
             "title": "Kind",
             "type": "string"
+          },
+          "uri": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uri"
           }
         },
         "required": [
           "id",
-          "kind",
-          "assetKey"
+          "kind"
         ],
         "title": "CommunityPostImage",
         "type": "object"

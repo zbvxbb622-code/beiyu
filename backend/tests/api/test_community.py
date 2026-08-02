@@ -28,7 +28,7 @@ def test_user_can_create_public_post_and_comment(
     assert created.status_code == 201, created.text
     post = created.json()
     assert post["title"] == "今晚这杯金汤力"
-    assert post["authorName"] == "游客调酒师"
+    assert post["authorName"] == "测试账号"
     assert post["comments"] == []
 
     commented = database_client.post(
@@ -50,6 +50,40 @@ def test_user_can_create_public_post_and_comment(
     )
     assert detail.status_code == 200, detail.text
     assert detail.json()["comments"][0]["text"] == "这个配方我也试试"
+
+
+def test_user_can_create_post_with_local_photo_uri(
+    database_client: TestClient,
+) -> None:
+    login = create_login(database_client)
+    headers = bearer(login["accessToken"])
+
+    created = database_client.post(
+        "/api/v1/community/posts",
+        headers=headers,
+        json={
+            "title": "相册图片笔记",
+            "body": "这条笔记来自 iOS 相册选择。",
+            "images": [
+                {
+                    "id": "local-photo-1",
+                    "kind": "uri",
+                    "uri": "file:///var/mobile/Containers/Data/photo.jpg",
+                }
+            ],
+        },
+    )
+
+    assert created.status_code == 201, created.text
+    post = created.json()
+    assert post["imageKey"] == "barInterior"
+    assert post["images"] == [
+        {
+            "id": "local-photo-1",
+            "kind": "uri",
+            "uri": "file:///var/mobile/Containers/Data/photo.jpg",
+        }
+    ]
 
 
 def test_private_post_is_visible_only_to_author(

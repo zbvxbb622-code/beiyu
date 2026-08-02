@@ -1,5 +1,6 @@
 import { type Href, useRouter } from 'expo-router';
 import { Heart } from 'lucide-react-native';
+import { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { getImageAsset } from '@/data/imageAssets';
@@ -23,7 +24,9 @@ export function CommunityPostCard({
   imageWidth?: number;
 }) {
   const router = useRouter();
+  const [coverFailed, setCoverFailed] = useState(false);
   const likeCount = post.likedByMe === undefined ? post.likes + (liked ? 1 : 0) : post.likes;
+  const coverSource = coverFailed ? getImageAsset(post.imageKey) : getPostCoverSource(post);
 
   return (
     <Pressable
@@ -33,8 +36,9 @@ export function CommunityPostCard({
       <View style={styles.mediaFrame}>
         <Image
           testID="community-post-image"
-          source={getPostCoverSource(post)}
+          source={coverSource}
           resizeMode="cover"
+          onError={() => setCoverFailed(true)}
           // 显式数字宽高：Image 的百分比宽度在 Expo 原生端会塌成空白（Web 正常）
           style={[
             styles.image,

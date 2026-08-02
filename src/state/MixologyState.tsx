@@ -485,13 +485,12 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
           : [];
       const expected = captureSession();
       if (expected) {
-        const assetImages = images.filter((image): image is Extract<PostImage, { kind: 'asset' }> => image.kind === 'asset');
         const post = await repository.createCommunityPost({
           title,
           body,
           category: input.category ?? 'recommended',
-          imageKey: input.imageKey ?? deriveCoverImageKey(assetImages),
-          images: assetImages.length ? assetImages : undefined,
+          imageKey: input.imageKey ?? deriveCoverImageKey(images),
+          images: images.length ? images : undefined,
           topics: input.topics?.length ? input.topics : undefined,
           venueId: input.venueId,
           visibility: input.visibility ?? 'public',

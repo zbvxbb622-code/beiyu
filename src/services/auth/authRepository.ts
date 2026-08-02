@@ -61,7 +61,7 @@ export type CommunityPostCreateInput = {
   body: string;
   category: FeedCategory;
   imageKey?: string;
-  images?: Extract<PostImage, { kind: 'asset' }>[];
+  images?: PostImage[];
   topics?: string[];
   venueId?: string;
   visibility?: PostVisibility;

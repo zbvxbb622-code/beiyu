@@ -19,6 +19,7 @@ export default function CommunityPostDetailScreen() {
   const post = getCommunityPostById(String(id), interactionState.localCommunityPosts);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [failedImageIds, setFailedImageIds] = useState<Record<string, true>>({});
   const contentWidth = width - 32;
   const detailImageHeight = Math.min(Math.max(contentWidth * 0.68, 190), 260);
   const galleryImageWidth = Math.min(contentWidth, 300);
@@ -38,6 +39,11 @@ export default function CommunityPostDetailScreen() {
   const followed = interactionState.followedAuthorIds.includes(post.authorId);
   const comments = mergePostComments(post, interactionState.localPostComments);
   const postImages = getPostImages(post);
+  const imageSourceFor = (image: (typeof postImages)[number]) =>
+    failedImageIds[image.id] ? getImageAsset(post.imageKey) : resolvePostImageSource(image);
+  const handleImageError = (imageId: string) => {
+    setFailedImageIds((current) => ({ ...current, [imageId]: true }));
+  };
   const commentsEnabled = post.allowComments !== false;
   const canSendComment = commentsEnabled && draft.trim().length > 0 && !sending;
 
@@ -74,8 +80,9 @@ export default function CommunityPostDetailScreen() {
                 <Image
                   key={image.id}
                   testID={index === 0 ? 'community-detail-image' : `community-detail-image-${index}`}
-                  source={resolvePostImageSource(image)}
+                  source={imageSourceFor(image)}
                   resizeMode="cover"
+                  onError={() => handleImageError(image.id)}
                   style={[styles.galleryImage, { width: galleryImageWidth, height: galleryImageHeight }]}
                 />
               ))}
@@ -87,8 +94,9 @@ export default function CommunityPostDetailScreen() {
         ) : (
           <Image
             testID="community-detail-image"
-            source={resolvePostImageSource(postImages[0])}
+            source={imageSourceFor(postImages[0])}
             resizeMode="cover"
+            onError={() => handleImageError(postImages[0].id)}
             style={[styles.image, { height: detailImageHeight }]}
           />
         )}

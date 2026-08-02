@@ -1,8 +1,9 @@
-import { render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { describe, expect, it, jest } from '@jest/globals';
 import { StyleSheet } from 'react-native';
 
 import { CommunityPostCard } from '@/components/mixology/CommunityPostCard';
+import { getImageAsset } from '@/data/imageAssets';
 import type { CommunityPost } from '@/types/mixology';
 
 jest.mock('expo-router', () => ({
@@ -52,5 +53,24 @@ describe('CommunityPostCard', () => {
 
     expect(cardStyle.width).toBe(160);
     expect(imageStyle.height).toBe(108);
+  });
+
+  it('falls back to the cover asset when a picked local photo cannot render', async () => {
+    const screen = await render(
+      <CommunityPostCard
+        post={{ ...post, images: [{ id: 'local', kind: 'uri', uri: 'file:///tmp/missing.jpg' }] }}
+        liked={false}
+        onToggleLike={jest.fn()}
+      />
+    );
+    const image = screen.getByTestId('community-post-image');
+
+    expect(image.props.source).toEqual({ uri: 'file:///tmp/missing.jpg' });
+
+    fireEvent(image, 'error');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('community-post-image').props.source).toBe(getImageAsset('barInterior'));
+    });
   });
 });

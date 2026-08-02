@@ -27,7 +27,11 @@ router = APIRouter(prefix="/community", tags=["community"])
 SessionDep = Annotated[Session, Depends(get_session)]
 
 
-@router.get("/posts", response_model=CommunityPostListResponse)
+@router.get(
+    "/posts",
+    response_model=CommunityPostListResponse,
+    response_model_exclude_none=True,
+)
 def community_posts(
     auth: CurrentAuth,
     session: SessionDep,
@@ -40,6 +44,7 @@ def community_posts(
 @router.post(
     "/posts",
     response_model=CommunityPostResponse,
+    response_model_exclude_none=True,
     status_code=status.HTTP_201_CREATED,
 )
 def create_community_post(
@@ -50,7 +55,11 @@ def create_community_post(
     return create_post(session, user=auth.user, payload=payload)
 
 
-@router.get("/posts/{post_id}", response_model=CommunityPostResponse)
+@router.get(
+    "/posts/{post_id}",
+    response_model=CommunityPostResponse,
+    response_model_exclude_none=True,
+)
 def community_post_detail(
     post_id: UUID,
     auth: CurrentAuth,
@@ -59,7 +68,11 @@ def community_post_detail(
     return get_post(session, user=auth.user, post_id=post_id)
 
 
-@router.post("/posts/{post_id}/like", response_model=CommunityPostResponse)
+@router.post(
+    "/posts/{post_id}/like",
+    response_model=CommunityPostResponse,
+    response_model_exclude_none=True,
+)
 def like_community_post(
     post_id: UUID,
     auth: CurrentAuth,
@@ -68,7 +81,11 @@ def like_community_post(
     return like_post(session, user=auth.user, post_id=post_id)
 
 
-@router.delete("/posts/{post_id}/like", response_model=CommunityPostResponse)
+@router.delete(
+    "/posts/{post_id}/like",
+    response_model=CommunityPostResponse,
+    response_model_exclude_none=True,
+)
 def unlike_community_post(
     post_id: UUID,
     auth: CurrentAuth,

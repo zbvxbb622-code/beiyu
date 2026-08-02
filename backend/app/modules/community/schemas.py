@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from app.schemas.base import ApiModel
 
@@ -11,8 +11,17 @@ PostVisibility = Literal["public", "private"]
 
 class CommunityPostImage(ApiModel):
     id: str = Field(min_length=1, max_length=120)
-    kind: Literal["asset"]
-    asset_key: str = Field(min_length=1, max_length=80)
+    kind: Literal["asset", "uri"]
+    asset_key: str | None = Field(default=None, min_length=1, max_length=80)
+    uri: str | None = Field(default=None, min_length=1, max_length=2048)
+
+    @model_validator(mode="after")
+    def require_matching_image_value(self) -> "CommunityPostImage":
+        if self.kind == "asset" and not self.asset_key:
+            raise ValueError("asset images require assetKey")
+        if self.kind == "uri" and not self.uri:
+            raise ValueError("uri images require uri")
+        return self
 
 
 class CommunityCommentResponse(ApiModel):

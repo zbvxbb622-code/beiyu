@@ -344,13 +344,63 @@ describe('MixologyProvider', () => {
       body: '这条帖子来自后端。',
       category: 'recommended',
       imageKey: 'communityGrid',
-      images: [{ id: 'cover', kind: 'asset', assetKey: 'communityGrid' }],
+      images: [
+        { id: 'cover', kind: 'asset', assetKey: 'communityGrid' },
+        { id: 'local', kind: 'uri', uri: 'file:///tmp/local.jpg' },
+      ],
       topics: ['调酒'],
+      venueId: undefined,
       visibility: 'public',
       allowComments: true,
     });
     expect(currentValue?.interactionState.localCommunityPosts[0]).toEqual(remotePost);
     await expect(AsyncStorage.getItem('beiyu.interactions')).resolves.toBeNull();
+  });
+
+  it('keeps a picked local photo in signed-in community publish payloads', async () => {
+    const remotePost = {
+      id: 'remote-post-local-photo',
+      category: 'recommended' as const,
+      title: '相册笔记',
+      authorId: bootstrap.user.id,
+      authorName: bootstrap.profile.nickname,
+      authorAvatarKey: bootstrap.profile.avatarKey,
+      imageKey: 'barInterior',
+      body: '这条帖子使用相册图片。',
+      date: '2026-08-02',
+      likes: 0,
+      likedByMe: false,
+      comments: [],
+      images: [{ id: 'local', kind: 'uri' as const, uri: 'file:///tmp/local.jpg' }],
+      topics: [],
+      visibility: 'public' as const,
+      allowComments: true,
+    };
+    mockAuthSnapshot = { status: 'signedIn', repository: mockRepository };
+    mockRepository.createCommunityPost.mockResolvedValueOnce(remotePost);
+    const screen = await render(<MixologyProvider><Probe /></MixologyProvider>);
+    await screen.findByText('hydrated');
+
+    await act(async () => {
+      await currentValue!.publishPost({
+        title: '相册笔记',
+        body: '这条帖子使用相册图片。',
+        images: [{ id: 'local', kind: 'uri', uri: 'file:///tmp/local.jpg' }],
+      });
+    });
+
+    expect(mockRepository.createCommunityPost).toHaveBeenCalledWith({
+      title: '相册笔记',
+      body: '这条帖子使用相册图片。',
+      category: 'recommended',
+      imageKey: 'barInterior',
+      images: [{ id: 'local', kind: 'uri', uri: 'file:///tmp/local.jpg' }],
+      topics: undefined,
+      venueId: undefined,
+      visibility: 'public',
+      allowComments: true,
+    });
+    expect(currentValue?.interactionState.localCommunityPosts[0]).toEqual(remotePost);
   });
 
   it('uses backend comments for signed-in community posts', async () => {

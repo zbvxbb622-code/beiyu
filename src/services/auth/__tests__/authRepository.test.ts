@@ -190,7 +190,10 @@ describe('AuthRepository', () => {
       body: '社区帖子已经走后端。',
       category: 'recommended',
       imageKey: 'communityGrid',
-      images: [{ id: 'cover', kind: 'asset', assetKey: 'communityGrid' }],
+      images: [
+        { id: 'cover', kind: 'asset', assetKey: 'communityGrid' },
+        { id: 'local', kind: 'uri', uri: 'file:///tmp/local.jpg' },
+      ],
       topics: ['调酒'],
       visibility: 'public',
       allowComments: true,
@@ -207,7 +210,10 @@ describe('AuthRepository', () => {
           body: '社区帖子已经走后端。',
           category: 'recommended',
           imageKey: 'communityGrid',
-          images: [{ id: 'cover', kind: 'asset', assetKey: 'communityGrid' }],
+          images: [
+            { id: 'cover', kind: 'asset', assetKey: 'communityGrid' },
+            { id: 'local', kind: 'uri', uri: 'file:///tmp/local.jpg' },
+          ],
           topics: ['调酒'],
           visibility: 'public',
           allowComments: true,
