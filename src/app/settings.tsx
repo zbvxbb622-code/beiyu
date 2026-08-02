@@ -90,6 +90,8 @@ export default function SettingsScreen() {
             <SettingsItem
               icon={<Headphones color={colors.text} size={21} />}
               title="帮助与客服"
+              value="暂未开放"
+              showArrow={false}
               testID="settings-help"
             />
           </SettingsGroup>

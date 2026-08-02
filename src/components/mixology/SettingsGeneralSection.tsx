@@ -14,8 +14,6 @@ export type SettingsGeneralSectionProps = {
 export function SettingsGeneralSection({
   useSystemFont,
   onToggleSystemFont,
-  onPressFontSize,
-  onPressDarkMode,
 }: SettingsGeneralSectionProps) {
   return (
     <View style={styles.root}>
@@ -23,8 +21,7 @@ export function SettingsGeneralSection({
       <View style={styles.group}>
         <SettingsRow
           title="字体大小"
-          onPress={onPressFontSize}
-          showArrow
+          value="暂未开放"
           testID="settings-general-font-size"
         />
         <SettingsRow
@@ -35,8 +32,7 @@ export function SettingsGeneralSection({
         />
         <SettingsRow
           title="深色模式"
-          onPress={onPressDarkMode}
-          showArrow
+          value="暂未开放"
           isLast
           testID="settings-general-dark-mode"
         />
@@ -47,6 +43,7 @@ export function SettingsGeneralSection({
 
 function SettingsRow({
   title,
+  value,
   onPress,
   showArrow = false,
   trailing,
@@ -54,6 +51,7 @@ function SettingsRow({
   testID,
 }: {
   title: string;
+  value?: string;
   onPress?: () => void;
   showArrow?: boolean;
   trailing?: ReactNode;
@@ -69,6 +67,7 @@ function SettingsRow({
     >
       <Text style={styles.rowTitle}>{title}</Text>
       <View style={styles.rowRight}>
+        {value ? <Text style={styles.rowValue}>{value}</Text> : null}
         {trailing}
         {showArrow ? <ChevronRight color={colors.textMuted} size={18} /> : null}
       </View>
@@ -155,6 +154,12 @@ const styles = StyleSheet.create({
   rowRight: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  rowValue: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '500',
+    marginRight: 4,
   },
   toggleTrack: {
     width: 46,

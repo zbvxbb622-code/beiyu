@@ -1,4 +1,4 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import { render } from '@testing-library/react-native';
 import { describe, expect, it, jest } from '@jest/globals';
 
 import { ProfileQuickActions } from '@/components/profile/ProfileQuickActions';
@@ -19,11 +19,10 @@ describe('ProfileQuickActions', () => {
     expect(screen.queryByText('共享酒柜')).toBeNull();
   });
 
-  it('still opens the personal cellar shortcut', async () => {
+  it('does not expose the retired personal cellar shortcut', async () => {
     const screen = await render(<ProfileQuickActions />);
 
-    fireEvent.press(screen.getByTestId('profile-action-private-cellar'));
-
-    expect(mockRouter.push).toHaveBeenCalledWith('/private-cellar');
+    expect(screen.queryByText('我的酒柜')).toBeNull();
+    expect(screen.queryByTestId('profile-action-private-cellar')).toBeNull();
   });
 });

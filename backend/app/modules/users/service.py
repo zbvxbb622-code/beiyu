@@ -3,13 +3,25 @@ from datetime import datetime
 from typing import Any, cast
 
 from sqlalchemy.orm import InstrumentedAttribute
-from sqlmodel import Session, select
+from sqlmodel import Session, delete, select
 
 from app.core.config import Settings
 from app.core.errors import AppError
 from app.db.models import (
+    AiConversation,
+    AiDailyQuota,
+    AiMemory,
+    AiMemorySource,
+    AiMemoryTombstone,
+    AiMessage,
+    AiRequest,
+    AiUsageLog,
     AuthSession,
     CellarItem,
+    CommunityComment,
+    CommunityCommentLike,
+    CommunityPost,
+    CommunityPostLike,
     User,
     UserDevice,
     UserProfile,
@@ -302,9 +314,105 @@ def sync_local_state(
     )
 
 
+def _delete_rows(session: Session, statement: Any) -> None:
+    for row in session.exec(statement).all():
+        session.delete(row)
+
+
+def _clear_account_ai_content(*, session: Session, user: User) -> None:
+    conversations = session.exec(
+        select(AiConversation).where(AiConversation.user_id == user.id)
+    ).all()
+    messages = session.exec(select(AiMessage).where(AiMessage.user_id == user.id)).all()
+    conversation_ids = {conversation.id for conversation in conversations}
+    message_ids = {message.id for message in messages}
+
+    for request in session.exec(select(AiRequest).where(AiRequest.user_id == user.id)).all():
+        request.conversation_id = None
+        request.response_message_id = None
+        session.add(request)
+
+    for usage_log in session.exec(
+        select(AiUsageLog).where(AiUsageLog.user_id == user.id)
+    ).all():
+        usage_log.conversation_id = None
+        session.add(usage_log)
+
+    memory_ids = {
+        memory.id
+        for memory in session.exec(select(AiMemory).where(AiMemory.user_id == user.id)).all()
+    }
+    memory_sources = session.exec(select(AiMemorySource)).all()
+    for source in memory_sources:
+        if (
+            source.memory_id in memory_ids
+            or source.conversation_id in conversation_ids
+            or source.source_message_id in message_ids
+        ):
+            session.delete(source)
+
+    _delete_rows(session, select(AiMemory).where(AiMemory.user_id == user.id))
+    _delete_rows(
+        session,
+        select(AiMemoryTombstone).where(AiMemoryTombstone.user_id == user.id),
+    )
+    _delete_rows(session, select(AiDailyQuota).where(AiDailyQuota.user_id == user.id))
+    session.exec(delete(AiMessage).where(_column(AiMessage.user_id) == user.id))
+    session.exec(delete(AiConversation).where(_column(AiConversation.user_id) == user.id))
+
+
+def _clear_account_community_content(*, session: Session, user: User) -> None:
+    posts = session.exec(select(CommunityPost).where(CommunityPost.author_id == user.id)).all()
+    comments = session.exec(
+        select(CommunityComment).where(CommunityComment.author_id == user.id)
+    ).all()
+    post_ids = {post.id for post in posts}
+    comment_ids = {comment.id for comment in comments}
+
+    if post_ids:
+        for comment in session.exec(select(CommunityComment)).all():
+            if comment.post_id in post_ids:
+                comment_ids.add(comment.id)
+
+    post_likes_by_user = session.exec(
+        select(CommunityPostLike).where(CommunityPostLike.user_id == user.id)
+    ).all()
+    for like in post_likes_by_user:
+        if like.post_id not in post_ids:
+            post = session.get(CommunityPost, like.post_id)
+            if post is not None:
+                post.like_count = max(0, post.like_count - 1)
+                session.add(post)
+
+    comment_likes_by_user = session.exec(
+        select(CommunityCommentLike).where(CommunityCommentLike.user_id == user.id)
+    ).all()
+    for like in comment_likes_by_user:
+        if like.comment_id not in comment_ids:
+            comment = session.get(CommunityComment, like.comment_id)
+            if comment is not None:
+                comment.like_count = max(0, comment.like_count - 1)
+                session.add(comment)
+
+    for like in session.exec(select(CommunityPostLike)).all():
+        if like.user_id == user.id or like.post_id in post_ids:
+            session.delete(like)
+    for like in session.exec(select(CommunityCommentLike)).all():
+        if like.user_id == user.id or like.comment_id in comment_ids:
+            session.delete(like)
+    for comment in session.exec(select(CommunityComment)).all():
+        if comment.author_id == user.id or comment.post_id in post_ids:
+            session.delete(comment)
+    for post in posts:
+        session.delete(post)
+
+
 def delete_account(*, session: Session, user: User) -> None:
     now = utc_now()
     profile = get_user_profile(session, user)
+    _clear_account_ai_content(session=session, user=user)
+    _clear_account_community_content(session=session, user=user)
+
     user.status = UserStatus.DELETED
     user.phone_hash = f"deleted:{uuid.uuid4().hex}"
     user.phone_masked = "已注销"

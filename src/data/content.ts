@@ -266,7 +266,7 @@ export const communityPosts: CommunityPost[] = [
         id: 'comment-4',
         authorName: 'Alice',
         authorAvatarKey: 'avatarOne',
-        text: '这个可以放到私人酒柜里做推荐吗？',
+        text: '这个可以放到每日酒单里做推荐吗？',
         date: '2024-09-20',
       },
     ],

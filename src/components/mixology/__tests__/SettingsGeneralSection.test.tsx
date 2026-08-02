@@ -16,6 +16,7 @@ describe('SettingsGeneralSection', () => {
     expect(screen.getByText('字体大小')).toBeTruthy();
     expect(screen.getByText('使用系统默认字体')).toBeTruthy();
     expect(screen.getByText('深色模式')).toBeTruthy();
+    expect(screen.getAllByText('暂未开放')).toHaveLength(2);
 
     expect(screen.getByTestId('settings-general-font-size')).toBeTruthy();
     expect(screen.getByTestId('settings-general-system-font')).toBeTruthy();
@@ -33,7 +34,7 @@ describe('SettingsGeneralSection', () => {
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
-  it('invokes onPressFontSize and onPressDarkMode for those rows', async () => {
+  it('keeps font size and dark mode unavailable instead of invoking local-only handlers', async () => {
     const onToggle = jest.fn();
     const onFontSize = jest.fn();
     const onDarkMode = jest.fn();
@@ -49,8 +50,8 @@ describe('SettingsGeneralSection', () => {
     await fireEvent.press(screen.getByTestId('settings-general-font-size'));
     await fireEvent.press(screen.getByTestId('settings-general-dark-mode'));
 
-    expect(onFontSize).toHaveBeenCalledTimes(1);
-    expect(onDarkMode).toHaveBeenCalledTimes(1);
+    expect(onFontSize).not.toHaveBeenCalled();
+    expect(onDarkMode).not.toHaveBeenCalled();
     // Toggle handler must NOT fire for the other rows.
     expect(onToggle).not.toHaveBeenCalled();
   });

@@ -7,7 +7,25 @@ from starlette.testclient import TestClient
 
 from app.api.routes import me
 from app.core.config import Settings, get_settings
-from app.db.models import AiDailyQuota, User, UserProfile, UserStatus
+from app.db.models import (
+    AiChatMode,
+    AiConversation,
+    AiDailyQuota,
+    AiMemory,
+    AiMemoryCategory,
+    AiMemorySource,
+    AiMessage,
+    AiMessageRole,
+    AiRequest,
+    AiUsageLog,
+    CommunityComment,
+    CommunityCommentLike,
+    CommunityPost,
+    CommunityPostLike,
+    User,
+    UserProfile,
+    UserStatus,
+)
 from app.modules.users import service as users_service
 from tests.api.test_auth_sessions import bearer, create_login
 
@@ -341,3 +359,89 @@ def test_delete_account_anonymizes_profile_and_revokes_access(
         ).status_code
         == 401
     )
+
+
+def test_delete_account_removes_user_generated_ai_and_community_content(
+    database_client: TestClient,
+    database_session: Session,
+) -> None:
+    login = create_login(database_client)
+    headers = bearer(login["accessToken"])
+    user = database_session.exec(select(User)).one()
+
+    conversation = AiConversation(user_id=user.id, title="注销清理对话")
+    database_session.add(conversation)
+    database_session.flush()
+    message = AiMessage(
+        conversation_id=conversation.id,
+        user_id=user.id,
+        role=AiMessageRole.USER,
+        content="注销后不应保留",
+    )
+    database_session.add(message)
+    database_session.flush()
+    memory = AiMemory(
+        user_id=user.id,
+        category=AiMemoryCategory.DRINK_PREFERENCE,
+        memory_key="delete-account-marker",
+        summary="注销后不应保留的记忆",
+    )
+    request = AiRequest(
+        user_id=user.id,
+        conversation_id=conversation.id,
+        client_message_id=UUID("00000000-0000-4000-8000-000000000001"),
+        mode=AiChatMode.NORMAL,
+        quota_date=date(2026, 8, 2),
+        response_message_id=message.id,
+    )
+    database_session.add(memory)
+    database_session.add(request)
+    database_session.flush()
+    database_session.add(
+        AiMemorySource(
+            memory_id=memory.id,
+            conversation_id=conversation.id,
+            source_message_id=message.id,
+        )
+    )
+    usage_log = AiUsageLog(
+        request_id=request.id,
+        attempt_no=1,
+        user_id=user.id,
+        conversation_id=conversation.id,
+        mode=AiChatMode.NORMAL,
+        outcome="SUCCEEDED",
+        provider="test",
+        model="test-model",
+        prompt_version="test",
+        latency_ms=10,
+    )
+    database_session.add(usage_log)
+
+    post = CommunityPost(author_id=user.id, title="注销清理帖子", body="注销后不应保留")
+    database_session.add(post)
+    database_session.flush()
+    comment = CommunityComment(post_id=post.id, author_id=user.id, text="注销后不应保留")
+    database_session.add(comment)
+    database_session.flush()
+    database_session.add(CommunityPostLike(post_id=post.id, user_id=user.id))
+    database_session.add(CommunityCommentLike(comment_id=comment.id, user_id=user.id))
+    database_session.commit()
+
+    response = database_client.request(
+        "DELETE",
+        "/api/v1/me/account",
+        headers=headers,
+        json={"confirmation": "DELETE"},
+    )
+
+    assert response.status_code == 204
+    assert database_session.exec(select(AiConversation)).all() == []
+    assert database_session.exec(select(AiMessage)).all() == []
+    assert database_session.exec(select(AiMemory)).all() == []
+    assert database_session.exec(select(AiMemorySource)).all() == []
+    assert database_session.exec(select(CommunityPost)).all() == []
+    assert database_session.exec(select(CommunityComment)).all() == []
+    assert database_session.exec(select(CommunityPostLike)).all() == []
+    assert database_session.exec(select(CommunityCommentLike)).all() == []
+    assert database_session.exec(select(AiUsageLog)).one().conversation_id is None

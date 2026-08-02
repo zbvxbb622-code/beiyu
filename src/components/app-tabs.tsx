@@ -93,7 +93,6 @@ export const hiddenTabRouteNames = [
   'terms',
   'privacy',
   'cellar',
-  'private-cellar',
   'cellar-ingredients',
   'recipes',
   'recipe/[id]',

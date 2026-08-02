@@ -1,5 +1,5 @@
 import { Redirect } from 'expo-router';
 
 export default function CellarScreen() {
-  return <Redirect href="/private-cellar" />;
+  return <Redirect href="/profile" />;
 }

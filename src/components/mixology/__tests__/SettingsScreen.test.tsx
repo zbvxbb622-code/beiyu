@@ -37,6 +37,7 @@ describe('SettingsScreen', () => {
 
     // Group 2
     expect(screen.getByText('帮助与客服')).toBeTruthy();
+    expect(screen.getByText('暂未开放')).toBeTruthy();
     expect(screen.getByText('《杯语用户服务协议》《杯语隐私说明》')).toBeTruthy();
     expect(screen.queryByText(/小红书/)).toBeNull();
   });

@@ -20,10 +20,10 @@ jest.mock('@/state/MixologyState', () => ({
 }));
 
 describe('Retired cellar route', () => {
-  it('redirects the old shared cellar route to the personal cellar', async () => {
+  it('redirects retired cellar routes back to profile', async () => {
     const screen = await render(<CellarScreen />);
 
-    expect(screen.getByText('redirect:/private-cellar')).toBeTruthy();
+    expect(screen.getByText('redirect:/profile')).toBeTruthy();
     expect(screen.queryByText('大家的酒柜')).toBeNull();
   });
 });
