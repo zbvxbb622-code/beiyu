@@ -1,0 +1,4 @@
+services:
+  api:
+    image: ${BEIYU_API_IMAGE:-ecs-api:latest}
+    build: null

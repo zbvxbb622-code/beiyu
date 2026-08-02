@@ -62,6 +62,23 @@ docker compose --env-file .env -f deploy/ecs/compose.yml up -d --build
 docker compose --env-file .env -f deploy/ecs/compose.yml ps
 ```
 
+如果服务器拉取基础镜像不稳定，可以先在本地构建并传输镜像：
+
+```bash
+docker buildx build --platform linux/amd64 -t ecs-api:amd64 --load backend
+docker save ecs-api:amd64 postgres:16 | gzip | ssh root@120.26.28.208 'gunzip | docker load'
+ssh root@120.26.28.208 'docker tag ecs-api:amd64 ecs-api:latest'
+```
+
+然后在服务器使用已加载镜像启动：
+
+```bash
+docker compose --env-file .env \
+  -f deploy/ecs/compose.yml \
+  -f deploy/ecs/compose.image.yml \
+  up -d
+```
+
 导入内置内容：
 
 ```bash
