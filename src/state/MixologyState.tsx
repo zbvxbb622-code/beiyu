@@ -43,6 +43,7 @@ type MixologyContextValue = {
   refreshCommunityPosts: () => Promise<void>;
   addPostComment: (postId: string, text: string, parentCommentId?: string) => Promise<CommunityComment>;
   publishPost: (input: PublishPostInput) => Promise<CommunityPost>;
+  deletePost: (postId: string) => Promise<void>;
   addSearchHistory: (query: string) => Promise<void>;
   clearSearchHistory: () => Promise<void>;
   drawBlindBoxCard: () => Promise<BlindBoxCard>;
@@ -580,6 +581,33 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
     [captureSession, commitRemoteCommunityState, isSessionActive, repository, updateInteractions, userProfile]
   );
 
+  const removePostFromInteractionState = useCallback((postId: string) => (state: LocalInteractionState): LocalInteractionState => {
+    const { [postId]: _removedComments, ...localPostComments } = state.localPostComments;
+    return {
+      ...state,
+      likedPostIds: state.likedPostIds.filter((id) => id !== postId),
+      localCommunityPosts: state.localCommunityPosts.filter((post) => post.id !== postId),
+      localPostComments,
+    };
+  }, []);
+
+  const deletePost = useCallback(
+    async (postId: string) => {
+      const expected = captureSession();
+      const remotePost = expected
+        ? interactionStateRef.current.localCommunityPosts.find((post) => post.id === postId)
+        : undefined;
+      if (expected && remotePost?.likedByMe !== undefined) {
+        await repository.deleteCommunityPost(postId);
+        if (!isSessionActive(expected)) return;
+        commitRemoteCommunityState(removePostFromInteractionState(postId));
+        return;
+      }
+      await updateInteractions(removePostFromInteractionState(postId));
+    },
+    [captureSession, commitRemoteCommunityState, isSessionActive, removePostFromInteractionState, repository, updateInteractions]
+  );
+
   const addSearchHistory = useCallback(
     async (query: string) => {
       const q = query.trim();
@@ -730,6 +758,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       refreshCommunityPosts,
       addPostComment,
       publishPost,
+      deletePost,
       addSearchHistory,
       clearSearchHistory,
       drawBlindBoxCard,
@@ -766,6 +795,7 @@ export function MixologyProvider({ children }: { children: ReactNode }) {
       refreshCommunityPosts,
       addPostComment,
       publishPost,
+      deletePost,
       addSearchHistory,
       clearSearchHistory,
       drawBlindBoxCard,

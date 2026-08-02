@@ -183,6 +183,14 @@ def get_post(session: Session, *, user: User, post_id: UUID) -> CommunityPostRes
     return _post_response(session, post, user=user, include_comments=True)
 
 
+def delete_post(session: Session, *, user: User, post_id: UUID) -> None:
+    post = session.get(CommunityPost, post_id)
+    if post is None or post.author_id != user.id:
+        raise _not_found()
+    session.delete(post)
+    session.commit()
+
+
 def create_post(
     session: Session,
     *,

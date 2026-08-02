@@ -1,14 +1,16 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
-import { describe, expect, it, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { StyleSheet } from 'react-native';
 
 import { CommunityPostCard } from '@/components/mixology/CommunityPostCard';
 import { getImageAsset } from '@/data/imageAssets';
 import type { CommunityPost } from '@/types/mixology';
 
+const mockRouterPush = jest.fn();
+
 jest.mock('expo-router', () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: mockRouterPush,
   }),
 }));
 
@@ -27,6 +29,10 @@ const post: CommunityPost = {
 };
 
 describe('CommunityPostCard', () => {
+  beforeEach(() => {
+    mockRouterPush.mockClear();
+  });
+
   it('renders as a Xiaohongshu-style independent feed card', async () => {
     const screen = await render(<CommunityPostCard post={post} liked={false} onToggleLike={jest.fn()} />);
 
@@ -72,5 +78,15 @@ describe('CommunityPostCard', () => {
     await waitFor(() => {
       expect(screen.getByTestId('community-post-image').props.source).toBe(getImageAsset('barInterior'));
     });
+  });
+
+  it('keeps the like button independent from opening the post detail', async () => {
+    const onToggleLike = jest.fn();
+    const screen = await render(<CommunityPostCard post={post} liked={false} onToggleLike={onToggleLike} />);
+
+    await fireEvent.press(screen.getByTestId('community-post-like-button'));
+
+    expect(onToggleLike).toHaveBeenCalledTimes(1);
+    expect(mockRouterPush).not.toHaveBeenCalled();
   });
 });

@@ -291,4 +291,18 @@ describe('AuthRepository', () => {
       expect.anything()
     );
   });
+
+  it('deletes community posts through the authenticated client', async () => {
+    const requestMock = jest.fn<() => Promise<unknown>>().mockResolvedValueOnce(undefined);
+    const request = requestMock as unknown as AuthenticatedClient['request'];
+    const repository = createRepository(jest.fn<FetchLike>(), { request });
+
+    await expect(repository.deleteCommunityPost('post-1')).resolves.toBeUndefined();
+
+    expect(requestMock).toHaveBeenCalledWith(
+      '/community/posts/post-1',
+      { method: 'DELETE' },
+      expect.anything()
+    );
+  });
 });

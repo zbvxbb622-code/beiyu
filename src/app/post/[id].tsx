@@ -14,7 +14,7 @@ import type { CommunityComment } from '@/types/mixology';
 import { getPostImages, resolvePostImageSource } from '@/utils/postImages';
 
 export default function CommunityPostDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
   const { interactionState, togglePostLike, toggleCommentLike, toggleAuthorFollow, addPostComment } = useMixology();
   const { width } = useWindowDimensions();
   const post = getCommunityPostById(String(id), interactionState.localCommunityPosts);
@@ -107,7 +107,7 @@ export default function CommunityPostDetailScreen() {
               hitSlop={8}
               style={({ pressed }) => [styles.commentLike, pressed ? styles.pressed : null]}>
               <Heart color={colors.pink} fill={likedComment ? colors.pink : 'transparent'} size={15} strokeWidth={2.4} />
-              <Text style={styles.commentActionText}>{likeCountLabel}</Text>
+              <Text style={styles.commentActionText} numberOfLines={1}>{likeCountLabel}</Text>
             </Pressable>
           </View>
           {replies.length ? (
@@ -122,7 +122,7 @@ export default function CommunityPostDetailScreen() {
 
   return (
     <ScreenShell>
-      <TopBar title="详情" backHref="/community" />
+      <TopBar title="详情" backHref={from === 'profile' ? '/profile' : '/community'} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.authorRow}>
           <Image source={getImageAsset(post.authorAvatarKey)} style={styles.avatar} />
@@ -373,6 +373,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flexShrink: 0,
+    minWidth: 28,
   },
   replies: {
     marginTop: 4,

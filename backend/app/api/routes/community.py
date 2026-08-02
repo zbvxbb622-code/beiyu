@@ -17,6 +17,7 @@ from app.modules.community.schemas import (
 from app.modules.community.service import (
     add_comment,
     create_post,
+    delete_post,
     get_post,
     like_comment,
     like_post,
@@ -68,6 +69,18 @@ def community_post_detail(
     session: SessionDep,
 ) -> CommunityPostResponse:
     return get_post(session, user=auth.user, post_id=post_id)
+
+
+@router.delete(
+    "/posts/{post_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_community_post(
+    post_id: UUID,
+    auth: CurrentAuth,
+    session: SessionDep,
+) -> None:
+    delete_post(session, user=auth.user, post_id=post_id)
 
 
 @router.post(

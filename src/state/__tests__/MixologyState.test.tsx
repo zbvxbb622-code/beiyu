@@ -22,6 +22,7 @@ const mockRepository = {
   addCommunityComment: jest.fn<AuthRepository['addCommunityComment']>(),
   likeCommunityPost: jest.fn<AuthRepository['likeCommunityPost']>(),
   unlikeCommunityPost: jest.fn<AuthRepository['unlikeCommunityPost']>(),
+  deleteCommunityPost: jest.fn<AuthRepository['deleteCommunityPost']>(),
   likeCommunityComment: jest.fn<AuthRepository['likeCommunityComment']>(),
   unlikeCommunityComment: jest.fn<AuthRepository['unlikeCommunityComment']>(),
 };
@@ -562,5 +563,39 @@ describe('MixologyProvider', () => {
 
     expect(mockRepository.unlikeCommunityComment).toHaveBeenCalledWith('remote-comment-like');
     expect(currentValue?.interactionState.localCommunityPosts[0].comments[0]).toMatchObject({ likes: 0, likedByMe: false });
+  });
+
+  it('deletes signed-in community posts from the backend cache', async () => {
+    const remotePost = {
+      id: 'remote-post-delete',
+      category: 'recommended' as const,
+      title: '待删除笔记',
+      authorId: bootstrap.user.id,
+      authorName: bootstrap.profile.nickname,
+      authorAvatarKey: bootstrap.profile.avatarKey,
+      imageKey: 'communityGrid',
+      body: '删除应写入后端。',
+      date: '2026-08-02',
+      likes: 0,
+      likedByMe: false,
+      comments: [{ id: 'remote-comment-delete', authorName: '杯语用户', authorAvatarKey: 'avatarOne', text: '会一起删除', date: '2026-08-02', likes: 0 }],
+      images: [{ id: 'cover', kind: 'asset' as const, assetKey: 'communityGrid' }],
+      topics: ['调酒'],
+      visibility: 'public' as const,
+      allowComments: true,
+    };
+    mockAuthSnapshot = { status: 'signedIn', repository: mockRepository };
+    mockRepository.listCommunityPosts.mockResolvedValueOnce({ items: [remotePost] });
+    mockRepository.deleteCommunityPost.mockResolvedValueOnce(undefined);
+    const screen = await render(<MixologyProvider><Probe /></MixologyProvider>);
+    await screen.findByText('hydrated');
+    await waitFor(() => expect(currentValue?.interactionState.localCommunityPosts).toEqual([remotePost]));
+
+    await act(async () => {
+      await currentValue!.deletePost('remote-post-delete');
+    });
+
+    expect(mockRepository.deleteCommunityPost).toHaveBeenCalledWith('remote-post-delete');
+    expect(currentValue?.interactionState.localCommunityPosts).toEqual([]);
   });
 });

@@ -267,6 +267,14 @@ export class AuthRepository {
     );
   }
 
+  deleteCommunityPost(postId: string): Promise<void> {
+    return this.options.authenticatedClient.request(
+      `/community/posts/${encodeURIComponent(postId)}`,
+      { method: 'DELETE' },
+      emptyResponseSchema
+    );
+  }
+
   likeCommunityComment(commentId: string): Promise<CommunityComment> {
     return this.options.authenticatedClient.request(
       `/community/comments/${encodeURIComponent(commentId)}/like`,

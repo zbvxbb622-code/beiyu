@@ -1,11 +1,13 @@
 import { type Href, useRouter } from 'expo-router';
+import { Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
-import { getImageAsset } from '@/data/imageAssets';
+import { ContentImage } from '@/components/content/ContentImage';
 import { colors, radii, spacing } from '@/styles/mixologyTheme';
 import type { BarVenue, CommunityPost, LocalInteractionState } from '@/types/mixology';
 import { getCompactFeedImageHeight, splitMasonryColumns } from '@/utils/communityFeedLayout';
+import { getPostCoverSource } from '@/utils/postImages';
 import { getFavoriteVenues, getLikedPosts, getMyPosts } from '@/utils/profileFeed';
 
 type TabId = 'posts' | 'favorites' | 'liked';
@@ -16,7 +18,13 @@ const tabs: { id: TabId; label: string }[] = [
   { id: 'liked', label: '赞过' },
 ];
 
-export function ProfileTabs({ interactionState }: { interactionState: LocalInteractionState }) {
+export function ProfileTabs({
+  interactionState,
+  onDeletePost,
+}: {
+  interactionState: LocalInteractionState;
+  onDeletePost?: (postId: string) => Promise<void>;
+}) {
   const [activeTab, setActiveTab] = useState<TabId>('posts');
   const { width } = useWindowDimensions();
   const cardWidth = Math.floor((width - spacing.pageX * 2 - 10) / 2);
@@ -40,7 +48,15 @@ export function ProfileTabs({ interactionState }: { interactionState: LocalInter
       </View>
 
       {activeTab === 'posts' ? (
-        <PostMasonry posts={myPosts} cardWidth={cardWidth} emptyHint="还没有发过笔记" emptyCta="去社区分享第一杯" emptyRoute="/publish-post" />
+        <PostMasonry
+          posts={myPosts}
+          cardWidth={cardWidth}
+          emptyHint="还没有发过笔记"
+          emptyCta="去社区分享第一杯"
+          emptyRoute="/publish-post"
+          source="profile"
+          onDeletePost={onDeletePost}
+        />
       ) : null}
       {activeTab === 'favorites' ? (
         <VenueMasonry venues={favoriteVenues} cardWidth={cardWidth} />
@@ -61,12 +77,16 @@ function PostMasonry({
   emptyHint,
   emptyCta,
   emptyRoute,
+  source,
+  onDeletePost,
 }: {
   posts: CommunityPost[];
   cardWidth: number;
   emptyHint: string;
   emptyCta: string;
   emptyRoute: Href;
+  source?: 'profile';
+  onDeletePost?: (postId: string) => Promise<void>;
 }) {
   const router = useRouter();
 
@@ -75,6 +95,18 @@ function PostMasonry({
   }
 
   const columns = splitMasonryColumns(posts);
+  const confirmDelete = (post: CommunityPost) => {
+    Alert.alert('删除笔记', '删除后这条笔记会从我的主页和社区中移除。', [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '删除',
+        style: 'destructive',
+        onPress: () => {
+          void onDeletePost?.(post.id);
+        },
+      },
+    ]);
+  };
 
   return (
     <View style={styles.masonry}>
@@ -82,14 +114,28 @@ function PostMasonry({
         <View key={columnIndex} style={[styles.column, columnIndex === 0 ? styles.columnMargin : null]}>
           {column.map((post, index) => (
             <Pressable
+              testID={`profile-post-card-${post.id}`}
               key={post.id}
-              onPress={() => router.push({ pathname: '/post/[id]', params: { id: post.id } } as unknown as Href)}
+              onPress={() => router.push({ pathname: '/post/[id]', params: source ? { id: post.id, from: source } : { id: post.id } } as unknown as Href)}
               style={[styles.postCard, index < column.length - 1 ? styles.postCardMargin : null]}
             >
               <Image
-                source={getImageAsset(post.imageKey)}
+                source={getPostCoverSource(post)}
                 style={[styles.postImage, { width: cardWidth, height: getCompactFeedImageHeight(cardWidth, index) }]}
               />
+              {onDeletePost ? (
+                <Pressable
+                  testID={`profile-delete-post-${post.id}`}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    confirmDelete(post);
+                  }}
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.deleteButton, pressed ? styles.pressed : null]}
+                  accessibilityLabel="删除笔记">
+                  <Trash2 color={colors.text} size={15} strokeWidth={2.4} />
+                </Pressable>
+              ) : null}
               <View style={styles.postBody}>
                 <Text style={styles.postTitle} numberOfLines={2}>
                   {post.title}
@@ -123,8 +169,10 @@ function VenueMasonry({ venues, cardWidth }: { venues: BarVenue[]; cardWidth: nu
               onPress={() => router.push({ pathname: '/bar/[id]', params: { id: venue.id } } as unknown as Href)}
               style={[styles.postCard, index < column.length - 1 ? styles.postCardMargin : null]}
             >
-              <Image
-                source={getImageAsset(venue.imageKey)}
+              <ContentImage
+                imageKey={venue.imageKey}
+                imageUrl={venue.imageUrl}
+                resizeMode="cover"
                 style={[styles.postImage, { width: cardWidth, height: getCompactFeedImageHeight(cardWidth, index) }]}
               />
               <View style={styles.postBody}>
@@ -198,6 +246,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   postCard: {
+    position: 'relative',
     borderRadius: radii.md,
     overflow: 'hidden',
     backgroundColor: colors.panel,
@@ -209,6 +258,20 @@ const styles = StyleSheet.create({
   },
   postImage: {
     backgroundColor: colors.bgDeep,
+  },
+  deleteButton: {
+    position: 'absolute',
+    right: 8,
+    top: 8,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.56)',
+  },
+  pressed: {
+    opacity: 0.72,
   },
   postBody: {
     padding: 10,

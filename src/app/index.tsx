@@ -3,7 +3,6 @@ import { type Href, useRouter } from 'expo-router';
 import { ChevronRight, Search } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Image,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
@@ -16,10 +15,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ContentImageBackground } from '@/components/content/ContentImage';
+import { ContentImage, ContentImageBackground } from '@/components/content/ContentImage';
 import { HomeShortcutIcon } from '@/components/mixology/HomeShortcutIcon';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
-import { getImageAsset } from '@/data/imageAssets';
 import { bundledContent } from '@/services/content/bundledContent';
 import { useContent } from '@/state/ContentState';
 import { colors, spacing } from '@/styles/mixologyTheme';
@@ -51,12 +49,12 @@ function hashText(value: string) {
 }
 
 export function getDailyMenuRecipes(sourceRecipes: CocktailRecipe[], date = new Date()) {
-  const pool = (sourceRecipes.length >= 4 ? sourceRecipes : bundledContent.recipes)
+  const pool = (sourceRecipes.length >= 6 ? sourceRecipes : bundledContent.recipes)
     .filter((recipe, index, recipes) => recipes.findIndex((item) => item.id === recipe.id) === index);
   const dayKey = beijingDateKey(date);
   return [...pool]
     .sort((left, right) => hashText(`${dayKey}:${left.id}`) - hashText(`${dayKey}:${right.id}`))
-    .slice(0, 4);
+    .slice(0, 6);
 }
 
 export default function HomeScreen() {
@@ -85,6 +83,8 @@ export default function HomeScreen() {
     bottomLeft: dailyMenuRecipes[1],
     bottomMiddle: dailyMenuRecipes[2],
     tall: dailyMenuRecipes[3],
+    extraLeft: dailyMenuRecipes[4],
+    extraRight: dailyMenuRecipes[5],
   };
 
   // 每日酒单：不用 aspectRatio/flex 推算，直接按设计稿像素算死宽高，避免 Expo 原生端高度塌成 0
@@ -100,6 +100,9 @@ export default function HomeScreen() {
   const smallCardWidth = (mosaicLeftWidth - smallCardGap) / 2;
   // 小卡高度由右列总高反推，保证左右两列底部精确对齐
   const smallCardHeight = tallCardHeight - wideCardHeight - mosaicRowGap;
+  const extraCardGap = 8 * s;
+  const extraCardWidth = (contentWidth - extraCardGap) / 2;
+  const extraCardHeight = Math.max(96, extraCardWidth * 0.64);
 
   // Banner 保留自动轮播；首张仍是设计稿整幅烘焙图
   useEffect(() => {
@@ -274,48 +277,70 @@ export default function HomeScreen() {
           </View>
 
           {/* 马赛克：左列 448 + 右列 225，行间距 20px / 列间距 15px */}
-          {recipes.wide && recipes.bottomLeft && recipes.bottomMiddle && recipes.tall ? (
-            <View style={styles.mosaic}>
-              <View style={[styles.mosaicLeft, { width: mosaicLeftWidth, marginRight: mosaicGap }]}>
+          {recipes.wide && recipes.bottomLeft && recipes.bottomMiddle && recipes.tall && recipes.extraLeft && recipes.extraRight ? (
+            <View>
+              <View style={styles.mosaic}>
+                <View style={[styles.mosaicLeft, { width: mosaicLeftWidth, marginRight: mosaicGap }]}>
+                  <Pressable
+                    onPress={() => openRecipe(recipes.wide!)}
+                    style={({ pressed }) => [
+                      styles.mosaicCard,
+                      { width: mosaicLeftWidth, height: wideCardHeight, borderRadius: 8 * s },
+                      pressed ? styles.pressed : null,
+                    ]}>
+                    <MosaicTile recipe={recipes.wide!} width={mosaicLeftWidth} height={wideCardHeight} radius={8 * s} />
+                  </Pressable>
+                  <View style={[styles.mosaicBottomRow, { marginTop: mosaicRowGap }]}>
+                    <Pressable
+                      onPress={() => openRecipe(recipes.bottomLeft!)}
+                      style={({ pressed }) => [
+                        styles.mosaicCard,
+                        { width: smallCardWidth, height: smallCardHeight, borderRadius: 8 * s },
+                        pressed ? styles.pressed : null,
+                      ]}>
+                      <MosaicTile recipe={recipes.bottomLeft!} width={smallCardWidth} height={smallCardHeight} radius={8 * s} compact />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => openRecipe(recipes.bottomMiddle!)}
+                      style={({ pressed }) => [
+                        styles.mosaicCard,
+                        { width: smallCardWidth, height: smallCardHeight, borderRadius: 8 * s, marginLeft: smallCardGap },
+                        pressed ? styles.pressed : null,
+                      ]}>
+                      <MosaicTile recipe={recipes.bottomMiddle!} width={smallCardWidth} height={smallCardHeight} radius={8 * s} compact />
+                    </Pressable>
+                  </View>
+                </View>
                 <Pressable
-                  onPress={() => openRecipe(recipes.wide!)}
+                  onPress={() => openRecipe(recipes.tall!)}
                   style={({ pressed }) => [
                     styles.mosaicCard,
-                    { width: mosaicLeftWidth, height: wideCardHeight, borderRadius: 8 * s },
+                    { width: mosaicRightWidth, height: tallCardHeight, borderRadius: 8 * s },
                     pressed ? styles.pressed : null,
                   ]}>
-                  <MosaicTile recipe={recipes.wide!} width={mosaicLeftWidth} height={wideCardHeight} radius={8 * s} />
+                  <MosaicTile recipe={recipes.tall!} width={mosaicRightWidth} height={tallCardHeight} radius={8 * s} />
                 </Pressable>
-                <View style={[styles.mosaicBottomRow, { marginTop: mosaicRowGap }]}>
-                  <Pressable
-                    onPress={() => openRecipe(recipes.bottomLeft!)}
-                    style={({ pressed }) => [
-                      styles.mosaicCard,
-                      { width: smallCardWidth, height: smallCardHeight, borderRadius: 8 * s },
-                      pressed ? styles.pressed : null,
-                    ]}>
-                    <MosaicTile recipe={recipes.bottomLeft!} width={smallCardWidth} height={smallCardHeight} radius={8 * s} compact />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => openRecipe(recipes.bottomMiddle!)}
-                    style={({ pressed }) => [
-                      styles.mosaicCard,
-                      { width: smallCardWidth, height: smallCardHeight, borderRadius: 8 * s, marginLeft: smallCardGap },
-                      pressed ? styles.pressed : null,
-                    ]}>
-                    <MosaicTile recipe={recipes.bottomMiddle!} width={smallCardWidth} height={smallCardHeight} radius={8 * s} compact />
-                  </Pressable>
-                </View>
               </View>
-              <Pressable
-                onPress={() => openRecipe(recipes.tall!)}
-                style={({ pressed }) => [
-                  styles.mosaicCard,
-                  { width: mosaicRightWidth, height: tallCardHeight, borderRadius: 8 * s },
-                  pressed ? styles.pressed : null,
-                ]}>
-                <MosaicTile recipe={recipes.tall!} width={mosaicRightWidth} height={tallCardHeight} radius={8 * s} />
-              </Pressable>
+              <View style={[styles.extraMenuRow, { marginTop: mosaicRowGap }]}>
+                <Pressable
+                  onPress={() => openRecipe(recipes.extraLeft!)}
+                  style={({ pressed }) => [
+                    styles.mosaicCard,
+                    { width: extraCardWidth, height: extraCardHeight, borderRadius: 8 * s },
+                    pressed ? styles.pressed : null,
+                  ]}>
+                  <MosaicTile recipe={recipes.extraLeft!} width={extraCardWidth} height={extraCardHeight} radius={8 * s} compact />
+                </Pressable>
+                <Pressable
+                  onPress={() => openRecipe(recipes.extraRight!)}
+                  style={({ pressed }) => [
+                    styles.mosaicCard,
+                    { width: extraCardWidth, height: extraCardHeight, borderRadius: 8 * s, marginLeft: extraCardGap },
+                    pressed ? styles.pressed : null,
+                  ]}>
+                  <MosaicTile recipe={recipes.extraRight!} width={extraCardWidth} height={extraCardHeight} radius={8 * s} compact />
+                </Pressable>
+              </View>
             </View>
           ) : null}
         </View>
@@ -338,9 +363,10 @@ function MosaicTile({
   compact?: boolean;
 }) {
   return (
-    <View style={{ width, height, borderRadius: radius, overflow: 'hidden', backgroundColor: '#1c0a11' }}>
-      <Image
-        source={getImageAsset(recipe.imageKey)}
+    <View testID="daily-menu-tile" style={{ width, height, borderRadius: radius, overflow: 'hidden', backgroundColor: '#1c0a11' }}>
+      <ContentImage
+        imageKey={recipe.imageKey}
+        imageUrl={recipe.imageUrl}
         accessibilityLabel={`${recipe.name} ${recipe.englishName}`}
         resizeMode="cover"
         style={{ width, height, borderRadius: radius, backgroundColor: '#1c0a11' }}
@@ -482,6 +508,9 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   mosaicBottomRow: {
+    flexDirection: 'row',
+  },
+  extraMenuRow: {
     flexDirection: 'row',
   },
   mosaicCard: {

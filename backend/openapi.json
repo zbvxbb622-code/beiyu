@@ -9533,6 +9533,46 @@
       }
     },
     "/api/v1/community/posts/{post_id}": {
+      "delete": {
+        "operationId": "delete_community_post_api_v1_community_posts__post_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "post_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Post Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Community Post",
+        "tags": [
+          "api",
+          "community"
+        ]
+      },
       "get": {
         "operationId": "community_post_detail_api_v1_community_posts__post_id__get",
         "parameters": [

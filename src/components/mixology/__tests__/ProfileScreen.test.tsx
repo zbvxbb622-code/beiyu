@@ -1,5 +1,6 @@
 import { fireEvent, render } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { Alert } from 'react-native';
 
 import ProfileScreen from '@/app/profile';
 
@@ -7,6 +8,8 @@ const mockRouter = {
   push: jest.fn(),
 };
 let mockAuthStatus = 'signedOut';
+const mockDeletePost = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+let mockLocalCommunityPosts: unknown[] = [];
 
 jest.mock('expo-router', () => ({
   useRouter: () => mockRouter,
@@ -34,7 +37,7 @@ jest.mock('@/state/MixologyState', () => ({
       followedAuthorIds: ['a1', 'a2'],
       likedCellarCardIds: ['c1'],
       favoriteVenueIds: ['amor-fati'],
-      localCommunityPosts: [],
+      localCommunityPosts: mockLocalCommunityPosts,
       localPostComments: {},
       searchHistory: [],
       lastDrawDate: null,
@@ -49,13 +52,20 @@ jest.mock('@/state/MixologyState', () => ({
     },
     updatePrivacySettings: jest.fn(),
     resetLocalState: jest.fn(),
+    deletePost: mockDeletePost,
   }),
 }));
 
 describe('ProfileScreen', () => {
   beforeEach(() => {
     mockAuthStatus = 'signedOut';
+    mockLocalCommunityPosts = [];
+    mockDeletePost.mockClear();
+    mockDeletePost.mockResolvedValue(undefined);
     mockRouter.push.mockClear();
+    jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+      buttons?.find((button) => button.style === 'destructive')?.onPress?.();
+    });
   });
 
   it('renders the redesigned profile without the retired recommendation block', async () => {
@@ -107,5 +117,55 @@ describe('ProfileScreen', () => {
     await fireEvent.press(screen.getByTestId('profile-settings-button'));
 
     expect(mockRouter.push).toHaveBeenCalledWith('/settings');
+  });
+
+  it('deletes a post from the my posts tab after confirmation', async () => {
+    mockLocalCommunityPosts = [
+      {
+        id: 'my-post-1',
+        category: 'recommended',
+        title: '我的第一篇笔记',
+        authorId: 'user-1',
+        authorName: '霓虹酒保',
+        authorAvatarKey: 'avatarTwo',
+        imageKey: 'mojito',
+        body: '测试删除',
+        date: '2026-08-02',
+        likes: 0,
+        comments: [],
+      },
+    ];
+    const screen = await render(<ProfileScreen />);
+
+    await fireEvent.press(screen.getByTestId('profile-delete-post-my-post-1'));
+
+    expect(Alert.alert).toHaveBeenCalledWith('删除笔记', '删除后这条笔记会从我的主页和社区中移除。', expect.any(Array));
+    expect(mockDeletePost).toHaveBeenCalledWith('my-post-1');
+  });
+
+  it('opens my posts with a profile return source', async () => {
+    mockLocalCommunityPosts = [
+      {
+        id: 'my-post-1',
+        category: 'recommended',
+        title: '我的第一篇笔记',
+        authorId: 'user-1',
+        authorName: '霓虹酒保',
+        authorAvatarKey: 'avatarTwo',
+        imageKey: 'mojito',
+        body: '测试返回',
+        date: '2026-08-02',
+        likes: 0,
+        comments: [],
+      },
+    ];
+    const screen = await render(<ProfileScreen />);
+
+    await fireEvent.press(screen.getByTestId('profile-post-card-my-post-1'));
+
+    expect(mockRouter.push).toHaveBeenCalledWith({
+      pathname: '/post/[id]',
+      params: { id: 'my-post-1', from: 'profile' },
+    });
   });
 });

@@ -125,6 +125,7 @@ def test_stage_three_contract_uses_bearer_auth_and_camel_case() -> None:
         ("/api/v1/cellar/items", "post"),
         ("/api/v1/community/posts", "get"),
         ("/api/v1/community/posts", "post"),
+        ("/api/v1/community/posts/{post_id}", "delete"),
         ("/api/v1/community/posts/{post_id}", "get"),
         ("/api/v1/community/posts/{post_id}/comments", "post"),
         ("/api/v1/community/posts/{post_id}/like", "delete"),

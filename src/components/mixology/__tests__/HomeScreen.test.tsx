@@ -150,8 +150,24 @@ describe('HomeScreen', () => {
     const secondLabels = getDailyMenuRecipes(snapshot.recipes, new Date('2026-07-30T10:00:00+08:00'))
       .map((recipe) => `${recipe.name} ${recipe.englishName}`);
 
-    expect(firstLabels).toHaveLength(4);
-    expect(secondLabels).toHaveLength(4);
+    expect(firstLabels).toHaveLength(6);
+    expect(secondLabels).toHaveLength(6);
     expect(firstLabels).not.toEqual(secondLabels);
+  });
+
+  it('renders six daily menu modules to fill the home viewport', async () => {
+    const screen = await render(
+      <SafeAreaProvider
+        initialMetrics={{
+          frame: { x: 0, y: 0, width: 390, height: 844 },
+          insets: { top: 0, bottom: 0, left: 0, right: 0 },
+        }}>
+        <ContentTestProvider>
+          <HomeScreen />
+        </ContentTestProvider>
+      </SafeAreaProvider>
+    );
+
+    expect(screen.getAllByTestId('daily-menu-tile')).toHaveLength(6);
   });
 });

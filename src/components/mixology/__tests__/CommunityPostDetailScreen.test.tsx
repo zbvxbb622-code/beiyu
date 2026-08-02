@@ -22,14 +22,16 @@ const post: CommunityPost = {
 };
 
 const mockRouterPush = jest.fn();
+const mockRouterReplace = jest.fn();
 const mockAddPostComment = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
 const mockToggleCommentLike = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+let mockSearchParams = { id: 'test-post' } as { id: string; from?: string };
 
 jest.mock('expo-router', () => ({
-  useLocalSearchParams: () => ({ id: 'test-post' }),
+  useLocalSearchParams: () => mockSearchParams,
   useRouter: () => ({
     push: mockRouterPush,
-    replace: jest.fn(),
+    replace: mockRouterReplace,
     back: jest.fn(),
   }),
 }));
@@ -62,6 +64,7 @@ describe('CommunityPostDetailScreen', () => {
     jest.clearAllMocks();
     post.images = undefined;
     post.comments = [];
+    mockSearchParams = { id: 'test-post' };
     mockAddPostComment.mockResolvedValue(undefined);
     mockToggleCommentLike.mockResolvedValue(undefined);
     jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
@@ -80,6 +83,15 @@ describe('CommunityPostDetailScreen', () => {
     const screen = await render(<CommunityPostDetailScreen />);
 
     expect(screen.queryByText('查看关联酒吧')).toBeNull();
+  });
+
+  it('returns to profile when the post is opened from my posts', async () => {
+    mockSearchParams = { id: 'test-post', from: 'profile' };
+    const screen = await render(<CommunityPostDetailScreen />);
+
+    await fireEvent.press(screen.getByTestId('topbar-back-button'));
+
+    expect(mockRouterReplace).toHaveBeenCalledWith('/profile');
   });
 
   it('sends a comment from the visible send button', async () => {

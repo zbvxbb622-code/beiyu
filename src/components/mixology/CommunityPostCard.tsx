@@ -1,7 +1,7 @@
 import { type Href, useRouter } from 'expo-router';
 import { Heart } from 'lucide-react-native';
 import { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
 
 import { getImageAsset } from '@/data/imageAssets';
 import { colors } from '@/styles/mixologyTheme';
@@ -27,6 +27,10 @@ export function CommunityPostCard({
   const [coverFailed, setCoverFailed] = useState(false);
   const likeCount = post.likedByMe === undefined ? post.likes + (liked ? 1 : 0) : post.likes;
   const coverSource = coverFailed ? getImageAsset(post.imageKey) : getPostCoverSource(post);
+  const handleLikePress = (event: GestureResponderEvent) => {
+    event.stopPropagation();
+    onToggleLike();
+  };
 
   return (
     <Pressable
@@ -54,7 +58,7 @@ export function CommunityPostCard({
             <Image source={getImageAsset(post.authorAvatarKey)} style={styles.avatar} />
             <Text style={styles.authorName} numberOfLines={1}>{post.authorName}</Text>
           </View>
-          <Pressable onPress={onToggleLike} hitSlop={10} style={styles.like}>
+          <Pressable testID="community-post-like-button" onPress={handleLikePress} hitSlop={10} style={styles.like}>
             <Heart color={liked ? colors.pink : colors.textMuted} fill={liked ? colors.pink : 'transparent'} size={15} />
             <Text style={styles.likeText}>{likeCount}</Text>
           </Pressable>

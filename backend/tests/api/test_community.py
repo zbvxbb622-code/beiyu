@@ -258,6 +258,82 @@ def test_user_can_reply_to_and_like_community_comment(
     assert unliked.json()["likedByMe"] is False
 
 
+def test_author_can_delete_own_community_post(
+    database_client: TestClient,
+) -> None:
+    login = create_login(database_client)
+    headers = bearer(login["accessToken"])
+    created = database_client.post(
+        "/api/v1/community/posts",
+        headers=headers,
+        json={"title": "准备删除的笔记", "body": "删除后不应继续出现在社区。"},
+    )
+    assert created.status_code == 201, created.text
+    post_id = created.json()["id"]
+
+    deleted = database_client.delete(
+        f"/api/v1/community/posts/{post_id}",
+        headers=headers,
+    )
+    assert deleted.status_code == 204, deleted.text
+
+    detail = database_client.get(
+        f"/api/v1/community/posts/{post_id}",
+        headers=headers,
+    )
+    assert detail.status_code == 404
+
+
+def test_user_cannot_delete_another_author_post(
+    database_client: TestClient,
+) -> None:
+    first_login = create_login(database_client)
+    first_headers = bearer(first_login["accessToken"])
+    created = database_client.post(
+        "/api/v1/community/posts",
+        headers=first_headers,
+        json={"title": "别人的笔记", "body": "不能被当前账号删除。"},
+    )
+    assert created.status_code == 201, created.text
+    post_id = created.json()["id"]
+
+    code_response = database_client.post(
+        "/api/v1/auth/sms-codes",
+        json={
+            "phone": "13800000002",
+            "scene": "LOGIN",
+            "installationId": "community-delete-other-device",
+        },
+    )
+    assert code_response.status_code == 202
+    second_login_response = database_client.post(
+        "/api/v1/auth/login",
+        json={
+            "phone": "13800000002",
+            "code": "123456",
+            "device": {
+                "installationId": "community-delete-other-device",
+                "platform": "IOS",
+                "deviceName": "Other iPhone",
+                "appVersion": "1.0.0",
+            },
+        },
+    )
+    assert second_login_response.status_code == 200, second_login_response.text
+    second_login = second_login_response.json()
+    second_headers = bearer(second_login["accessToken"])
+    deleted = database_client.delete(
+        f"/api/v1/community/posts/{post_id}",
+        headers=second_headers,
+    )
+
+    assert deleted.status_code == 404
+    assert database_client.get(
+        f"/api/v1/community/posts/{post_id}",
+        headers=first_headers,
+    ).status_code == 200
+
+
 def test_deleted_user_posts_are_not_listed(
     database_client: TestClient,
     database_session: Session,

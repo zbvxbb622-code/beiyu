@@ -16,7 +16,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
   const { status } = useAuth();
-  const { interactionState, userProfile } = useMixology();
+  const { interactionState, userProfile, deletePost } = useMixology();
   const stats = getProfileStats(interactionState);
 
   return (
@@ -26,7 +26,7 @@ export default function ProfileScreen() {
 
         <View style={styles.body}>
           <MyDrinkCards drawnCards={interactionState.drawnCards} />
-          <ProfileTabs interactionState={interactionState} />
+          <ProfileTabs interactionState={interactionState} onDeletePost={deletePost} />
 
           {status !== 'signedIn' ? (
             <View style={styles.loginRow}>
