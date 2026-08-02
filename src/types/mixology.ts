@@ -88,7 +88,8 @@ export type CommunityComment = {
 // 笔记图片：asset = 内置图库 key；uri = 相册上传的本地 uri
 export type PostImage =
   | { id: string; kind: 'asset'; assetKey: string }
-  | { id: string; kind: 'uri'; uri: string };
+  | { id: string; kind: 'uri'; uri: string }
+  | { id: string; kind: 'remote'; mediaId: string; url: string };
 
 export type PostVisibility = 'public' | 'private';
 

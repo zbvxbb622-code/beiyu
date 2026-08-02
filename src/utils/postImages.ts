@@ -15,6 +15,9 @@ export function resolvePostImageSource(image: PostImage): ImageSourcePropType {
   if (image.kind === 'uri') {
     return { uri: image.uri };
   }
+  if (image.kind === 'remote') {
+    return { uri: image.url };
+  }
   return getImageAsset(image.assetKey);
 }
 

@@ -2658,10 +2658,24 @@
           "kind": {
             "enum": [
               "asset",
-              "uri"
+              "uri",
+              "remote"
             ],
             "title": "Kind",
             "type": "string"
+          },
+          "mediaId": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mediaid"
           },
           "uri": {
             "anyOf": [
@@ -2675,6 +2689,19 @@
               }
             ],
             "title": "Uri"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
           }
         },
         "required": [
@@ -4001,6 +4028,99 @@
           "device"
         ],
         "title": "LoginResponse",
+        "type": "object"
+      },
+      "MediaUploadCreate": {
+        "properties": {
+          "contentType": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Contenttype",
+            "type": "string"
+          },
+          "fileName": {
+            "maxLength": 180,
+            "minLength": 1,
+            "title": "Filename",
+            "type": "string"
+          },
+          "purpose": {
+            "enum": [
+              "community-post-image",
+              "avatar"
+            ],
+            "title": "Purpose",
+            "type": "string"
+          },
+          "sizeBytes": {
+            "exclusiveMinimum": 0.0,
+            "title": "Sizebytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "fileName",
+          "contentType",
+          "sizeBytes",
+          "purpose"
+        ],
+        "title": "MediaUploadCreate",
+        "type": "object"
+      },
+      "MediaUploadResponse": {
+        "properties": {
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Headers",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "maxBytes": {
+            "title": "Maxbytes",
+            "type": "integer"
+          },
+          "method": {
+            "const": "PUT",
+            "default": "PUT",
+            "title": "Method",
+            "type": "string"
+          },
+          "objectKey": {
+            "title": "Objectkey",
+            "type": "string"
+          },
+          "provider": {
+            "enum": [
+              "local",
+              "oss"
+            ],
+            "title": "Provider",
+            "type": "string"
+          },
+          "publicUrl": {
+            "title": "Publicurl",
+            "type": "string"
+          },
+          "uploadUrl": {
+            "title": "Uploadurl",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "provider",
+          "uploadUrl",
+          "publicUrl",
+          "objectKey",
+          "headers",
+          "maxBytes"
+        ],
+        "title": "MediaUploadResponse",
         "type": "object"
       },
       "MembershipLevel": {
@@ -10887,6 +11007,53 @@
         "tags": [
           "api",
           "me"
+        ]
+      }
+    },
+    "/api/v1/media/uploads": {
+      "post": {
+        "operationId": "create_upload_api_v1_media_uploads_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MediaUploadCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaUploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Upload",
+        "tags": [
+          "api",
+          "media"
         ]
       }
     },

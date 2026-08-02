@@ -16,7 +16,24 @@ export const communityPostImageSchema = z.discriminatedUnion('kind', [
     kind: z.literal('uri'),
     uri: z.string(),
   }),
+  z.object({
+    id: z.string(),
+    kind: z.literal('remote'),
+    mediaId: z.string(),
+    url: z.string(),
+  }),
 ]);
+
+export const mediaUploadSessionSchema = z.object({
+  id: z.string(),
+  provider: z.enum(['local', 'oss']),
+  method: z.literal('PUT'),
+  uploadUrl: z.string(),
+  publicUrl: z.string(),
+  objectKey: z.string(),
+  headers: z.record(z.string(), z.string()),
+  maxBytes: z.number().int().positive(),
+});
 
 export const communityCommentSchema = z.object({
   id: z.string(),

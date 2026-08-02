@@ -51,4 +51,36 @@ describe('community schemas', () => {
 
     expect(parsed.moderationStatus).toBe('hidden');
   });
+
+  it('accepts remote media images returned by the backend', () => {
+    const parsed = communityPostSchema.parse({
+      id: 'post-with-media',
+      category: 'recommended',
+      title: '真实上传图片',
+      authorId: 'author-1',
+      authorName: '杯语 Demo',
+      authorAvatarKey: 'avatarOne',
+      imageKey: 'communityGrid',
+      body: '远端图片应该能进入帖子渲染。',
+      date: '2026-08-02',
+      likes: 0,
+      comments: [],
+      images: [
+        {
+          id: 'media-1',
+          kind: 'remote',
+          mediaId: 'upload-1',
+          url: 'https://cdn.example.test/community/upload-1.jpg',
+        },
+      ],
+      createdAt: '2026-08-02T00:00:00.000Z',
+    });
+
+    expect(parsed.images?.[0]).toEqual({
+      id: 'media-1',
+      kind: 'remote',
+      mediaId: 'upload-1',
+      url: 'https://cdn.example.test/community/upload-1.jpg',
+    });
+  });
 });

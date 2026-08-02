@@ -21,6 +21,7 @@ import {
 } from '@/services/auth/authSchemas';
 import {
   communityCommentSchema,
+  mediaUploadSessionSchema,
   communityPostListSchema,
   communityPostSchema,
   communityReportSchema,
@@ -73,6 +74,15 @@ export type CommunityReportInput = {
   reason: string;
   detail?: string;
 };
+
+export type MediaUploadCreateInput = {
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  purpose: 'community-post-image' | 'avatar';
+};
+
+export type MediaUploadSession = z.infer<typeof mediaUploadSessionSchema>;
 
 function jsonRequest(method: string, body: unknown): RequestInit {
   return {
@@ -238,6 +248,14 @@ export class AuthRepository {
       '/community/posts',
       jsonRequest('POST', input),
       communityPostSchema
+    );
+  }
+
+  createMediaUpload(input: MediaUploadCreateInput): Promise<MediaUploadSession> {
+    return this.options.authenticatedClient.request(
+      '/media/uploads',
+      jsonRequest('POST', input),
+      mediaUploadSessionSchema
     );
   }
 

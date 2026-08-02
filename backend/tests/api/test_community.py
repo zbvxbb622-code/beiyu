@@ -118,6 +118,40 @@ def test_user_can_create_post_with_local_photo_uri(
     ]
 
 
+def test_user_can_create_post_with_uploaded_remote_image(
+    database_client: TestClient,
+) -> None:
+    login = create_login(database_client)
+    headers = bearer(login["accessToken"])
+
+    created = database_client.post(
+        "/api/v1/community/posts",
+        headers=headers,
+        json={
+            "title": "OSS 图片笔记",
+            "body": "这条笔记引用对象存储图片。",
+            "images": [
+                {
+                    "id": "media-1",
+                    "kind": "remote",
+                    "mediaId": "upload-1",
+                    "url": "https://cdn.example.test/community/upload-1.jpg",
+                }
+            ],
+        },
+    )
+
+    assert created.status_code == 201, created.text
+    assert created.json()["images"] == [
+        {
+            "id": "media-1",
+            "kind": "remote",
+            "mediaId": "upload-1",
+            "url": "https://cdn.example.test/community/upload-1.jpg",
+        }
+    ]
+
+
 def test_blank_post_title_body_and_comment_are_rejected(
     database_client: TestClient,
 ) -> None:

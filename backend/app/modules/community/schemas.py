@@ -15,9 +15,11 @@ ReportStatus = Literal["open", "resolved"]
 
 class CommunityPostImage(ApiModel):
     id: str = Field(min_length=1, max_length=120)
-    kind: Literal["asset", "uri"]
+    kind: Literal["asset", "uri", "remote"]
     asset_key: str | None = Field(default=None, min_length=1, max_length=80)
     uri: str | None = Field(default=None, min_length=1, max_length=2048)
+    media_id: str | None = Field(default=None, min_length=1, max_length=120)
+    url: str | None = Field(default=None, min_length=1, max_length=2048)
 
     @model_validator(mode="after")
     def require_matching_image_value(self) -> "CommunityPostImage":
@@ -25,6 +27,8 @@ class CommunityPostImage(ApiModel):
             raise ValueError("asset images require assetKey")
         if self.kind == "uri" and not self.uri:
             raise ValueError("uri images require uri")
+        if self.kind == "remote" and (not self.media_id or not self.url):
+            raise ValueError("remote images require mediaId and url")
         return self
 
 

@@ -76,6 +76,11 @@ class AiProvider(StrEnum):
     ALIYUN = "aliyun"
 
 
+class MediaProvider(StrEnum):
+    LOCAL = "local"
+    OSS = "oss"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="BEIYU_", env_file=None)
 
@@ -113,6 +118,13 @@ class Settings(BaseSettings):
     ai_base_url: str | None = None
     ai_api_key: SecretStr | None = None
     ai_memory_hmac_key: SecretStr = SecretStr(DEVELOPMENT_MEMORY_HMAC_KEY)
+    media_provider: MediaProvider = MediaProvider.LOCAL
+    media_upload_max_bytes: int = Field(default=5_242_880, ge=1, le=20_971_520)
+    media_public_base_url: str | None = None
+    media_oss_bucket: str | None = None
+    media_oss_endpoint: str | None = None
+    media_oss_access_key_id: SecretStr | None = None
+    media_oss_access_key_secret: SecretStr | None = None
     cors_allowed_origins: Annotated[tuple[str, ...], NoDecode] = ()
 
     @field_validator("cors_allowed_origins", mode="before")
@@ -150,9 +162,29 @@ class Settings(BaseSettings):
             return value or None
         return value
 
+    @field_validator(
+        "media_public_base_url",
+        "media_oss_bucket",
+        "media_oss_endpoint",
+        mode="before",
+    )
+    @classmethod
+    def normalize_optional_media_text(cls, value: object) -> object:
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+        return value
+
     @field_validator("ai_api_key", mode="before")
     @classmethod
     def normalize_ai_api_key(cls, value: object) -> object:
+        if isinstance(value, SecretStr):
+            value = value.get_secret_value()
+        return value.strip() if isinstance(value, str) else value
+
+    @field_validator("media_oss_access_key_id", "media_oss_access_key_secret", mode="before")
+    @classmethod
+    def normalize_media_secret(cls, value: object) -> object:
         if isinstance(value, SecretStr):
             value = value.get_secret_value()
         return value.strip() if isinstance(value, str) else value
@@ -197,6 +229,24 @@ class Settings(BaseSettings):
                 raise ValueError("aliyun AI provider requires an API key")
             if self.ai_model == DEVELOPMENT_AI_MODEL:
                 raise ValueError("aliyun AI provider requires a configured model")
+        if self.environment is not Environment.DEV and self.media_provider is MediaProvider.LOCAL:
+            raise ValueError("local media provider is only allowed in dev")
+        if self.media_provider is MediaProvider.OSS:
+            media_values = (
+                self.media_public_base_url,
+                self.media_oss_bucket,
+                self.media_oss_endpoint,
+                self.media_oss_access_key_id.get_secret_value().strip()
+                if self.media_oss_access_key_id
+                else None,
+                self.media_oss_access_key_secret.get_secret_value().strip()
+                if self.media_oss_access_key_secret
+                else None,
+            )
+            if any(not value for value in media_values):
+                raise ValueError(
+                    "OSS media provider requires bucket, endpoint, public base URL, and credentials"
+                )
         if self.environment is not Environment.DEV:
             memory_hmac_key = self.ai_memory_hmac_key.get_secret_value()
             secret_key = self.secret_key.strip()

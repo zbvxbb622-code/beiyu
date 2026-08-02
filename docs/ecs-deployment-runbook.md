@@ -6,6 +6,8 @@
 
 当前代码还不能作为完整商用生产环境启动，原因是短信供应商只有 development provider。`prod` / `staging` 会拒绝固定验证码。正式商用前需要先实现真实短信 provider。
 
+图片上传已经有媒体上传会话 API 和 OSS 配置位。当前 ECS Demo 未配置真实 OSS 时使用 `local` provider，只能验证上传会话链路，不能把图片真正保存到对象存储。
+
 ## 服务器要求
 
 - Ubuntu 22.04
@@ -48,6 +50,12 @@ chmod 600 .env
 - `BEIYU_AI_MODEL`
 - `BEIYU_AI_API_KEY`
 - `BEIYU_AI_MEMORY_HMAC_KEY`
+- `BEIYU_MEDIA_PROVIDER`
+- `BEIYU_MEDIA_PUBLIC_BASE_URL`
+- `BEIYU_MEDIA_OSS_BUCKET`
+- `BEIYU_MEDIA_OSS_ENDPOINT`
+- `BEIYU_MEDIA_OSS_ACCESS_KEY_ID`
+- `BEIYU_MEDIA_OSS_ACCESS_KEY_SECRET`
 
 生成随机密钥：
 
@@ -55,12 +63,49 @@ chmod 600 .env
 openssl rand -base64 48
 ```
 
+先执行数据库迁移：
+
+```bash
+docker compose --env-file .env -f deploy/ecs/compose.yml --profile migration run --rm migrate
+```
+
 启动服务：
 
 ```bash
-docker compose --env-file .env -f deploy/ecs/compose.yml up -d --build
+docker compose --env-file .env -f deploy/ecs/compose.yml up -d --build db api
 docker compose --env-file .env -f deploy/ecs/compose.yml ps
 ```
+
+如果 ECS 无法稳定访问 `ghcr.io` 或默认 PyPI，当前 Dockerfile 已改为使用 `requirements.txt` 和阿里云 PyPI 镜像源。需要切换源时可在 build 时覆盖 `PIP_INDEX_URL`。
+
+## OSS 图片上传配置
+
+Demo 环境可以暂用：
+
+```env
+BEIYU_MEDIA_PROVIDER=local
+BEIYU_MEDIA_UPLOAD_MAX_BYTES=5242880
+```
+
+正式接入阿里云 OSS 时配置：
+
+```env
+BEIYU_MEDIA_PROVIDER=oss
+BEIYU_MEDIA_UPLOAD_MAX_BYTES=5242880
+BEIYU_MEDIA_PUBLIC_BASE_URL=https://cdn.example.com
+BEIYU_MEDIA_OSS_BUCKET=your-bucket
+BEIYU_MEDIA_OSS_ENDPOINT=oss-cn-hangzhou.aliyuncs.com
+BEIYU_MEDIA_OSS_ACCESS_KEY_ID=your-access-key-id
+BEIYU_MEDIA_OSS_ACCESS_KEY_SECRET=your-access-key-secret
+```
+
+上传会话接口：
+
+```text
+POST /api/v1/media/uploads
+```
+
+当前实现会生成对象 key、上传 URL、公开 URL 和请求头。下一步需要补真实 OSS 签名/回调校验，前端再把相册文件直传 OSS，并在发布帖子时提交 `remote` 图片。
 
 如果服务器拉取基础镜像不稳定，可以先在本地构建并传输镜像：
 
@@ -131,11 +176,12 @@ EXPO_PUBLIC_API_BASE_URL=http://120.26.28.208/api/v1
 cd /opt/beiyu
 git log --oneline -5
 git checkout <previous-good-commit>
-docker compose --env-file .env -f deploy/ecs/compose.yml up -d --build
+docker compose --env-file .env -f deploy/ecs/compose.yml --profile migration run --rm migrate
+docker compose --env-file .env -f deploy/ecs/compose.yml up -d --build db api
 curl http://127.0.0.1:8000/health/ready
 ```
 
-数据库迁移由容器启动脚本自动执行。涉及破坏性迁移前必须先备份：
+数据库迁移不再由 API 容器启动脚本自动执行。涉及破坏性迁移前必须先备份：
 
 ```bash
 docker compose --env-file .env -f deploy/ecs/compose.yml exec db \
@@ -146,5 +192,5 @@ docker compose --env-file .env -f deploy/ecs/compose.yml exec db \
 
 - 真实短信 provider 未实现，公网 Demo 仍使用固定验证码。
 - 未接域名与 HTTPS 时不建议给外部长期使用。
-- 图片上传仍需对象存储和审核链路。
+- 图片上传已有 OSS 骨架；仍需真实 OSS 签名、直传、回调校验和图片审核。
 - 社区举报、审核 API 已补齐；仍缺运营人员可直接使用的审核后台 UI。

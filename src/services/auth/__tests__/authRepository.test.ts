@@ -232,6 +232,42 @@ describe('AuthRepository', () => {
     );
   });
 
+  it('requests media upload sessions through the authenticated client', async () => {
+    const uploadSession = {
+      id: 'upload-1',
+      provider: 'local',
+      method: 'PUT',
+      uploadUrl: 'local://beiyu-dev-upload/community/upload-1.jpg',
+      publicUrl: '/media/dev/community/upload-1.jpg',
+      objectKey: 'community/upload-1.jpg',
+      headers: { 'Content-Type': 'image/jpeg' },
+      maxBytes: 5242880,
+    };
+    const request = jest.fn(async () => uploadSession) as unknown as AuthenticatedClient['request'];
+    const repository = createRepository(jest.fn<FetchLike>(), { request });
+
+    await expect(repository.createMediaUpload({
+      fileName: 'cocktail.jpg',
+      contentType: 'image/jpeg',
+      sizeBytes: 1024,
+      purpose: 'community-post-image',
+    })).resolves.toEqual(uploadSession);
+
+    expect(request).toHaveBeenCalledWith(
+      '/media/uploads',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          fileName: 'cocktail.jpg',
+          contentType: 'image/jpeg',
+          sizeBytes: 1024,
+          purpose: 'community-post-image',
+        }),
+      }),
+      expect.anything()
+    );
+  });
+
   it('likes and unlikes community comments through the authenticated client', async () => {
     const likedComment = {
       id: 'comment-1',

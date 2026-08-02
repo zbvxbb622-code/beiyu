@@ -9,6 +9,7 @@ from app.api.routes.community import admin_router as admin_community_router
 from app.api.routes.community import router as community_router
 from app.api.routes.content import router as content_router
 from app.api.routes.me import router as me_router
+from app.api.routes.media import router as media_router
 
 
 class ApiRootResponse(BaseModel):
@@ -31,4 +32,5 @@ api_router.include_router(content_router)
 api_router.include_router(community_router)
 api_router.include_router(admin_community_router)
 api_router.include_router(admin_content_router)
+api_router.include_router(media_router)
 api_router.include_router(ai_router)

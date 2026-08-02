@@ -1,9 +1,28 @@
+from typing import Any
+
 import pytest
 from pydantic import SecretStr, ValidationError
 from starlette.testclient import TestClient
 
-from app.core.config import AiProvider, Environment, Settings, get_settings
+from app.core.config import (
+    AiProvider,
+    Environment,
+    MediaProvider,
+    Settings,
+    get_settings,
+)
 from app.main import create_app
+
+
+def valid_prod_media_settings() -> dict[str, Any]:
+    return {
+        "media_provider": MediaProvider.OSS,
+        "media_public_base_url": "https://cdn.example.test",
+        "media_oss_bucket": "beiyu-media",
+        "media_oss_endpoint": "oss-cn-hangzhou.aliyuncs.com",
+        "media_oss_access_key_id": SecretStr("oss-access-key-id"),
+        "media_oss_access_key_secret": SecretStr("oss-access-key-secret"),
+    }
 
 
 def test_settings_default_to_dev() -> None:
@@ -29,6 +48,8 @@ def test_settings_default_to_dev() -> None:
     assert settings.ai_api_key is None
     assert isinstance(settings.ai_memory_hmac_key, SecretStr)
     assert settings.ai_memory_hmac_key.get_secret_value()
+    assert settings.media_provider is MediaProvider.LOCAL
+    assert settings.media_upload_max_bytes == 5_242_880
     assert settings.cors_allowed_origins == ()
 
 
@@ -79,6 +100,39 @@ def test_prod_rejects_development_sms_provider() -> None:
         )
 
 
+def test_non_dev_rejects_local_media_provider() -> None:
+    with pytest.raises(ValidationError):
+        Settings(
+            environment=Environment.PROD,
+            database_url="postgresql+psycopg://user:pass@db/beiyu",
+            secret_key="s" * 32,
+            sms_provider="aliyun",
+            ai_provider=AiProvider.ALIYUN,
+            ai_model="qwen-plus",
+            ai_base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            ai_api_key=SecretStr("provider-key"),
+            ai_memory_hmac_key=SecretStr("m" * 32),
+            media_provider=MediaProvider.LOCAL,
+        )
+
+
+def test_oss_media_provider_requires_storage_configuration() -> None:
+    with pytest.raises(ValidationError):
+        Settings(
+            environment=Environment.PROD,
+            database_url="postgresql+psycopg://user:pass@db/beiyu",
+            secret_key="s" * 32,
+            sms_provider="aliyun",
+            ai_provider=AiProvider.ALIYUN,
+            ai_model="qwen-plus",
+            ai_base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            ai_api_key=SecretStr("provider-key"),
+            ai_memory_hmac_key=SecretStr("m" * 32),
+            media_provider=MediaProvider.OSS,
+            media_oss_bucket="beiyu-media",
+        )
+
+
 @pytest.mark.parametrize("environment", [Environment.STAGING, Environment.PROD])
 def test_non_dev_rejects_development_ai_defaults(environment: Environment) -> None:
     with pytest.raises(ValidationError):
@@ -116,6 +170,7 @@ def test_non_dev_accepts_independent_aliyun_secrets() -> None:
         ai_base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
         ai_api_key=SecretStr("provider-key"),
         ai_memory_hmac_key=SecretStr("m" * 32),
+        **valid_prod_media_settings(),
     )
 
     assert settings.ai_base_url == "https://dashscope.aliyuncs.com/compatible-mode/v1"
@@ -170,6 +225,7 @@ def test_ai_model_and_api_key_strip_surrounding_whitespace() -> None:
         ai_base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
         ai_api_key=SecretStr("  provider-key  "),
         ai_memory_hmac_key=SecretStr("m" * 32),
+        **valid_prod_media_settings(),
     )
 
     assert settings.ai_model == "qwen-plus"
@@ -196,6 +252,7 @@ def test_non_dev_rejects_blank_model_or_provider_key(
         "ai_base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "ai_api_key": provider_key,
         "ai_memory_hmac_key": SecretStr("m" * 32),
+        **valid_prod_media_settings(),
     }
     values[field_name] = value
 
@@ -301,6 +358,7 @@ def test_memory_hmac_key_uses_canonical_utf8_byte_length() -> None:
         ai_base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
         ai_api_key=SecretStr("provider-key"),
         ai_memory_hmac_key=SecretStr(f"  {exactly_32_bytes}  "),
+        **valid_prod_media_settings(),
     )
 
     assert settings.ai_memory_hmac_key.get_secret_value() == exactly_32_bytes
