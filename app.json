@@ -38,7 +38,8 @@
       ],
       "expo-video",
       "expo-web-browser",
-      "expo-secure-store"
+      "expo-secure-store",
+      "./plugins/withAndroidCleartextTraffic"
     ],
     "experiments": {
       "typedRoutes": true,
