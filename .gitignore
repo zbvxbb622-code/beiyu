@@ -57,6 +57,7 @@ example
 
 # build / debug logs
 *.log
+build-*.apk
 
 # local backups (old code snapshots, not project source)
 backups/

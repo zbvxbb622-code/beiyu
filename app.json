@@ -13,6 +13,7 @@
       "bundleIdentifier": "com.zbvxbb622.beiyu"
     },
     "android": {
+      "package": "com.zbvxbb622.beiyu",
       "adaptiveIcon": {
         "backgroundColor": "#09060F",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -42,6 +43,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "313c8e31-2d49-4fad-8886-d4fda3361d6d"
+      }
+    },
+    "owner": "bailan"
   }
 }
