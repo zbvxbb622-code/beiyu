@@ -1,12 +1,15 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
-import { describe, expect, it, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { StyleSheet } from 'react-native';
 
-import BlindBoxScreen from '@/app/blind-box';
+import BlindBoxScreen, { shouldShowTestDrawButton } from '@/app/blind-box';
 import { blindBoxCards } from '@/data/blindBoxCards';
 
 const mockRouterPush = jest.fn();
 const mockDrawBlindBoxCard = jest.fn();
 const drawnCard = blindBoxCards[0];
+let mockLastDrawDate: string | null | undefined;
+let mockDrawnCards: unknown[] = [];
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({
@@ -40,8 +43,8 @@ jest.mock('@/state/MixologyState', () => {
     useMixology: () => ({
       isHydrated: true,
       interactionState: {
-        lastDrawDate: getTodayKey(),
-        drawnCards: [{ card: cards[0], drawnAt: new Date().toISOString() }],
+        lastDrawDate: mockLastDrawDate === undefined ? getTodayKey() : mockLastDrawDate,
+        drawnCards: mockDrawnCards.length > 0 ? mockDrawnCards : [{ card: cards[0], drawnAt: new Date().toISOString() }],
       },
       drawBlindBoxCard: mockDrawBlindBoxCard,
     }),
@@ -49,6 +52,16 @@ jest.mock('@/state/MixologyState', () => {
 });
 
 describe('BlindBoxScreen', () => {
+  beforeEach(() => {
+    mockRouterPush.mockClear();
+    mockDrawBlindBoxCard.mockClear();
+    const { todayKey: getTodayKey } = jest.requireActual('@/services/blindBoxService') as {
+      todayKey: () => string;
+    };
+    mockLastDrawDate = getTodayKey();
+    mockDrawnCards = [{ card: drawnCard, drawnAt: new Date().toISOString() }];
+  });
+
   it('点分享跳转发布页并预填卡牌内容（不直接发帖）', async () => {
     const screen = await render(<BlindBoxScreen />);
 
@@ -78,5 +91,84 @@ describe('BlindBoxScreen', () => {
     });
     // 未调用受限的每日抽卡接口
     expect(mockDrawBlindBoxCard).not.toHaveBeenCalled();
+  });
+
+  it('hides the test draw entry outside development builds', () => {
+    expect(shouldShowTestDrawButton(false)).toBe(false);
+    expect(shouldShowTestDrawButton(true)).toBe(true);
+  });
+
+  it('shows the draw video in a landscape frame instead of a square card box', async () => {
+    const screen = await render(<BlindBoxScreen />);
+
+    fireEvent.press(screen.getByTestId('test-draw-button'));
+    await waitFor(() => {
+      expect(screen.getByText('轻触跳过')).toBeTruthy();
+    });
+
+    const videoFrame = StyleSheet.flatten(screen.getByTestId('blind-box-video-wrap').props.style);
+    expect(videoFrame.width).toBeGreaterThan(videoFrame.height);
+    expect(videoFrame.height / videoFrame.width).toBeLessThanOrEqual(0.6);
+  });
+
+  it('keeps a visible draw animation fallback until native video paints a frame', async () => {
+    const screen = await render(<BlindBoxScreen />);
+
+    fireEvent.press(screen.getByTestId('test-draw-button'));
+    await waitFor(() => {
+      expect(screen.getByText('轻触跳过')).toBeTruthy();
+    });
+
+    expect(screen.getByTestId('blind-box-fallback-animation')).toBeTruthy();
+    expect(screen.getAllByTestId(/blind-box-fallback-card-/).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('keeps the revealed card inside its stage so action buttons sit below it', async () => {
+    const screen = await render(<BlindBoxScreen />);
+
+    fireEvent.press(screen.getByTestId('test-draw-button'));
+    await waitFor(() => {
+      expect(screen.getByText('轻触跳过')).toBeTruthy();
+    });
+    fireEvent.press(screen.getByTestId('blind-box-video-wrap'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('blind-box-card-frame')).toBeTruthy();
+    });
+
+    const stage = StyleSheet.flatten(screen.getByTestId('blind-box-stage').props.style);
+    const cardFrame = StyleSheet.flatten(screen.getByTestId('blind-box-card-frame').props.style);
+
+    expect(cardFrame.height).toBeLessThanOrEqual(stage.height);
+    expect(cardFrame.height).toBeLessThanOrEqual(430);
+  });
+
+  it('centers the revealed card and actions in the available phone height', async () => {
+    const screen = await render(<BlindBoxScreen />);
+
+    fireEvent.press(screen.getByTestId('test-draw-button'));
+    await waitFor(() => {
+      expect(screen.getByText('轻触跳过')).toBeTruthy();
+    });
+    fireEvent.press(screen.getByTestId('blind-box-video-wrap'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('blind-box-card-frame')).toBeTruthy();
+    });
+
+    const mainContent = StyleSheet.flatten(screen.getByTestId('blind-box-main-content').props.style);
+    expect(mainContent.flex).toBe(1);
+    expect(mainContent.justifyContent).toBe('center');
+  });
+
+  it('keeps the unopened card compact so the draw button is reachable on phone screens', async () => {
+    mockLastDrawDate = null;
+    mockDrawnCards = [];
+
+    const screen = await render(<BlindBoxScreen />);
+    const cardBack = StyleSheet.flatten(screen.getByTestId('blind-box-card-back-wrap').props.style);
+
+    expect(screen.getByTestId('draw-button')).toBeTruthy();
+    expect(cardBack.height).toBeLessThanOrEqual(360);
   });
 });

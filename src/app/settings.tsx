@@ -3,6 +3,7 @@ import { type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   Bell,
+  BrainCircuit,
   ChevronLeft,
   ChevronRight,
   Headphones,
@@ -13,12 +14,12 @@ import {
 } from 'lucide-react-native';
 
 import { ScreenShell } from '@/components/mixology/ScreenShell';
-import { useMixology } from '@/state/MixologyState';
+import { useAuth } from '@/state/AuthState';
 import { colors, radii, spacing } from '@/styles/mixologyTheme';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { logout } = useMixology();
+  const { logout } = useAuth();
 
   const handleLogout = async () => {
     await logout();
@@ -77,12 +78,20 @@ export default function SettingsScreen() {
               onPress={() => router.push('/settings-privacy' as Href)}
               testID="settings-privacy"
             />
+            <SettingsItem
+              icon={<BrainCircuit color={colors.text} size={21} />}
+              title="AI 记忆"
+              onPress={() => router.push('/settings-ai-memory' as Href)}
+              testID="settings-ai-memory"
+            />
           </SettingsGroup>
 
           <SettingsGroup>
             <SettingsItem
               icon={<Headphones color={colors.text} size={21} />}
               title="帮助与客服"
+              value="暂未开放"
+              showArrow={false}
               testID="settings-help"
             />
           </SettingsGroup>
@@ -114,7 +123,7 @@ export default function SettingsScreen() {
               《个人信息收集清单》《第三方信息共享清单》
             </Text>
             <Text style={styles.legalText}>
-              《小红书用户服务协议》《小红书用户隐私政策》
+              《杯语用户服务协议》《杯语隐私说明》
             </Text>
           </View>
         </View>

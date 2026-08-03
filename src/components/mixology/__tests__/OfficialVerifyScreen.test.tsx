@@ -27,28 +27,15 @@ jest.mock('@/state/MixologyState', () => ({
 }));
 
 describe('OfficialVerifyScreen', () => {
-  it('submits the selected certification type', async () => {
+  it('shows official verification as unavailable', async () => {
     mockAccountSecurity = { ...defaultAccountSecurity };
     const screen = await render(<OfficialVerifyScreen />);
 
     expect(screen.getByText('官方认证')).toBeTruthy();
-
-    await fireEvent.press(screen.getByTestId('official-option-企业'));
-    await fireEvent.press(screen.getByTestId('official-submit'));
-
-    expect(mockVerifyOfficial).toHaveBeenCalledWith('企业');
-  });
-
-  it('shows verified state when already verified', async () => {
-    mockAccountSecurity = {
-      ...defaultAccountSecurity,
-      officialVerified: true,
-      officialType: '个人职业资质',
-    };
-    const screen = await render(<OfficialVerifyScreen />);
-
-    expect(screen.getByText('已通过官方认证')).toBeTruthy();
-    expect(screen.getByText('个人职业资质')).toBeTruthy();
+    expect(screen.getByText('暂未开放')).toBeTruthy();
+    expect(screen.queryByTestId('official-submit')).toBeNull();
+    expect(screen.queryByTestId('official-option-企业')).toBeNull();
+    expect(mockVerifyOfficial).not.toHaveBeenCalled();
   });
 
   it('returns to account-security on back', async () => {

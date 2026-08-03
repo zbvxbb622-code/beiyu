@@ -1,7 +1,7 @@
 import { type Href, useRouter } from 'expo-router';
 import { type ReactNode, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ChevronLeft, ChevronRight, QrCode, ShieldCheck } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 
 import { BottomSheet } from '@/components/mixology/BottomSheet';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
@@ -13,23 +13,14 @@ export default function AccountSecurityScreen() {
   const {
     accountSecurity,
     setPhone,
-    setPassword,
-    bindWechat,
-    unbindWechat,
     deleteAccount,
   } = useMixology();
 
   const [phoneSheet, setPhoneSheet] = useState(false);
-  const [passwordSheet, setPasswordSheet] = useState(false);
-  const [wechatSheet, setWechatSheet] = useState(false);
   const [deleteSheet, setDeleteSheet] = useState(false);
 
   const [phoneInput, setPhoneInput] = useState(accountSecurity.phone);
   const [phoneError, setPhoneError] = useState('');
-  const [oldPwd, setOldPwd] = useState('');
-  const [newPwd, setNewPwd] = useState('');
-  const [confirmPwd, setConfirmPwd] = useState('');
-  const [pwdError, setPwdError] = useState('');
 
   const confirmPhone = () => {
     const next = phoneInput.trim();
@@ -40,23 +31,6 @@ export default function AccountSecurityScreen() {
     setPhoneError('');
     setPhone(next);
     setPhoneSheet(false);
-  };
-
-  const confirmPassword = () => {
-    if (newPwd.length < 6) {
-      setPwdError('新密码至少 6 位');
-      return;
-    }
-    if (newPwd !== confirmPwd) {
-      setPwdError('两次输入的密码不一致');
-      return;
-    }
-    setPwdError('');
-    setPassword();
-    setOldPwd('');
-    setNewPwd('');
-    setConfirmPwd('');
-    setPasswordSheet(false);
   };
 
   const confirmDelete = () => {
@@ -99,14 +73,9 @@ export default function AccountSecurityScreen() {
             />
             <SecurityRow
               title="登录密码"
-              value={accountSecurity.passwordSet ? '已设置' : '未设置'}
-              onPress={() => {
-                setOldPwd('');
-                setNewPwd('');
-                setConfirmPwd('');
-                setPwdError('');
-                setPasswordSheet(true);
-              }}
+              subtitle="密码登录与修改能力接入前暂不开放"
+              value="暂未开放"
+              showArrow={false}
               testID="account-security-password"
             />
           </SecurityGroup>
@@ -114,8 +83,9 @@ export default function AccountSecurityScreen() {
           <SecurityGroup>
             <SecurityRow
               title="微信账号"
-              value={accountSecurity.wechatBound ? '已绑定' : '未绑定'}
-              onPress={() => setWechatSheet(true)}
+              subtitle="第三方账号绑定能力接入前暂不开放"
+              value="暂未开放"
+              showArrow={false}
               testID="account-security-wechat"
             />
           </SecurityGroup>
@@ -129,9 +99,9 @@ export default function AccountSecurityScreen() {
             />
             <SecurityRow
               title="官方认证"
-              subtitle="个人职业资质、机构、企业认证"
-              value={accountSecurity.officialVerified ? accountSecurity.officialType : '未认证'}
-              onPress={() => router.push('/official-verify' as Href)}
+              subtitle="个人职业资质、机构、企业认证能力上线前暂不开放"
+              value={accountSecurity.officialVerified ? accountSecurity.officialType : '暂未开放'}
+              showArrow={false}
               testID="account-security-official"
             />
           </SecurityGroup>
@@ -186,89 +156,6 @@ export default function AccountSecurityScreen() {
         />
         {phoneError ? <Text style={styles.sheetError}>{phoneError}</Text> : null}
         <SheetButton label="保存" onPress={confirmPhone} testID="phone-confirm" />
-      </BottomSheet>
-
-      <BottomSheet
-        visible={passwordSheet}
-        onClose={() => setPasswordSheet(false)}
-        title="修改登录密码"
-        testID="password-sheet"
-      >
-        <Text style={styles.sheetDesc}>请使用字母、数字或符号组合，至少 6 位。</Text>
-        <TextInput
-          style={styles.input}
-          value={oldPwd}
-          onChangeText={setOldPwd}
-          placeholder="旧密码"
-          placeholderTextColor={colors.textMuted}
-          secureTextEntry
-          testID="old-password-input"
-        />
-        <TextInput
-          style={styles.input}
-          value={newPwd}
-          onChangeText={(text) => {
-            setNewPwd(text);
-            setPwdError('');
-          }}
-          placeholder="新密码"
-          placeholderTextColor={colors.textMuted}
-          secureTextEntry
-          testID="new-password-input"
-        />
-        <TextInput
-          style={styles.input}
-          value={confirmPwd}
-          onChangeText={(text) => {
-            setConfirmPwd(text);
-            setPwdError('');
-          }}
-          placeholder="确认新密码"
-          placeholderTextColor={colors.textMuted}
-          secureTextEntry
-          testID="confirm-password-input"
-        />
-        {pwdError ? <Text style={styles.sheetError}>{pwdError}</Text> : null}
-        <SheetButton label="保存" onPress={confirmPassword} testID="password-confirm" />
-      </BottomSheet>
-
-      <BottomSheet
-        visible={wechatSheet}
-        onClose={() => setWechatSheet(false)}
-        title="微信账号"
-        testID="wechat-sheet"
-      >
-        {accountSecurity.wechatBound ? (
-          <>
-            <View style={styles.wechatBoundCard}>
-              <View style={styles.wechatAvatar}>
-                <Text style={styles.wechatAvatarText}>微</Text>
-              </View>
-              <View style={styles.wechatBoundInfo}>
-                <Text style={styles.wechatBoundName}>微信账号</Text>
-                <Text style={styles.wechatBoundId}>{accountSecurity.wechatAccount}</Text>
-              </View>
-              <ShieldCheck color={colors.pink} size={20} />
-            </View>
-            <SheetButton
-              label="解除绑定"
-              onPress={() => {
-                unbindWechat();
-                setWechatSheet(false);
-              }}
-              variant="danger"
-              testID="wechat-unbind"
-            />
-          </>
-        ) : (
-          <>
-            <View style={styles.qrBox}>
-              <QrCode color={colors.textMuted} size={64} />
-            </View>
-            <Text style={styles.sheetDescCenter}>使用微信扫一扫，绑定你的微信账号</Text>
-            <SheetButton label="绑定微信" onPress={bindWechat} testID="wechat-bind" />
-          </>
-        )}
       </BottomSheet>
 
       <BottomSheet

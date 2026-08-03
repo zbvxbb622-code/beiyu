@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.api.routes.health import router as health_router
@@ -16,6 +17,14 @@ def create_app() -> FastAPI:
         environment=settings.environment,
         logger=configure_request_logging(),
     )
+    if settings.cors_allowed_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(settings.cors_allowed_origins),
+            allow_credentials=False,
+            allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+            allow_headers=["Accept", "Authorization", "Content-Type", "X-Request-ID"],
+        )
     register_exception_handlers(app)
     app.include_router(health_router)
     app.include_router(api_router)

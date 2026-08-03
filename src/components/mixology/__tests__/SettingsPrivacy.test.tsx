@@ -122,14 +122,13 @@ describe('SettingsPrivacy sub-pages (shared component variants)', () => {
   });
 
   // —— System permissions ——
-  it('system-permissions: lists rows with granted/denied status', async () => {
+  it('system-permissions: marks runtime permission inspection as unavailable', async () => {
     const screen = await render(<SettingsPrivacySystemPermissionsScreen />);
 
     expect(screen.getByText('系统权限管理')).toBeTruthy();
-    expect(screen.getByText('相机')).toBeTruthy();
-    expect(screen.getByText('通讯录')).toBeTruthy();
-    expect(screen.getAllByText('已授权').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('未授权').length).toBeGreaterThan(0);
+    expect(screen.getByText('暂未开放')).toBeTruthy();
+    expect(screen.queryByText('已授权')).toBeNull();
+    expect(screen.queryByText('未授权')).toBeNull();
   });
 
   // —— Back navigation ——

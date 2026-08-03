@@ -1,5 +1,5 @@
 import { fireEvent, render, waitFor, userEvent } from '@testing-library/react-native';
-import { describe, expect, it, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import EditProfileScreen from '@/app/edit-profile';
 
@@ -36,6 +36,12 @@ jest.mock('@/services/avatarPickerService', () => ({
 }));
 
 describe('EditProfileScreen', () => {
+  beforeEach(() => {
+    mockRouterReplace.mockClear();
+    mockUpdateUserProfile.mockReset();
+    mockUpdateUserProfile.mockResolvedValue(undefined);
+  });
+
   it('edits nickname/city and saves profile then goes back', async () => {
     const screen = await render(<EditProfileScreen />);
 
@@ -73,5 +79,22 @@ describe('EditProfileScreen', () => {
       })
     );
     expect(mockRouterReplace).toHaveBeenCalledWith('/profile');
+  });
+
+  it('keeps the edited draft visible and offers retry when remote saving fails', async () => {
+    mockUpdateUserProfile.mockRejectedValueOnce(new Error('offline'));
+    const screen = await render(<EditProfileScreen />);
+
+    fireEvent.changeText(screen.getByTestId('nickname-input'), '未保存的杯友');
+    await waitFor(() => {
+      expect(screen.getByTestId('edit-save-button').props.accessibilityState?.disabled).toBe(false);
+    });
+    await fireEvent.press(screen.getByTestId('edit-save-button'));
+
+    await waitFor(() => {
+      expect(screen.getByText('保存失败，请重试')).toBeTruthy();
+    });
+    expect(screen.getByTestId('nickname-input').props.value).toBe('未保存的杯友');
+    expect(mockRouterReplace).not.toHaveBeenCalledWith('/profile');
   });
 });

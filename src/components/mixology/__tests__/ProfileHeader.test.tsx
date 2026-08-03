@@ -1,5 +1,6 @@
 import { render, userEvent, waitFor } from '@testing-library/react-native';
 import { describe, expect, it, jest } from '@jest/globals';
+import { Share } from 'react-native';
 
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 
@@ -70,6 +71,7 @@ describe('ProfileHeader', () => {
   });
 
   it('closes share sheet when an option is pressed', async () => {
+    jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
     const screen = await render(<ProfileHeader profile={mockProfile} stats={mockStats} />);
     const user = userEvent.setup();
 
@@ -82,5 +84,25 @@ describe('ProfileHeader', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('share-sheet')).toBeNull();
     });
+  });
+
+  it('shares the profile through the native share sheet when an option is pressed', async () => {
+    const shareSpy = jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
+    const screen = await render(<ProfileHeader profile={mockProfile} stats={mockStats} />);
+    const user = userEvent.setup();
+
+    await user.press(screen.getByTestId('profile-share-button'));
+    await waitFor(() => {
+      expect(screen.getByTestId('share-sheet')).toBeTruthy();
+    });
+
+    await user.press(screen.getByTestId('share-option-link'));
+
+    expect(shareSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: '分享杯语资料',
+        message: expect.stringContaining('游客调酒师'),
+      })
+    );
   });
 });

@@ -1,11 +1,18 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs } from 'expo-router';
-import { type ColorValue, Image, StyleSheet, View } from 'react-native';
+import { type ColorValue, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Ellipse, Path } from 'react-native-svg';
 
-import { getImageAsset } from '@/data/imageAssets';
 import { colors } from '@/styles/mixologyTheme';
+
+export const tabIconMetrics = {
+  frameSize: 28,
+  glyphSize: 24,
+  aiBubbleSize: 55,
+  aiGlyphSize: 30,
+  aiGlyphSource: 'inline-svg',
+} as const;
 
 // 底部导航用内联 SVG：不依赖低清 PNG 抠图，也避免 lucide 图标在 Expo 端版本差异导致不渲染
 function svgColor(color: ColorValue) {
@@ -14,49 +21,64 @@ function svgColor(color: ColorValue) {
 
 function TabGlyph({ icon, color }: { icon: 'home' | 'community' | 'bars' | 'profile'; color: ColorValue }) {
   const stroke = svgColor(color);
+  const glyph = tabIconMetrics.glyphSize;
 
   if (icon === 'home') {
     return (
-      <Svg width={23} height={23} viewBox="0 0 24 24" fill="none">
-        <Path d="M3.5 10.8 12 3.5l8.5 7.3v8.2a1.8 1.8 0 0 1-1.8 1.8h-4.1v-5.6H9.4v5.6H5.3a1.8 1.8 0 0 1-1.8-1.8z" stroke={stroke} strokeWidth={2.1} strokeLinecap="round" strokeLinejoin="round" />
-      </Svg>
+      <View style={styles.tabIconFrame}>
+        <Svg width={glyph} height={glyph} viewBox="0 0 24 24" fill="none">
+          <Path d="M3.5 10.8 12 3.5l8.5 7.3v8.2a1.8 1.8 0 0 1-1.8 1.8h-4.1v-5.6H9.4v5.6H5.3a1.8 1.8 0 0 1-1.8-1.8z" stroke={stroke} strokeWidth={2.1} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      </View>
     );
   }
 
   if (icon === 'community') {
     return (
-      <Svg width={25} height={21} viewBox="0 0 24 24" fill="none">
-        <Circle cx={12} cy={12} r={6.2} stroke={stroke} strokeWidth={1.9} />
-        <Ellipse cx={12} cy={12} rx={10.2} ry={3.9} stroke={stroke} strokeWidth={1.7} transform="rotate(-22 12 12)" />
-      </Svg>
+      <View style={styles.tabIconFrame}>
+        <Svg width={glyph} height={glyph} viewBox="0 0 24 24" fill="none">
+          <Circle cx={12} cy={12} r={6.2} stroke={stroke} strokeWidth={1.9} />
+          <Ellipse cx={12} cy={12} rx={10.2} ry={3.9} stroke={stroke} strokeWidth={1.7} transform="rotate(-22 12 12)" />
+        </Svg>
+      </View>
     );
   }
 
   if (icon === 'bars') {
     return (
-      <Svg width={21} height={21} viewBox="0 0 24 24" fill="none">
-        <Path d="M4.5 5.5h15L12 13z" stroke={stroke} strokeWidth={2.1} strokeLinecap="round" strokeLinejoin="round" />
-        <Path d="M12 13v6.5" stroke={stroke} strokeWidth={2.1} strokeLinecap="round" />
-        <Path d="M8.2 20h7.6" stroke={stroke} strokeWidth={2.1} strokeLinecap="round" />
-      </Svg>
+      <View style={styles.tabIconFrame}>
+        <Svg width={glyph} height={glyph} viewBox="0 0 24 24" fill="none">
+          <Path d="M4.5 5.5h15L12 13z" stroke={stroke} strokeWidth={2.1} strokeLinecap="round" strokeLinejoin="round" />
+          <Path d="M12 13v6.5" stroke={stroke} strokeWidth={2.1} strokeLinecap="round" />
+          <Path d="M8.2 20h7.6" stroke={stroke} strokeWidth={2.1} strokeLinecap="round" />
+        </Svg>
+      </View>
     );
   }
 
   return (
-    <Svg width={23} height={23} viewBox="0 0 24 24" fill="none">
-      <Circle cx={12} cy={12} r={8.4} stroke={stroke} strokeWidth={2} />
-      <Circle cx={9.3} cy={10.2} r={1.05} fill={stroke} />
-      <Circle cx={14.7} cy={10.2} r={1.05} fill={stroke} />
-      <Path d="M8.6 14.7c1.7 1.9 5.1 1.9 6.8 0" stroke={stroke} strokeWidth={1.9} strokeLinecap="round" />
-    </Svg>
+    <View style={styles.tabIconFrame}>
+      <Svg width={glyph} height={glyph} viewBox="0 0 24 24" fill="none">
+        <Circle cx={12} cy={12} r={8.4} stroke={stroke} strokeWidth={2} />
+        <Circle cx={9.3} cy={10.2} r={1.05} fill={stroke} />
+        <Circle cx={14.7} cy={10.2} r={1.05} fill={stroke} />
+        <Path d="M8.6 14.7c1.7 1.9 5.1 1.9 6.8 0" stroke={stroke} strokeWidth={1.9} strokeLinecap="round" />
+      </Svg>
+    </View>
   );
 }
 
-// 中央粉色圆钮：渐变圆 + 设计稿抠出的白色笑脸对话 glyph（55x49px → 27.5x24.5pt）
+// 中央粉色圆钮：内联白色笑脸对话 glyph，避免 PNG 在原生端偶发空白
 function AiTabIcon() {
   return (
     <LinearGradient colors={['#ff2f9d', '#ff3250']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.aiBubble}>
-      <Image source={getImageAsset('tabAiGlyph')} style={styles.aiGlyph} resizeMode="contain" />
+      <Svg testID="ai-tab-glyph" width={tabIconMetrics.aiGlyphSize} height={tabIconMetrics.aiGlyphSize} viewBox="0 0 24 24" fill="none">
+        <Path d="M5 12.2C5 8.4 8.2 5.4 12 5.4s7 3 7 6.8S15.8 19 12 19c-.9 0-1.8-.16-2.6-.48L6 19.4l.9-3.1A6.6 6.6 0 0 1 5 12.2Z" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+        <Circle cx={9.4} cy={11.2} r={0.9} fill="#fff" />
+        <Circle cx={14.6} cy={11.2} r={0.9} fill="#fff" />
+        <Path d="M9.2 14.3c1.4 1.2 4.2 1.2 5.6 0" stroke="#fff" strokeWidth={1.8} strokeLinecap="round" />
+        <Path d="M17.2 4.2v3.2M15.6 5.8h3.2" stroke="#fff" strokeWidth={1.8} strokeLinecap="round" />
+      </Svg>
     </LinearGradient>
   );
 }
@@ -65,6 +87,54 @@ const hiddenRouteOptions = {
   href: null,
   tabBarStyle: { display: 'none' },
 } as const;
+
+export const hiddenTabRouteNames = [
+  'login',
+  'terms',
+  'privacy',
+  'cellar',
+  'cellar-ingredients',
+  'recipes',
+  'recipe/[id]',
+  'post/[id]',
+  'bar/[id]',
+  'cellar-card/[id]',
+  'search',
+  'publish-post',
+  'blind-box',
+  'drink-knowledge',
+  'edit-profile',
+  'settings',
+  'settings-ai-memory',
+  'account-security',
+  'settings-general',
+  'settings-notifications',
+  'settings-notifications-comments',
+  'settings-notifications-messages',
+  'settings-notifications-author',
+  'settings-language',
+  'settings-privacy',
+  'settings-privacy-find-me',
+  'settings-privacy-recommend-to-me',
+  'settings-privacy-recommend-me-to',
+  'settings-privacy-block-from-view',
+  'settings-privacy-block-view',
+  'settings-privacy-blacklist',
+  'settings-privacy-one-click-protection',
+  'settings-privacy-who-can-dm',
+  'settings-privacy-who-can-comment',
+  'settings-privacy-who-can-at',
+  'settings-privacy-chat-tag',
+  'settings-privacy-online-status',
+  'settings-privacy-follow-fans',
+  'settings-privacy-favorites',
+  'settings-privacy-system-permissions',
+  'settings-privacy-personalize',
+  'device-management',
+  'realname-verify',
+  'official-verify',
+  'account-recovery',
+] as const;
 
 export default function AppTabs() {
   const insets = useSafeAreaInsets();
@@ -121,49 +191,9 @@ export default function AppTabs() {
           tabBarIcon: ({ color }) => <TabGlyph icon="profile" color={color} />,
         }}
       />
-      <Tabs.Screen name="login" options={hiddenRouteOptions} />
-      <Tabs.Screen name="cellar" options={hiddenRouteOptions} />
-      <Tabs.Screen name="private-cellar" options={hiddenRouteOptions} />
-      <Tabs.Screen name="cellar-ingredients" options={hiddenRouteOptions} />
-      <Tabs.Screen name="recipes" options={hiddenRouteOptions} />
-      <Tabs.Screen name="recipe/[id]" options={hiddenRouteOptions} />
-      <Tabs.Screen name="post/[id]" options={hiddenRouteOptions} />
-      <Tabs.Screen name="bar/[id]" options={hiddenRouteOptions} />
-      <Tabs.Screen name="cellar-card/[id]" options={hiddenRouteOptions} />
-      <Tabs.Screen name="search" options={hiddenRouteOptions} />
-      <Tabs.Screen name="publish-post" options={hiddenRouteOptions} />
-      <Tabs.Screen name="blind-box" options={hiddenRouteOptions} />
-      <Tabs.Screen name="drink-knowledge" options={hiddenRouteOptions} />
-      <Tabs.Screen name="edit-profile" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings" options={hiddenRouteOptions} />
-      <Tabs.Screen name="account-security" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-general" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-notifications" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-notifications-comments" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-notifications-messages" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-notifications-author" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-language" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-find-me" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-recommend-to-me" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-recommend-me-to" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-block-from-view" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-block-view" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-blacklist" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-one-click-protection" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-who-can-dm" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-who-can-comment" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-who-can-at" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-chat-tag" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-online-status" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-follow-fans" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-favorites" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-system-permissions" options={hiddenRouteOptions} />
-      <Tabs.Screen name="settings-privacy-personalize" options={hiddenRouteOptions} />
-      <Tabs.Screen name="device-management" options={hiddenRouteOptions} />
-      <Tabs.Screen name="realname-verify" options={hiddenRouteOptions} />
-      <Tabs.Screen name="official-verify" options={hiddenRouteOptions} />
-      <Tabs.Screen name="account-recovery" options={hiddenRouteOptions} />
+      {hiddenTabRouteNames.map((routeName) => (
+        <Tabs.Screen key={routeName} name={routeName} options={hiddenRouteOptions} />
+      ))}
     </Tabs>
   );
 }
@@ -186,6 +216,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginHorizontal: 4,
   },
+  tabIconFrame: {
+    width: tabIconMetrics.frameSize,
+    height: tabIconMetrics.frameSize,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   label: {
     fontSize: 11,
     fontWeight: '500',
@@ -194,9 +230,9 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   aiBubble: {
-    width: 55,
-    height: 55,
-    borderRadius: 27.5,
+    width: tabIconMetrics.aiBubbleSize,
+    height: tabIconMetrics.aiBubbleSize,
+    borderRadius: tabIconMetrics.aiBubbleSize / 2,
     alignItems: 'center',
     justifyContent: 'center',
     // 设计上浮：圆心距栏顶 15pt（凸出栏顶 12.5pt）
@@ -206,9 +242,5 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 4 },
     elevation: 10,
-  },
-  aiGlyph: {
-    width: 27.5,
-    height: 24.5,
   },
 });

@@ -4,7 +4,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   clearLocalState,
   loadLocalState,
+  loadAuthenticatedState,
   saveAgeVerified,
+  saveAuthenticatedState,
   saveCellarIngredientIds,
   savePrivacySettings,
 } from '../storageService';
@@ -46,6 +48,55 @@ describe('storageService', () => {
         syncWhenLoggedIn: true,
       },
     });
+  });
+
+  it('does not persist realname names in authenticated account security snapshots', async () => {
+    await saveAuthenticatedState({
+      userId: 'user-1',
+      localState: {
+        ageVerified: true,
+        cellarIngredientIds: [],
+        privacySettings: {
+          localOnlyMode: true,
+          analyticsOptIn: false,
+          syncWhenLoggedIn: false,
+        },
+      },
+      userProfile: {
+        nickname: '测试用户',
+        avatarKey: 'avatarOne',
+        avatarUri: null,
+        signature: '',
+        city: '',
+        gender: null,
+        birthday: null,
+        showBirthdayTag: true,
+        showAge: true,
+        showZodiac: false,
+        occupation: null,
+        school: null,
+      },
+      accountSecurity: {
+        phone: '138****0000',
+        phoneVerified: true,
+        wechatBound: false,
+        wechatAccount: '',
+        passwordSet: false,
+        realnameVerified: true,
+        realnameName: '张三',
+        officialVerified: false,
+        officialType: '',
+        devices: [],
+      },
+    });
+
+    await expect(loadAuthenticatedState('user-1')).resolves.toMatchObject({
+      accountSecurity: {
+        realnameVerified: true,
+        realnameName: '',
+      },
+    });
+    await expect(AsyncStorage.getItem('mixology.account.user-1.accountSecurity.v1')).resolves.not.toContain('张三');
   });
 
   it('clears local state for privacy reset', async () => {

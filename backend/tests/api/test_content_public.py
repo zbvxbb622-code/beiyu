@@ -83,7 +83,6 @@ def test_home_preserves_banner_and_shortcut_order(
         "blind-box",
         "drink-knowledge",
         "classic-series",
-        "shared-cellar",
     ]
     assert payload["banners"][0]["targetRoute"] == "/ai"
 

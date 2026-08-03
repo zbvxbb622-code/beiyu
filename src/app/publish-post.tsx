@@ -30,7 +30,7 @@ import type { PostImage, PostVisibility } from '@/types/mixology';
 const MAX_IMAGES = 9;
 
 // 话题推荐（结合调酒场景，参考小红书发布页的联想话题）
-const SUGGESTED_TOPICS = ['调酒心得', '居家调酒', '今夜微醺', '盲盒抽卡', '我的酒柜', '探店打卡', '威士忌', '鸡尾酒'];
+const SUGGESTED_TOPICS = ['调酒心得', '居家调酒', '今夜微醺', '盲盒抽卡', '探店打卡', '威士忌', '鸡尾酒'];
 
 const CONTENT_DECLARATION =
   '发布即表示你确认：内容为本人原创或已获授权，不涉及侵权、虚假营销或违法信息；含酒类内容时请理性饮酒、拒绝酒驾。平台保留对违规内容的处理权。';

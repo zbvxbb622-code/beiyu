@@ -1,7 +1,34 @@
+from datetime import UTC, date, datetime
+from uuid import UUID
+
+import pytest
 from sqlmodel import Session, select
 from starlette.testclient import TestClient
 
-from app.db.models import User, UserProfile, UserStatus
+from app.api.routes import me
+from app.core.config import Settings, get_settings
+from app.db.models import (
+    AiChatMode,
+    AiConversation,
+    AiDailyQuota,
+    AiMemory,
+    AiMemoryCategory,
+    AiMemorySource,
+    AiMessage,
+    AiMessageRole,
+    AiRequest,
+    AiUsageLog,
+    CommunityComment,
+    CommunityCommentLike,
+    CommunityPost,
+    CommunityPostLike,
+    CommunityReport,
+    CommunityReportTargetType,
+    User,
+    UserProfile,
+    UserStatus,
+)
+from app.modules.users import service as users_service
 from tests.api.test_auth_sessions import bearer, create_login
 
 
@@ -14,7 +41,7 @@ def test_profile_defaults_and_partial_update(
     initial = database_client.get("/api/v1/me/profile", headers=headers)
     assert initial.status_code == 200
     assert initial.json() == {
-        "nickname": "游客调酒师",
+        "nickname": "测试账号",
         "avatarKey": "avatarOne",
         "avatarUri": None,
         "signature": "",
@@ -118,7 +145,7 @@ def test_bootstrap_exposes_mobile_contract_without_internal_secrets(
     assert response.status_code == 200
     body = response.json()
     assert body["user"]["phoneMasked"] == "+86138****8000"
-    assert body["profile"]["nickname"] == "游客调酒师"
+    assert body["profile"]["nickname"] == "测试账号"
     assert body["privacy"]["localOnlyMode"] is True
     assert body["accountSecurity"]["phoneVerified"] is True
     assert body["accountSecurity"]["realnameVerified"] is False
@@ -128,6 +155,178 @@ def test_bootstrap_exposes_mobile_contract_without_internal_secrets(
     assert "phoneHash" not in serialized
     assert "refreshToken" not in serialized
     assert "secret" not in serialized.lower()
+
+
+def test_bootstrap_exposes_configured_ai_allowance(
+    database_client: TestClient,
+    database_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = Settings(
+        database_url="postgresql+psycopg://user:pass@db/beiyu",
+        ai_enabled=True,
+        ai_daily_limit=50,
+    )
+    now = datetime(2026, 7, 29, 12, tzinfo=UTC)
+    database_client.app.dependency_overrides[get_settings] = lambda: settings
+    monkeypatch.setattr(me, "utc_now", lambda: now)
+    login = create_login(database_client)
+    user = database_session.exec(select(User)).one()
+    user.age_confirmed_at = now
+    database_session.add(user)
+    database_session.add(
+        AiDailyQuota(
+            user_id=user.id,
+            quota_date=date(2026, 7, 29),
+            free_limit=50,
+            used_count=17,
+            reserved_count=2,
+        )
+    )
+    database_session.flush()
+    original_quota_snapshot = users_service.quota_snapshot
+    queried_user_ids: list[object] = []
+
+    def record_quota_snapshot(
+        session: Session,
+        user_id: UUID,
+        quota_settings: Settings,
+        quota_now: datetime,
+    ):
+        queried_user_ids.append(user_id)
+        return original_quota_snapshot(session, user_id, quota_settings, quota_now)
+
+    monkeypatch.setattr(users_service, "quota_snapshot", record_quota_snapshot)
+
+    response = database_client.get(
+        "/api/v1/me/bootstrap",
+        headers=bearer(login["accessToken"]),
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["ai"] == {
+        "dailyMessageLimit": 50,
+        "messagesUsedToday": 19,
+        "remaining": 31,
+        "resetsAt": "2026-07-29T16:00:00Z",
+    }
+    assert body["featureFlags"]["aiChat"] is True
+    assert queried_user_ids == [user.id]
+
+
+@pytest.mark.parametrize(
+    ("status", "age_confirmed", "ai_enabled", "expected_flag"),
+    [
+        (UserStatus.BANNED, False, True, False),
+        (UserStatus.ACTIVE, False, True, False),
+        (UserStatus.ACTIVE, True, False, False),
+    ],
+)
+def test_bootstrap_skips_quota_snapshot_when_ai_access_is_unavailable(
+    database_client: TestClient,
+    database_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    status: UserStatus,
+    age_confirmed: bool,
+    ai_enabled: bool,
+    expected_flag: bool,
+) -> None:
+    now = datetime(2026, 7, 29, 12, tzinfo=UTC)
+    settings = Settings(
+        database_url="postgresql+psycopg://user:pass@db/beiyu",
+        ai_enabled=ai_enabled,
+    )
+    database_client.app.dependency_overrides[get_settings] = lambda: settings
+    monkeypatch.setattr(me, "utc_now", lambda: now)
+    login = create_login(database_client)
+    user = database_session.exec(select(User)).one()
+    user.status = status
+    user.age_confirmed_at = now if age_confirmed else None
+    database_session.add(user)
+    database_session.commit()
+
+    def quota_snapshot_must_not_run(*_: object, **__: object) -> object:
+        raise AssertionError("bootstrap must not select an AI quota without access")
+
+    monkeypatch.setattr(users_service, "quota_snapshot", quota_snapshot_must_not_run)
+
+    response = database_client.get(
+        "/api/v1/me/bootstrap",
+        headers=bearer(login["accessToken"]),
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["ai"] == {
+        "dailyMessageLimit": 0,
+        "messagesUsedToday": 0,
+        "remaining": 0,
+        "resetsAt": "2026-07-29T16:00:00Z",
+    }
+    assert response.json()["featureFlags"]["aiChat"] is expected_flag
+
+
+def test_bootstrap_keeps_ai_flag_enabled_when_quota_is_exhausted(
+    database_client: TestClient,
+    database_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    now = datetime(2026, 7, 29, 12, tzinfo=UTC)
+    database_client.app.dependency_overrides[get_settings] = lambda: Settings(
+        database_url="postgresql+psycopg://user:pass@db/beiyu",
+    )
+    monkeypatch.setattr(me, "utc_now", lambda: now)
+    login = create_login(database_client)
+    user = database_session.exec(select(User)).one()
+    user.age_confirmed_at = now
+    database_session.add(user)
+    database_session.add(
+        AiDailyQuota(
+            user_id=user.id,
+            quota_date=date(2026, 7, 29),
+            free_limit=50,
+            used_count=48,
+            reserved_count=2,
+        )
+    )
+    database_session.commit()
+
+    response = database_client.get(
+        "/api/v1/me/bootstrap",
+        headers=bearer(login["accessToken"]),
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["ai"]["remaining"] == 0
+    assert response.json()["featureFlags"]["aiChat"] is True
+
+
+def test_bootstrap_propagates_quota_database_errors_for_allowed_user(
+    database_client: TestClient,
+    database_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    now = datetime(2026, 7, 29, 12, tzinfo=UTC)
+    database_client.app.dependency_overrides[get_settings] = lambda: Settings(
+        database_url="postgresql+psycopg://user:pass@db/beiyu",
+    )
+    monkeypatch.setattr(me, "utc_now", lambda: now)
+    login = create_login(database_client)
+    user = database_session.exec(select(User)).one()
+    user.age_confirmed_at = now
+    database_session.add(user)
+    database_session.commit()
+
+    def fail_quota_snapshot(*_: object, **__: object) -> object:
+        raise RuntimeError("quota database unavailable")
+
+    monkeypatch.setattr(users_service, "quota_snapshot", fail_quota_snapshot)
+
+    with pytest.raises(RuntimeError, match="quota database unavailable"):
+        database_client.get(
+            "/api/v1/me/bootstrap",
+            headers=bearer(login["accessToken"]),
+        )
 
 
 def test_delete_account_anonymizes_profile_and_revokes_access(
@@ -162,3 +361,107 @@ def test_delete_account_anonymizes_profile_and_revokes_access(
         ).status_code
         == 401
     )
+
+
+def test_delete_account_removes_user_generated_ai_and_community_content(
+    database_client: TestClient,
+    database_session: Session,
+) -> None:
+    login = create_login(database_client)
+    headers = bearer(login["accessToken"])
+    user = database_session.exec(select(User)).one()
+
+    conversation = AiConversation(user_id=user.id, title="注销清理对话")
+    database_session.add(conversation)
+    database_session.flush()
+    message = AiMessage(
+        conversation_id=conversation.id,
+        user_id=user.id,
+        role=AiMessageRole.USER,
+        content="注销后不应保留",
+    )
+    database_session.add(message)
+    database_session.flush()
+    memory = AiMemory(
+        user_id=user.id,
+        category=AiMemoryCategory.DRINK_PREFERENCE,
+        memory_key="delete-account-marker",
+        summary="注销后不应保留的记忆",
+    )
+    request = AiRequest(
+        user_id=user.id,
+        conversation_id=conversation.id,
+        client_message_id=UUID("00000000-0000-4000-8000-000000000001"),
+        mode=AiChatMode.NORMAL,
+        quota_date=date(2026, 8, 2),
+        response_message_id=message.id,
+    )
+    database_session.add(memory)
+    database_session.add(request)
+    database_session.flush()
+    database_session.add(
+        AiMemorySource(
+            memory_id=memory.id,
+            conversation_id=conversation.id,
+            source_message_id=message.id,
+        )
+    )
+    usage_log = AiUsageLog(
+        request_id=request.id,
+        attempt_no=1,
+        user_id=user.id,
+        conversation_id=conversation.id,
+        mode=AiChatMode.NORMAL,
+        outcome="SUCCEEDED",
+        provider="test",
+        model="test-model",
+        prompt_version="test",
+        latency_ms=10,
+    )
+    database_session.add(usage_log)
+
+    post = CommunityPost(author_id=user.id, title="注销清理帖子", body="注销后不应保留")
+    database_session.add(post)
+    database_session.flush()
+    comment = CommunityComment(post_id=post.id, author_id=user.id, text="注销后不应保留")
+    database_session.add(comment)
+    database_session.flush()
+    database_session.add(CommunityPostLike(post_id=post.id, user_id=user.id))
+    database_session.add(CommunityCommentLike(comment_id=comment.id, user_id=user.id))
+    other_user = User(phone_hash="other-report-target", phone_masked="+86139****0000")
+    database_session.add(other_user)
+    database_session.flush()
+    database_session.add(UserProfile(user_id=other_user.id, nickname="被举报用户"))
+    other_post = CommunityPost(author_id=other_user.id, title="别人发布的帖子", body="注销用户举报过这条内容")
+    database_session.add(other_post)
+    database_session.flush()
+    database_session.add(
+        CommunityReport(
+            reporter_id=user.id,
+            target_type=CommunityReportTargetType.POST,
+            post_id=other_post.id,
+            reason="spam",
+            detail="注销后不应保留举报详情",
+        )
+    )
+    database_session.commit()
+
+    response = database_client.request(
+        "DELETE",
+        "/api/v1/me/account",
+        headers=headers,
+        json={"confirmation": "DELETE"},
+    )
+
+    assert response.status_code == 204
+    assert database_session.exec(select(AiConversation)).all() == []
+    assert database_session.exec(select(AiMessage)).all() == []
+    assert database_session.exec(select(AiMemory)).all() == []
+    assert database_session.exec(select(AiMemorySource)).all() == []
+    remaining_posts = database_session.exec(select(CommunityPost)).all()
+    assert [remaining_post.id for remaining_post in remaining_posts] == [other_post.id]
+    assert database_session.exec(select(CommunityComment)).all() == []
+    assert database_session.exec(select(CommunityPostLike)).all() == []
+    assert database_session.exec(select(CommunityCommentLike)).all() == []
+    assert database_session.exec(select(CommunityReport)).all() == []
+    assert database_session.exec(select(AiUsageLog)).one().conversation_id is None

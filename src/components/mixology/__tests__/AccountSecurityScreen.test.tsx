@@ -64,14 +64,15 @@ describe('AccountSecurityScreen', () => {
     expect(screen.getByText('2 台')).toBeTruthy();
   });
 
-  it('navigates to sub pages', async () => {
+  it('navigates to available sub pages and keeps official verification closed', async () => {
     const screen = await render(<AccountSecurityScreen />);
 
     await fireEvent.press(screen.getByTestId('account-security-realname'));
     expect(mockRouter.push).toHaveBeenCalledWith('/realname-verify');
 
     await fireEvent.press(screen.getByTestId('account-security-official'));
-    expect(mockRouter.push).toHaveBeenCalledWith('/official-verify');
+    expect(mockRouter.push).not.toHaveBeenCalledWith('/official-verify');
+    expect(screen.getAllByText('暂未开放').length).toBeGreaterThanOrEqual(1);
 
     await fireEvent.press(screen.getByTestId('account-security-devices'));
     expect(mockRouter.push).toHaveBeenCalledWith('/device-management');
@@ -91,13 +92,17 @@ describe('AccountSecurityScreen', () => {
     expect(mockSetPhone).toHaveBeenCalledWith('13800001234');
   });
 
-  it('binds WeChat from the WeChat sheet', async () => {
+  it('marks password and WeChat binding as unavailable instead of changing local-only state', async () => {
     const screen = await render(<AccountSecurityScreen />);
 
-    await fireEvent.press(screen.getByTestId('account-security-wechat'));
-    await fireEvent.press(screen.getByTestId('wechat-bind'));
+    await fireEvent.press(screen.getByTestId('account-security-password'));
+    expect(screen.queryByTestId('password-sheet')).toBeNull();
+    expect(mockSetPassword).not.toHaveBeenCalled();
 
-    expect(mockBindWechat).toHaveBeenCalled();
+    await fireEvent.press(screen.getByTestId('account-security-wechat'));
+    expect(screen.queryByTestId('wechat-sheet')).toBeNull();
+    expect(mockBindWechat).not.toHaveBeenCalled();
+    expect(screen.getAllByText('暂未开放').length).toBeGreaterThanOrEqual(3);
   });
 
   it('deletes account and returns to welcome', async () => {

@@ -6,14 +6,15 @@ import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native
 import { GradientButton } from '@/components/mixology/GradientButton';
 import { getImageAsset } from '@/data/imageAssets';
 import { colors, radii, spacing } from '@/styles/mixologyTheme';
-import { useMixology } from '@/state/MixologyState';
 
 export function WelcomeScreen() {
   const router = useRouter();
-  const { verifyAge } = useMixology();
 
-  const enterApp = async () => {
-    await verifyAge();
+  const openAgeVerification = () => {
+    router.push({
+      pathname: '/realname-verify',
+      params: { purpose: 'age-gate', next: '/login' },
+    } as unknown as Href);
   };
 
   return (
@@ -21,7 +22,7 @@ export function WelcomeScreen() {
       <LinearGradient colors={['rgba(7,0,4,0.26)', 'rgba(7,0,4,0.72)', colors.bg]} style={styles.overlay}>
         <View style={styles.topRow}>
           <Menu color={colors.pink} size={28} />
-          <Pressable onPress={() => router.push('/login' as Href)} style={styles.loginIcon}>
+          <Pressable onPress={openAgeVerification} style={styles.loginIcon} testID="welcome-realname-shortcut">
             <Star color={colors.pink} size={18} />
           </Pressable>
         </View>
@@ -29,10 +30,7 @@ export function WelcomeScreen() {
           <Text style={styles.title}>欢迎来到杯语</Text>
           <Text style={styles.script}>Beiyu</Text>
           <Text style={styles.subtitle}>你的 AI 调酒陪伴</Text>
-          <GradientButton label="我已满18岁，去聊天" onPress={enterApp} style={styles.cta} />
-          <Pressable onPress={() => router.push('/login' as Href)} style={styles.loginLink}>
-            <Text style={styles.loginText}>手机号登录 / 游客可跳过</Text>
-          </Pressable>
+          <GradientButton testID="welcome-age-consent" label="我已满18岁，继续" onPress={openAgeVerification} style={styles.cta} />
         </View>
         <View style={styles.privacyBadge}>
           <ShieldCheck color={colors.acid} size={16} />
@@ -100,17 +98,6 @@ const styles = StyleSheet.create({
   cta: {
     width: '64%',
     marginTop: 44,
-  },
-  loginLink: {
-    marginTop: 18,
-    borderRadius: radii.pill,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  loginText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '700',
   },
   privacyBadge: {
     flexDirection: 'row',

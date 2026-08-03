@@ -1,4 +1,4 @@
-import { type Href, useRouter } from 'expo-router';
+import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ChevronLeft, ShieldCheck } from 'lucide-react-native';
@@ -6,26 +6,49 @@ import { ChevronLeft, ShieldCheck } from 'lucide-react-native';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
 import { useMixology } from '@/state/MixologyState';
 import { colors, radii, spacing, touchTarget } from '@/styles/mixologyTheme';
+import { normalizeMainlandId, validateMainlandAdultId } from '@/utils/identityVerification';
 
 export default function RealnameVerifyScreen() {
   const router = useRouter();
-  const { accountSecurity, verifyRealname } = useMixology();
+  const params = useLocalSearchParams<{ purpose?: string; next?: string }>();
+  const { accountSecurity, verifyAge, verifyRealname } = useMixology();
 
   const [name, setName] = useState('');
   const [idNumber, setIdNumber] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const submit = () => {
+  const isAgeGate = params.purpose === 'age-gate';
+  const nextPath = params.next === '/login' || params.next === '/' ? params.next : '/login';
+
+  const submit = async () => {
     if (!name.trim()) {
       setError('请输入真实姓名');
       return;
     }
-    if (idNumber.trim().length < 15) {
-      setError('请输入有效的身份证号');
+    const idResult = validateMainlandAdultId(idNumber);
+    if (!idResult.valid) {
+      setError(idResult.reason === 'underage' ? '需年满 18 岁后才能使用杯语' : '请输入有效的二代身份证号');
       return;
     }
     setError('');
-    verifyRealname(name.trim());
+    setSubmitting(true);
+    try {
+      if (isAgeGate) {
+        await verifyAge();
+        router.replace(nextPath as Href);
+      } else {
+        await verifyRealname(name.trim());
+      }
+    } catch {
+      setError('验证失败，请重试');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const goBack = () => {
+    router.replace(isAgeGate ? '/' as Href : '/account-security' as Href);
   };
 
   return (
@@ -36,7 +59,7 @@ export default function RealnameVerifyScreen() {
       >
         <View style={styles.header}>
           <Pressable
-            onPress={() => router.replace('/account-security' as Href)}
+            onPress={goBack}
             style={({ pressed }) => [styles.headerSidePressable, pressed ? styles.pressed : null]}
             testID="realname-back-button"
           >
@@ -49,18 +72,20 @@ export default function RealnameVerifyScreen() {
         </View>
 
         <View style={styles.body}>
-          {accountSecurity.realnameVerified ? (
+          {!isAgeGate && accountSecurity.realnameVerified ? (
             <View style={styles.verifiedCard}>
               <View style={styles.verifiedIcon}>
                 <ShieldCheck color={colors.pink} size={26} />
               </View>
               <Text style={styles.verifiedTitle}>已通过实名认证</Text>
-              <Text style={styles.verifiedName}>{accountSecurity.realnameName}</Text>
+              <Text style={styles.verifiedName}>认证信息不会在本机展示或保存</Text>
             </View>
           ) : (
             <>
               <Text style={styles.hint}>
-                根据相关法律法规，发布内容需完成实名认证。信息仅用于身份核验，不会公开。
+                {isAgeGate
+                  ? '创建账号前需先确认本人已满 18 周岁。姓名与身份证号仅用于本次年龄判断，不会保存在本机。'
+                  : '根据相关法律法规，发布内容需完成实名认证。姓名与身份证号仅用于本次校验，不会保存在本机或公开展示。'}
               </Text>
               <TextInput
                 style={styles.input}
@@ -77,7 +102,7 @@ export default function RealnameVerifyScreen() {
                 style={styles.input}
                 value={idNumber}
                 onChangeText={(text) => {
-                  setIdNumber(text);
+                  setIdNumber(normalizeMainlandId(text).slice(0, 18));
                   setError('');
                 }}
                 placeholder="身份证号"
@@ -86,12 +111,13 @@ export default function RealnameVerifyScreen() {
               />
               {error ? <Text style={styles.error}>{error}</Text> : null}
               <Pressable
-                onPress={submit}
+                onPress={() => { void submit(); }}
                 style={({ pressed }) => [styles.buttonPressable, pressed ? styles.pressed : null]}
+                disabled={submitting}
                 testID="realname-submit"
               >
                 <View style={styles.buttonInner}>
-                  <Text style={styles.buttonText}>提交认证</Text>
+                  <Text style={styles.buttonText}>{submitting ? '验证中...' : '提交认证'}</Text>
                 </View>
               </Pressable>
             </>

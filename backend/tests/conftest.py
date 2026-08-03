@@ -17,8 +17,9 @@ from app.main import app
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(app)
+def client() -> Generator[TestClient, None, None]:
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 @pytest.fixture
@@ -45,6 +46,7 @@ def database_client(database_session: Session) -> Generator[TestClient, None, No
 
     app.dependency_overrides[get_session] = override_session
     try:
-        yield TestClient(app)
+        with TestClient(app) as test_client:
+            yield test_client
     finally:
         app.dependency_overrides.clear()

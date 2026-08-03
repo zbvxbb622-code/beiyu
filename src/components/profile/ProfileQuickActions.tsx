@@ -1,5 +1,5 @@
 import { type Href, useRouter } from 'expo-router';
-import { Bot, Boxes, Heart, Martini, PackageOpen } from 'lucide-react-native';
+import { Bot, Heart, Martini, PackageOpen } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -15,23 +15,10 @@ type ActionItem = {
 
 const actions: ActionItem[] = [
   {
-    id: 'private-cellar',
-    label: '我的酒柜',
-    icon: <Boxes color={colors.pink} size={20} />,
-    route: '/private-cellar' as Href,
-    testID: 'profile-action-private-cellar',
-  },
-  {
     id: 'cellar-ingredients',
     label: '酒柜材料',
     icon: <Martini color={colors.pink} size={20} />,
     route: '/cellar-ingredients' as Href,
-  },
-  {
-    id: 'shared-cellar',
-    label: '大家酒柜',
-    icon: <Martini color={colors.acid} size={20} />,
-    route: '/cellar?from=profile' as Href,
   },
   {
     id: 'blind-box',

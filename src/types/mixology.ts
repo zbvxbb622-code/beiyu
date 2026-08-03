@@ -71,19 +71,25 @@ export type AppContentRoute =
   | '/cellar';
 
 export type FeedCategory = 'recommended' | 'following' | 'nearby';
+export type ModerationStatus = 'approved' | 'hidden' | 'rejected';
 
 export type CommunityComment = {
   id: string;
+  parentId?: string;
   authorName: string;
   authorAvatarKey: string;
   text: string;
   date: string;
+  likes?: number;
+  likedByMe?: boolean;
+  moderationStatus?: ModerationStatus;
 };
 
 // 笔记图片：asset = 内置图库 key；uri = 相册上传的本地 uri
 export type PostImage =
   | { id: string; kind: 'asset'; assetKey: string }
-  | { id: string; kind: 'uri'; uri: string };
+  | { id: string; kind: 'uri'; uri: string }
+  | { id: string; kind: 'remote'; mediaId: string; url: string };
 
 export type PostVisibility = 'public' | 'private';
 
@@ -99,6 +105,7 @@ export type CommunityPost = {
   body: string;
   date: string;
   likes: number;
+  likedByMe?: boolean;
   comments: CommunityComment[];
   venueId?: string;
   // 多图（含上传 uri），空表示单封面图
@@ -109,6 +116,19 @@ export type CommunityPost = {
   visibility?: PostVisibility;
   // 缺省视为 true
   allowComments?: boolean;
+  moderationStatus?: ModerationStatus;
+};
+
+export type CommunityReport = {
+  id: string;
+  reporterId: string;
+  targetType: 'post' | 'comment';
+  postId?: string;
+  commentId?: string;
+  reason: string;
+  detail: string;
+  status: 'open' | 'resolved';
+  createdAt: string;
 };
 
 // 发布页草稿（本地持久化）
@@ -231,7 +251,7 @@ export type AccountSecurity = {
   wechatAccount: string; // 绑定后展示的微信账号
   passwordSet: boolean;
   realnameVerified: boolean;
-  realnameName: string; // 认证后展示的姓名（脱敏）
+  realnameName: string; // 兼容历史字段；当前不写入或展示实名姓名
   officialVerified: boolean;
   officialType: string; // 官方认证类型，如「个人职业资质」
   devices: LoginDevice[];

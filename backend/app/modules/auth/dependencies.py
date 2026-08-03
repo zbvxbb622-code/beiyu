@@ -75,7 +75,7 @@ def get_auth_context(
     device = session.get(UserDevice, auth_session.device_id)
     if (
         user is None
-        or user.status is not UserStatus.ACTIVE
+        or user.status is UserStatus.DELETED
         or device is None
         or device.user_id != user.id
         or device.revoked_at is not None

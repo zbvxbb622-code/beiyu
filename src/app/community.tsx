@@ -1,5 +1,5 @@
 import { type Href, useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, SquarePen } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
@@ -33,7 +33,14 @@ export default function CommunityScreen() {
   const { interactionState, togglePostLike } = useMixology();
   const { width } = useWindowDimensions();
   const activeCategory = tabs.find((tab) => tab.id === activeTab)?.category ?? 'recommended';
-  const posts = useMemo(() => getCommunityPosts(activeCategory, interactionState.localCommunityPosts), [activeCategory, interactionState.localCommunityPosts]);
+  const posts = useMemo(
+    () => getCommunityPosts(
+      activeCategory,
+      interactionState.localCommunityPosts,
+      interactionState.followedAuthorIds
+    ),
+    [activeCategory, interactionState.followedAuthorIds, interactionState.localCommunityPosts]
+  );
   const feedWidth = Math.min(width, maxFeedWidth);
   const cardWidth = Math.floor((feedWidth - feedHorizontalPadding * 2 - columnGap) / 2);
   const columns = useMemo(() => splitMasonryColumns(posts), [posts]);
@@ -53,7 +60,14 @@ export default function CommunityScreen() {
               </Pressable>
             ))}
           </View>
-          <View style={styles.back} />
+          <Pressable
+            testID="community-publish-button"
+            onPress={() => router.push('/publish-post' as Href)}
+            hitSlop={10}
+            style={({ pressed }) => [styles.publishButton, pressed ? styles.pressed : null]}
+            accessibilityLabel="发布笔记">
+            <SquarePen color={colors.text} size={20} strokeWidth={2.4} />
+          </Pressable>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.feed}>
@@ -64,7 +78,7 @@ export default function CommunityScreen() {
                   <CommunityPostCard
                     key={post.id}
                     post={post}
-                    liked={interactionState.likedPostIds.includes(post.id)}
+                    liked={post.likedByMe ?? interactionState.likedPostIds.includes(post.id)}
                     onToggleLike={() => togglePostLike(post.id)}
                     cardWidth={cardWidth}
                     imageWidth={cardWidth}
@@ -77,7 +91,7 @@ export default function CommunityScreen() {
                   <CommunityPostCard
                     key={post.id}
                     post={post}
-                    liked={interactionState.likedPostIds.includes(post.id)}
+                    liked={post.likedByMe ?? interactionState.likedPostIds.includes(post.id)}
                     onToggleLike={() => togglePostLike(post.id)}
                     cardWidth={cardWidth}
                     imageWidth={cardWidth}
@@ -107,6 +121,14 @@ const styles = StyleSheet.create({
   },
   back: {
     width: 40,
+  },
+  publishButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.pink,
   },
   tabs: {
     flex: 1,
@@ -150,5 +172,8 @@ const styles = StyleSheet.create({
   },
   column: {
     gap: 12,
+  },
+  pressed: {
+    opacity: 0.78,
   },
 });

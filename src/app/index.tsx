@@ -3,7 +3,6 @@ import { type Href, useRouter } from 'expo-router';
 import { ChevronRight, Search } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Image,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
@@ -16,10 +15,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ContentImageBackground } from '@/components/content/ContentImage';
+import { ContentImage, ContentImageBackground } from '@/components/content/ContentImage';
 import { HomeShortcutIcon } from '@/components/mixology/HomeShortcutIcon';
 import { ScreenShell } from '@/components/mixology/ScreenShell';
-import { getImageAsset } from '@/data/imageAssets';
 import { bundledContent } from '@/services/content/bundledContent';
 import { useContent } from '@/state/ContentState';
 import { colors, spacing } from '@/styles/mixologyTheme';
@@ -30,21 +28,34 @@ const DESIGN_WIDTH = 375;
 // 设计稿页面左右边距 30px = 15pt
 const PAGE_PADDING = 15;
 
-// 最新酒单卡片的配方 id（与设计稿四张卡一一对应）
-const MOSAIC_IDS = {
-  wide: 'italian-lady',
-  bottomLeft: 'old-fashioned',
-  bottomMiddle: 'gin-sour',
-  tall: 'blue-love',
-} as const;
+const retiredShortcutIds = new Set(['shared-cellar']);
+const BEIJING_OFFSET_MS = 8 * 60 * 60 * 1000;
 
-// 设计稿 1:1 裁剪素材（含烘焙好的酒名文字，无需代码文字浮层）
-const MOSAIC_IMAGE_KEYS = {
-  wide: 'homeItalianLady',
-  bottomLeft: 'homeOldFashioned',
-  bottomMiddle: 'homeGinSour',
-  tall: 'homeBlueLove',
-} as const;
+function beijingDateKey(date: Date) {
+  const beijingDate = new Date(date.getTime() + BEIJING_OFFSET_MS);
+  const year = beijingDate.getUTCFullYear();
+  const month = String(beijingDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(beijingDate.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function hashText(value: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+export function getDailyMenuRecipes(sourceRecipes: CocktailRecipe[], date = new Date()) {
+  const pool = (sourceRecipes.length >= 6 ? sourceRecipes : bundledContent.recipes)
+    .filter((recipe, index, recipes) => recipes.findIndex((item) => item.id === recipe.id) === index);
+  const dayKey = beijingDateKey(date);
+  return [...pool]
+    .sort((left, right) => hashText(`${dayKey}:${left.id}`) - hashText(`${dayKey}:${right.id}`))
+    .slice(0, 6);
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -58,7 +69,8 @@ export default function HomeScreen() {
     activeHeroIndex,
     Math.max(0, heroSlides.length - 1)
   );
-  const shortcuts = snapshot.shortcuts;
+  const shortcuts = snapshot.shortcuts.filter((shortcut) => !retiredShortcutIds.has(shortcut.id));
+  const [activeDailyIndex, setActiveDailyIndex] = useState(0);
 
   // 设计稿等比缩放因子
   const s = width / DESIGN_WIDTH;
@@ -66,29 +78,17 @@ export default function HomeScreen() {
   const bannerHeight = Math.min(Math.max(width * (460 / 750), 220), 250);
   const bannerFrame = { width, height: bannerHeight };
 
-  const findMosaicRecipe = (id: string) =>
-    snapshot.recipes.find((recipe) => recipe.id === id) ??
-    bundledContent.recipes.find((recipe) => recipe.id === id);
-  const recipes = {
-    wide: findMosaicRecipe(MOSAIC_IDS.wide),
-    bottomLeft: findMosaicRecipe(MOSAIC_IDS.bottomLeft),
-    bottomMiddle: findMosaicRecipe(MOSAIC_IDS.bottomMiddle),
-    tall: findMosaicRecipe(MOSAIC_IDS.tall),
-  };
+  const dailyMenuRecipes = getDailyMenuRecipes(snapshot.recipes);
+  const activeDailyRecipe = dailyMenuRecipes[activeDailyIndex] ?? dailyMenuRecipes[0];
+  const thumbnailRecipes = dailyMenuRecipes
+    .map((recipe, index) => ({ recipe, index }))
+    .filter((item) => item.index !== activeDailyIndex);
 
-  // 最新酒单：不用 aspectRatio/flex 推算，直接按设计稿像素算死宽高，避免 Expo 原生端高度塌成 0
-  // 设计稿：左列 448 + 右列 225，列间距 15px；左列宽卡 448x200，行间距 20px，小卡 216x210，右卡 225x430
   const contentWidth = width - PAGE_PADDING * 2;
-  const mosaicGap = 7.5 * s;
-  const mosaicLeftWidth = (contentWidth - mosaicGap) * (448 / (448 + 225));
-  const mosaicRightWidth = contentWidth - mosaicGap - mosaicLeftWidth;
-  const wideCardHeight = mosaicLeftWidth * (200 / 448);
-  const mosaicRowGap = 10 * s;
-  const tallCardHeight = mosaicRightWidth * (430 / 225);
-  const smallCardGap = 8 * s;
-  const smallCardWidth = (mosaicLeftWidth - smallCardGap) / 2;
-  // 小卡高度由右列总高反推，保证左右两列底部精确对齐
-  const smallCardHeight = tallCardHeight - wideCardHeight - mosaicRowGap;
+  const dailyFeaturedHeight = Math.max(180, contentWidth * 0.58);
+  const dailyThumbnailGap = 8 * s;
+  const dailyThumbnailWidth = Math.max(76, (contentWidth - dailyThumbnailGap * 3) / 4.2);
+  const dailyThumbnailHeight = Math.max(88, dailyThumbnailWidth * 1.18);
 
   // Banner 保留自动轮播；首张仍是设计稿整幅烘焙图
   useEffect(() => {
@@ -256,55 +256,70 @@ export default function HomeScreen() {
             ))}
           </View>
 
-          {/* ===== 最新酒单（设计稿标题 34px 粗体 + 右侧灰色查看全部）===== */}
+          {/* ===== 每日酒单（按北京时间日期稳定轮换）===== */}
           <View style={[styles.sectionHeader, { marginTop: 22 * s, marginBottom: 20 * s }]}>
-            <Text style={styles.sectionTitle}>最新酒单</Text>
-            <Text style={styles.sectionAction}>查看全部 &gt;</Text>
+            <Text style={styles.sectionTitle}>每日酒单</Text>
+            <Pressable
+              testID="daily-menu-see-all"
+              onPress={() => router.push('/recipes' as Href)}
+              hitSlop={10}
+              style={({ pressed }) => (pressed ? styles.pressed : null)}
+            >
+              <Text style={styles.sectionAction}>查看全部 &gt;</Text>
+            </Pressable>
           </View>
 
-          {/* 马赛克：左列 448 + 右列 225，行间距 20px / 列间距 15px */}
-          {recipes.wide && recipes.bottomLeft && recipes.bottomMiddle && recipes.tall ? (
-            <View style={styles.mosaic}>
-              <View style={[styles.mosaicLeft, { width: mosaicLeftWidth, marginRight: mosaicGap }]}>
-                <Pressable
-                  onPress={() => openRecipe(recipes.wide!)}
-                  style={({ pressed }) => [
-                    styles.mosaicCard,
-                    { width: mosaicLeftWidth, height: wideCardHeight, borderRadius: 8 * s },
-                    pressed ? styles.pressed : null,
-                  ]}>
-                  <MosaicTile recipe={recipes.wide!} imageKey={MOSAIC_IMAGE_KEYS.wide} width={mosaicLeftWidth} height={wideCardHeight} radius={8 * s} />
-                </Pressable>
-                <View style={[styles.mosaicBottomRow, { marginTop: mosaicRowGap }]}>
-                  <Pressable
-                    onPress={() => openRecipe(recipes.bottomLeft!)}
-                    style={({ pressed }) => [
-                      styles.mosaicCard,
-                      { width: smallCardWidth, height: smallCardHeight, borderRadius: 8 * s },
-                      pressed ? styles.pressed : null,
-                    ]}>
-                    <MosaicTile recipe={recipes.bottomLeft!} imageKey={MOSAIC_IMAGE_KEYS.bottomLeft} width={smallCardWidth} height={smallCardHeight} radius={8 * s} />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => openRecipe(recipes.bottomMiddle!)}
-                    style={({ pressed }) => [
-                      styles.mosaicCard,
-                      { width: smallCardWidth, height: smallCardHeight, borderRadius: 8 * s, marginLeft: smallCardGap },
-                      pressed ? styles.pressed : null,
-                    ]}>
-                    <MosaicTile recipe={recipes.bottomMiddle!} imageKey={MOSAIC_IMAGE_KEYS.bottomMiddle} width={smallCardWidth} height={smallCardHeight} radius={8 * s} />
-                  </Pressable>
-                </View>
-              </View>
+          {activeDailyRecipe ? (
+            <View style={styles.dailyMenuLayout}>
               <Pressable
-                onPress={() => openRecipe(recipes.tall!)}
+                testID="daily-menu-featured-card"
+                onPress={() => openRecipe(activeDailyRecipe)}
                 style={({ pressed }) => [
-                  styles.mosaicCard,
-                  { width: mosaicRightWidth, height: tallCardHeight, borderRadius: 8 * s },
+                  styles.dailyFeaturedPressable,
+                  { width: contentWidth, height: dailyFeaturedHeight, borderRadius: 8 * s },
                   pressed ? styles.pressed : null,
                 ]}>
-                <MosaicTile recipe={recipes.tall!} imageKey={MOSAIC_IMAGE_KEYS.tall} width={mosaicRightWidth} height={tallCardHeight} radius={8 * s} />
+                <DailyMenuTile
+                  recipe={activeDailyRecipe}
+                  width={contentWidth}
+                  height={dailyFeaturedHeight}
+                  radius={8 * s}
+                  variant="featured"
+                />
               </Pressable>
+              <ScrollView
+                testID="daily-menu-thumbnail-strip"
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={[styles.dailyThumbnailStrip, { gap: dailyThumbnailGap }]}>
+                {thumbnailRecipes.map(({ recipe, index }) => (
+                  <Pressable
+                    key={recipe.id}
+                    testID="daily-menu-thumbnail-tile"
+                    onPress={() => setActiveDailyIndex(index)}
+                    style={({ pressed }) => [
+                      styles.dailyThumbnailPressable,
+                      { width: dailyThumbnailWidth, height: dailyThumbnailHeight, borderRadius: 8 * s },
+                      pressed ? styles.pressed : null,
+                    ]}>
+                    <DailyMenuTile
+                      recipe={recipe}
+                      width={dailyThumbnailWidth}
+                      height={dailyThumbnailHeight}
+                      radius={8 * s}
+                      variant="thumbnail"
+                    />
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <View style={styles.dailyPager}>
+                {dailyMenuRecipes.map((recipe, index) => (
+                  <View
+                    key={recipe.id}
+                    style={[styles.dailyPagerDot, index === activeDailyIndex ? styles.dailyPagerDotActive : null]}
+                  />
+                ))}
+              </View>
             </View>
           ) : null}
         </View>
@@ -313,28 +328,52 @@ export default function HomeScreen() {
   );
 }
 
-function MosaicTile({
+function DailyMenuTile({
   recipe,
-  imageKey,
   width,
   height,
   radius,
+  variant,
 }: {
   recipe: CocktailRecipe;
-  imageKey: string;
   width: number;
   height: number;
   radius: number;
+  variant: 'featured' | 'thumbnail';
 }) {
-  // 设计稿 1:1 裁图，酒名/英文名已烘焙进图片，直接铺图即可；
-  // 宽高显式传入——Image 用百分比尺寸在 Expo 原生端会塌成空白
+  const featured = variant === 'featured';
   return (
-    <Image
-      source={getImageAsset(imageKey)}
-      accessibilityLabel={`${recipe.name} ${recipe.englishName}`}
-      resizeMode="cover"
-      style={{ width, height, borderRadius: radius, backgroundColor: '#1c0a11' }}
-    />
+    <View testID="daily-menu-tile" style={{ width, height, borderRadius: radius, overflow: 'hidden', backgroundColor: '#1c0a11' }}>
+      <ContentImage
+        imageKey={recipe.imageKey}
+        imageUrl={recipe.imageUrl}
+        accessibilityLabel={`${recipe.name} ${recipe.englishName}`}
+        resizeMode="cover"
+        style={{ width, height, borderRadius: radius, backgroundColor: '#1c0a11' }}
+      />
+      <LinearGradient
+        colors={featured ? ['rgba(0,0,0,0.03)', 'rgba(0,0,0,0.34)', 'rgba(0,0,0,0.82)'] : ['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.72)']}
+        style={[styles.dailyTileOverlay, featured ? styles.dailyFeaturedOverlay : styles.dailyThumbnailOverlay]}>
+        <Text
+          testID={featured ? 'daily-menu-featured-title' : undefined}
+          style={featured ? styles.dailyFeaturedName : styles.dailyThumbnailName}
+          numberOfLines={1}>
+          {recipe.name}
+        </Text>
+        <Text style={featured ? styles.dailyFeaturedEnglish : styles.dailyThumbnailEnglish} numberOfLines={1}>
+          {recipe.englishName}
+        </Text>
+        {featured ? (
+          <>
+            <Text style={styles.dailyFeaturedDescription} numberOfLines={1}>{recipe.description}</Text>
+            <View style={styles.dailyDetailPill}>
+              <Text style={styles.dailyDetailText}>查看详情</Text>
+              <ChevronRight color={colors.text} size={13} strokeWidth={2.6} />
+            </View>
+          </>
+        ) : null}
+      </LinearGradient>
+    </View>
   );
 }
 
@@ -460,16 +499,88 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
-  mosaic: {
-    flexDirection: 'row',
+  dailyMenuLayout: {
+    width: '100%',
   },
-  mosaicLeft: {
-    flexShrink: 0,
-  },
-  mosaicBottomRow: {
-    flexDirection: 'row',
-  },
-  mosaicCard: {
+  dailyFeaturedPressable: {
     overflow: 'hidden',
+  },
+  dailyThumbnailStrip: {
+    paddingTop: 12,
+    paddingBottom: 2,
+  },
+  dailyThumbnailPressable: {
+    overflow: 'hidden',
+  },
+  dailyTileOverlay: {
+    ...StyleSheet.absoluteFill,
+    justifyContent: 'flex-end',
+  },
+  dailyFeaturedOverlay: {
+    padding: 14,
+  },
+  dailyThumbnailOverlay: {
+    padding: 8,
+  },
+  dailyFeaturedName: {
+    color: colors.text,
+    fontSize: 19,
+    fontWeight: '900',
+  },
+  dailyFeaturedEnglish: {
+    color: 'rgba(255,255,255,0.74)',
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  dailyFeaturedDescription: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 9,
+  },
+  dailyDetailPill: {
+    minHeight: 30,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 15,
+    paddingHorizontal: 12,
+    marginTop: 12,
+    backgroundColor: 'rgba(118,35,58,0.82)',
+  },
+  dailyDetailText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  dailyThumbnailName: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  dailyThumbnailEnglish: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 9,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  dailyPager: {
+    minHeight: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  dailyPagerDot: {
+    width: 15,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.28)',
+  },
+  dailyPagerDotActive: {
+    width: 24,
+    backgroundColor: colors.pink,
   },
 });
